@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
+import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 
 /**
@@ -55,6 +56,7 @@ function normalizeLeadPayload(body: any) {
     interested_course: course.trim(),
     course: course.trim(),
     employee: (body.employee || 'Aslam').trim(),
+    employee_id: (body.employee_id || '').trim(),
     email: (body.email || '').trim(),
     address: (body.address || '').trim(),
 
@@ -88,12 +90,14 @@ export async function POST(req: Request) {
     const token = extractTokenFromHeader(authHeader);
     let creatorRole = 'guest';
     let creatorName = '';
+    let creatorId = '';
 
     if (token) {
       const decoded = verifyToken(token);
       if (decoded) {
         creatorRole = decoded.role || 'admin';
         creatorName = decoded.name || '';
+        creatorId = (decoded as any).id || '';
       }
     }
 
@@ -138,6 +142,16 @@ export async function POST(req: Request) {
     // If an authenticated user is known and no employee was specified, associate them
     if (creatorName && (!body.employee || body.employee === 'Aslam')) {
       payload.employee = creatorName;
+    }
+
+    // A lead created by an employee always belongs to that employee, and we
+    // also record their employee ID so it shows up in their app.
+    if (creatorRole === 'employee' && creatorId) {
+      const me: any = await Employee.findById(creatorId).lean();
+      if (me) {
+        payload.employee = me.name || payload.employee;
+        payload.employee_id = me.employee_id || '';
+      }
     }
 
     // Save lead in MongoDB

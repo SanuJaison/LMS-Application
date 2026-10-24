@@ -56,7 +56,12 @@ export async function GET(req: Request) {
       : { employee_id: employee.employee_id || '__none__' };
 
     const leaveQuery: any = nameFilter ? { employee: nameFilter } : { employee: '__none__' };
-    const leadQuery: any = nameFilter ? { employee: nameFilter } : { employee: '__none__' };
+    const leadQuery: any = (() => {
+      const mine: any[] = [];
+      if (nameFilter) mine.push({ employee: nameFilter });
+      if (employee.employee_id) mine.push({ employee_id: employee.employee_id });
+      return mine.length ? { $or: mine } : { employee: '__none__' };
+    })();
     const walletQuery: any = nameFilter ? { employee: nameFilter } : { employee: '__none__' };
 
     const [attendance, tasks, leaves, wallet, leads] = await Promise.all([

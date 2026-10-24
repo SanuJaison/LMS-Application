@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { escapeRegex } from '@/lib/employeeAuth';
 
 /**
  * 1. GET /api/leads
@@ -28,46 +31,64 @@ export async function GET(req: Request) {
       });
     }
 
-    // Build filter query
-    const filter: Record<string, any> = {};
+    // Build filter query. Conditions are combined with $and so that adding the
+    // employee scope below never overwrites a search/status filter.
+    const conditions: Record<string, any>[] = [];
 
     const district = searchParams.get('district');
-    if (district) filter.district = district;
+    if (district) conditions.push({ district });
 
     const status = searchParams.get('status') || searchParams.get('admission_status');
-    if (status) {
-      filter.$or = [{ admission_status: status }, { status: status }];
-    }
+    if (status) conditions.push({ $or: [{ admission_status: status }, { status }] });
 
     const course = searchParams.get('course') || searchParams.get('interested_course');
-    if (course) {
-      filter.$or = [{ interested_course: course }, { course: course }];
-    }
+    if (course) conditions.push({ $or: [{ interested_course: course }, { course }] });
 
     const interest = searchParams.get('student_interest') || searchParams.get('interest');
-    if (interest) filter.student_interest = interest;
+    if (interest) conditions.push({ student_interest: interest });
 
     const employee = searchParams.get('employee');
-    if (employee) filter.employee = employee;
+    if (employee) conditions.push({ employee });
 
     const search = searchParams.get('search');
     if (search) {
       const regex = new RegExp(search.trim(), 'i');
-      filter.$or = [
-        { name: regex },
-        { lead_id: regex },
-        { contact_number: regex },
-        { phone: regex },
-        { whats_number: regex },
-        { district: regex },
-        { place: regex },
-        { college_name: regex },
-        { qualification: regex },
-        { interested_topic: regex },
-        { course: regex },
-        { student_id: regex },
-      ];
+      conditions.push({
+        $or: [
+          { name: regex },
+          { lead_id: regex },
+          { contact_number: regex },
+          { phone: regex },
+          { whats_number: regex },
+          { district: regex },
+          { place: regex },
+          { college_name: regex },
+          { qualification: regex },
+          { interested_topic: regex },
+          { course: regex },
+          { student_id: regex },
+        ],
+      });
     }
+
+    // Employees only see the leads assigned to them. Admin/manager requests are
+    // unchanged and still receive every lead.
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+    if (decoded?.role === 'employee') {
+      const me: any = await Employee.findById(decoded.id).lean();
+
+      if (!me) {
+        conditions.push({ employee: '__none__' });
+      } else {
+        const mine: Record<string, any>[] = [];
+        if (me.name) mine.push({ employee: new RegExp(`^${escapeRegex(me.name)}$`, 'i') });
+        if (me.employee_id) mine.push({ employee_id: me.employee_id });
+        conditions.push(mine.length ? { $or: mine } : { employee: '__none__' });
+      }
+    }
+
+    const filter: Record<string, any> = conditions.length ? { $and: conditions } : {};
 
     const docs = await Lead.find(filter).sort({ createdAt: -1 }).lean();
     const data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));

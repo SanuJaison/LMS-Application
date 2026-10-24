@@ -32,6 +32,7 @@ export interface ILead extends Document {
   interested_course?: string; // Interested Course
   course?: string; // compatibility alias
   employee?: string; // Assigned BDE / Counselor
+  employee_id?: string; // Assigned employee ID, e.g. BDE001
   email?: string;
   address?: string;
 
@@ -178,6 +179,12 @@ const LeadSchema = new Schema<ILead>(
       type: String,
       default: '',
       trim: true,
+    },
+    employee_id: {
+      type: String,
+      default: '',
+      trim: true,
+      index: true,
     },
     email: {
       type: String,

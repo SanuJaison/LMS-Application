@@ -20,6 +20,7 @@ import {
   createResourceItem,
   updateResourceItem,
   deleteResourceItem,
+  authHeaders,
 } from '../../services/api';
 
 export interface LeadItem {
@@ -336,9 +337,9 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   // Download Example CSV
   const handleDownloadExampleCSV = () => {
     const csvContent =
-      'Name,Phone,Email,District,Course,Lead Source,Lead Status,Assigned Employee\n' +
-      'Suresh Kumar,9847123456,suresh@gmail.com,Ernakulam,Fullstack Development,Cold Call,New,Aslam\n' +
-      'Anjali Mohan,9847234567,anjali@gmail.com,Kozhikode,Data Science with Ai,Website,New,Alpha\n';
+      'Name,Phone,Email,Address,District,Source,Assigned Employee,Course,Notes\n' +
+      'Suresh Kumar,9847123456,suresh@gmail.com,Edappally Kochi,Ernakulam,Cold Call,BDE001,Fullstack Development,Interested in weekend batch\n' +
+      'Anjali Mohan,9847234567,anjali@gmail.com,Mavoor Kozhikode,Kozhikode,Website,ASM001,Data Science with AI,Call after 5 PM\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -350,7 +351,8 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
     document.body.removeChild(link);
   };
 
-  // Handle CSV Import
+  // Handle CSV Import - the server parses the file, resolves the assigned
+  // employee by ID or name, and bulk-inserts the leads.
   const handleImportCSV = async () => {
     if (!importFile) {
       showToast?.('danger', 'Please select a CSV file to upload.');
@@ -360,35 +362,37 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
     setIsImporting(true);
     try {
       const text = await importFile.text();
-      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-      if (lines.length <= 1) {
+
+      if (!text.trim()) {
         showToast?.('danger', 'CSV file appears to be empty.');
-        setIsImporting(false);
         return;
       }
 
-      const newLeads: any[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const parts = lines[i].split(',').map((p) => p.trim());
-        if (parts[0]) {
-          newLeads.push({
-            name: parts[0],
-            phone: parts[1] || '',
-            email: parts[2] || '',
-            district: parts[3] || 'Ernakulam',
-            course: parts[4] || 'Fullstack Development',
-            source: parts[5] || 'Cold Call',
-            status: parts[6] || 'New',
-            employee: parts[7] || 'Aslam',
-          });
-        }
+      const res = await fetch('/api/leads/import', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ csv: text }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok || !json?.success) {
+        const detail = json?.message || 'Failed to import CSV file.';
+        showToast?.('danger', detail);
+        return;
       }
 
-      for (const lead of newLeads) {
-        await createResourceItem('leads', lead);
+      const imported = json.data?.imported ?? 0;
+      const failed = json.data?.failed ?? 0;
+      const unmatched: string[] = json.data?.unmatched_assignments ?? [];
+
+      let message = `Imported ${imported} lead${imported === 1 ? '' : 's'} successfully!`;
+      if (failed > 0) message += ` ${failed} row${failed === 1 ? '' : 's'} skipped.`;
+      if (unmatched.length > 0) {
+        message += ` Unknown employee: ${unmatched.join(', ')}.`;
       }
 
-      showToast?.('success', `Imported ${newLeads.length} leads successfully!`);
+      showToast?.(failed > 0 || unmatched.length > 0 ? 'danger' : 'success', message);
       setImportModalOpen(false);
       setImportFile(null);
       await loadData();
