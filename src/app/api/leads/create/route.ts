@@ -3,7 +3,11 @@ import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
-import { assignLegacyIds, resolveEmployeeAssignment } from '@/lib/mobileLead';
+import {
+  assignLegacyIds,
+  resolveEmployeeAssignment,
+  serializeLeadsForMobile,
+} from '@/lib/mobileLead';
 
 /**
  * Helper to normalize and validate lead fields
@@ -167,16 +171,18 @@ export async function POST(req: Request) {
     await assignLegacyIds([payload as any]);
     const createdLead = await Lead.create(payload);
 
+    // Return the same shape the Flutter LeadModel parses (numeric id, int
+    // status/source, snake_case timestamps) so the app can use the result
+    // directly instead of only checking `success`.
+    const [mobileLead] = await serializeLeadsForMobile([createdLead.toObject()]);
+
     return NextResponse.json(
       {
         success: true,
-        message: `Lead ${createdLead.name} (${createdLead.lead_id}) created successfully at /api/leads/create`,
+        message: `Lead ${createdLead.name} (${createdLead.lead_id}) created successfully`,
         endpoint: '/api/leads/create',
         authorized_by: creatorRole,
-        data: {
-          ...createdLead.toObject(),
-          id: createdLead._id.toString(),
-        },
+        data: mobileLead,
       },
       { status: 201 }
     );
@@ -207,12 +213,16 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       message: 'Lead Creation Endpoint is active. Send a POST request to this endpoint to create a new lead.',
-      endpoint: 'http://localhost:3000/api/leads/create',
+      endpoint: '/api/leads/create',
       method: 'POST',
       validation_rules: {
         required_fields: ['name', 'contact_number'],
         optional_fields: [
+          'phone',
           'whats_number',
+          'whatsapp_number',
+          'email',
+          'address',
           'district',
           'place',
           'age',
@@ -228,6 +238,7 @@ export async function GET(req: Request) {
           'proof_url',
           'remarks',
           'employee',
+          'employee_id',
         ],
       },
       sample_post_payload: {
