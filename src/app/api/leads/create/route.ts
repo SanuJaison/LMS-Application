@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
@@ -8,78 +8,7 @@ import {
   resolveEmployeeAssignment,
   serializeLeadsForMobile,
 } from '@/lib/mobileLead';
-
-/**
- * Helper to normalize and validate lead fields
- */
-function normalizeLeadPayload(body: any) {
-  // Support aliases for contact number
-  const contact = body.contact_number || body.phone || body.contact || '';
-  const whatsApp = body.whats_number || body.whatsapp_number || contact;
-
-  // Auto-generate Lead ID if missing (e.g., LD-4921)
-  const leadId = body.lead_id || `LD-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  // Determine admission status
-  const admissionStatus = body.admission_status || body.status || 'New';
-  const isAdmitted =
-    admissionStatus === 'Admitted' ||
-    admissionStatus === 'Won' ||
-    admissionStatus === 'admitted' ||
-    body.status === 4 ||
-    body.status === 'Won';
-
-  // Auto-generate Student ID if admitted and not provided
-  let studentId = body.student_id || '';
-  if (isAdmitted && !studentId) {
-    studentId = `STU-${Math.floor(1000 + Math.random() * 9000)}`;
-  }
-
-  // Course aliases
-  const course = body.interested_course || body.course || '';
-
-  // Source aliases
-  const source = body.lead_source || body.source || 'Campus Drive / College Seminar';
-
-  // Notes / Remarks aliases
-  const notes = body.remarks || body.notes || '';
-
-  return {
-    lead_id: leadId,
-    name: (body.name || '').trim(),
-    contact_number: String(contact).trim(),
-    phone: String(contact).trim(),
-    whats_number: String(whatsApp).trim(),
-    whatsapp_number: String(whatsApp).trim(),
-    district: body.district || 'Ernakulam',
-    place: (body.place || '').trim(),
-    age: body.age ? Number(body.age) : undefined,
-    qualification: (body.qualification || '').trim(),
-    college_name: (body.college_name || '').trim(),
-    current_year: (body.current_year || '').trim(),
-    interested_topic: (body.interested_topic || '').trim(),
-    interested_course: course.trim(),
-    course: course.trim(),
-    employee: (body.employee || 'Aslam').trim(),
-    employee_id: (body.employee_id || '').trim(),
-    email: (body.email || '').trim(),
-    address: (body.address || '').trim(),
-
-    // Follow-up & Admission Tracking
-    lead_source: source,
-    source: source,
-    student_interest: body.student_interest || 'Medium',
-    next_followup_date: body.next_followup_date || '',
-    remarks: notes.trim(),
-    notes: notes.trim(),
-    admission_status: admissionStatus,
-    status: admissionStatus,
-    presentation: body.presentation || 'Not Scheduled',
-    student_id: studentId,
-    proof_url: (body.proof_url || '').trim(),
-    followups: Array.isArray(body.followups) ? body.followups : [],
-  };
-}
+import { normalizeLeadPayload } from '@/lib/leadPayload';
 
 /**
  * 1. POST /api/leads/create

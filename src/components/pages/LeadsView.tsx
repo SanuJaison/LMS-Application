@@ -13,6 +13,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
   FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import {
   fetchResourceList,
@@ -121,11 +122,13 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   const [formEmployee, setFormEmployee] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Load leads, districts, courses, and employees from MongoDB Atlas
-  const loadData = async () => {
+  // silent = true refreshes in the background without blanking the table
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [leadsRes, distsRes, coursesRes, empsRes] = await Promise.all([
         fetchResourceList('leads'),
         fetchDistricts(),
@@ -151,15 +154,30 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       }
     } catch (err) {
       console.error('Failed to load leads data:', err);
-      showToast?.('danger', 'Failed to load leads data from database.');
+      if (!silent) showToast?.('danger', 'Failed to load leads data from database.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
+    // Leads created from the employee app should show up as soon as the admin
+    // comes back to this tab, without a full page reload.
+    const refreshOnFocus = () => loadData(true);
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+    };
   }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(true);
+    setIsRefreshing(false);
+  };
 
   const rowId = (item: LeadItem) => (item._id || item.id || '').toString();
 
@@ -888,6 +906,14 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
             />
           </div>
           <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer disabled:opacity-50"
+            title="Refresh leads"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
             className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer"
             title="Columns"
           >
@@ -1017,7 +1043,18 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                       <td className="py-3.5 px-5 text-slate-300">{item.course || '—'}</td>
                       <td className="py-3.5 px-5 text-slate-300">{item.source || '—'}</td>
                       <td className="py-3.5 px-5 text-slate-200">{String(item.status || 'New')}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.employee || '—'}</td>
+                      <td className="py-3.5 px-5 text-slate-300">
+                        {item.employee ? (
+                          <span>
+                            {item.employee}
+                            {item.employee_id ? (
+                              <span className="text-slate-500"> ({item.employee_id})</span>
+                            ) : null}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td className="py-3.5 px-5 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <button
