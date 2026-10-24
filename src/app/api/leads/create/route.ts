@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { assignLegacyIds, resolveEmployeeAssignment } from '@/lib/mobileLead';
 
 /**
  * Helper to normalize and validate lead fields
@@ -154,7 +155,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Make sure the assigned employee always carries both the name and the ID
+    const assignment = await resolveEmployeeAssignment({
+      employee: payload.employee,
+      employee_id: payload.employee_id,
+    });
+    payload.employee = assignment.employee || payload.employee;
+    payload.employee_id = assignment.employee_id;
+
     // Save lead in MongoDB
+    await assignLegacyIds([payload as any]);
     const createdLead = await Lead.create(payload);
 
     return NextResponse.json(

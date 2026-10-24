@@ -1,18 +1,13 @@
 import { connectDB } from '@/lib/db';
-import { Lead } from '@/models/lead';
 import { getEmployee, ok } from '@/lib/employeeAuth';
+import { findLeadByAnyId, serializeLeadsForMobile } from '@/lib/mobileLead';
 
 export const dynamic = 'force-dynamic';
 
-function leadLookup(id: string) {
-  const value = String(id || '').trim();
-  if (/^[0-9a-fA-F]{24}$/.test(value)) return { _id: value };
-  return { lead_id: value };
-}
-
 /**
  * POST /api/leads/:id/close
- * Marks a lead as admitted / won.
+ * Marks a lead as admitted / won. Accepts a MongoDB id, the numeric app id,
+ * or the human readable lead_id.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -23,7 +18,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return ok(null, 'Unauthenticated', 401);
     }
 
-    const lead: any = await Lead.findOne(leadLookup(params.id));
+    const lead: any = await findLeadByAnyId(params.id);
 
     if (!lead) {
       return ok(null, 'Lead not found', 404);
@@ -37,7 +32,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     await lead.save();
 
-    return ok(lead, 'Lead closed successfully');
+    const [mobile] = await serializeLeadsForMobile([lead.toObject()]);
+
+    return ok(mobile, 'Lead closed successfully');
   } catch (error: any) {
     console.error('POST /api/leads/[id]/close error:', error);
     return ok(null, error.message || 'Failed to close lead', 500);

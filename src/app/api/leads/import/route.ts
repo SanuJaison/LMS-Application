@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
+import { assignLegacyIds } from '@/lib/mobileLead';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -360,12 +361,16 @@ export async function POST(req: Request) {
       );
     }
 
+    await assignLegacyIds(docs);
+
     const inserted = await Lead.insertMany(docs, { ordered: false });
 
     return NextResponse.json({
       success: true,
       message: `${inserted.length} lead${inserted.length === 1 ? '' : 's'} imported successfully`,
       data: {
+        import_id: Date.now(),
+        total_rows: records.length,
         imported: inserted.length,
         failed: errors.length,
         total: records.length,

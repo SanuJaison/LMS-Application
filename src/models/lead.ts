@@ -15,6 +15,7 @@ export interface IFollowUpLog {
 
 export interface ILead extends Document {
   lead_id: string; // Unique Lead ID, e.g., LD-1001
+  legacy_id?: number; // Numeric id used by the mobile app (close/follow-up endpoints)
 
   // Lead Generation Fields (matching Kerala Institute note)
   name: string;
@@ -104,6 +105,10 @@ const LeadSchema = new Schema<ILead>(
     lead_id: {
       type: String,
       trim: true,
+      index: true,
+    },
+    legacy_id: {
+      type: Number,
       index: true,
     },
     name: {

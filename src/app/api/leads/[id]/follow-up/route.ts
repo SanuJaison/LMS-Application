@@ -1,18 +1,15 @@
 import { connectDB } from '@/lib/db';
-import { Lead } from '@/models/lead';
 import { getEmployee, ok } from '@/lib/employeeAuth';
+import { findLeadByAnyId, serializeLeadsForMobile } from '@/lib/mobileLead';
 
 export const dynamic = 'force-dynamic';
 
-function leadLookup(id: string) {
-  const value = String(id || '').trim();
-  if (/^[0-9a-fA-F]{24}$/.test(value)) return { _id: value };
-  return { lead_id: value };
-}
-
 /**
  * POST /api/leads/:id/follow-up
- * Body: { remarks, student_interest, presentation, next_followup_date, admission_status, proof_url }
+ * Body: { remarks, notes, type, followup_date, next_followup_date,
+ *         student_interest, presentation, admission_status, proof_url }
+ *
+ * Accepts a MongoDB id, the numeric app id, or the human readable lead_id.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -23,7 +20,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return ok(null, 'Unauthenticated', 401);
     }
 
-    const lead: any = await Lead.findOne(leadLookup(params.id));
+    const lead: any = await findLeadByAnyId(params.id);
 
     if (!lead) {
       return ok(null, 'Lead not found', 404);
@@ -33,12 +30,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const today = new Date().toISOString().split('T')[0];
 
     const entry = {
-      date: String(body.date || today),
-      remarks: String(body.remarks || body.notes || ''),
+      date: String(body.followup_date || body.date || today),
+      remarks: String(body.notes || body.remarks || ''),
       student_interest: String(body.student_interest || lead.student_interest || 'Medium'),
       presentation: String(body.presentation || lead.presentation || 'Not Scheduled'),
       next_followup_date: String(body.next_followup_date || lead.next_followup_date || ''),
-      admission_status: String(body.admission_status || lead.admission_status || 'Follow Up'),
+      admission_status: String(
+        body.admission_status || body.type || lead.admission_status || 'Follow Up'
+      ),
       proof_url: String(body.proof_url || ''),
       recorded_by: employee.name,
     };
@@ -59,7 +58,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     await lead.save();
 
-    return ok(lead, 'Follow-up recorded successfully');
+    const [mobile] = await serializeLeadsForMobile([lead.toObject()]);
+
+    return ok(mobile, 'Follow-up recorded successfully');
   } catch (error: any) {
     console.error('POST /api/leads/[id]/follow-up error:', error);
     return ok(null, error.message || 'Failed to record follow-up', 500);

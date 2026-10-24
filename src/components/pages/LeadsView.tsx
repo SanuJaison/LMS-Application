@@ -70,7 +70,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
   const [courses, setCourses] = useState<string[]>([]);
-  const [employees, setEmployees] = useState<string[]>([]);
+  const [employees, setEmployees] = useState<{ name: string; employee_id?: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -125,7 +125,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
         setCourses(coursesRes.map((c: any) => c.name || c).filter(Boolean));
       }
       if (Array.isArray(empsRes)) {
-        setEmployees(empsRes.map((e: any) => e.name || e).filter(Boolean));
+        setEmployees(
+          empsRes
+            .map((e: any) => ({ name: e.name, employee_id: e.employee_id }))
+            .filter((e: any) => Boolean(e.name))
+        );
       }
     } catch (err) {
       console.error('Failed to load leads data:', err);
@@ -623,8 +627,8 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 >
                   <option value="" disabled>Select an option</option>
                   {employees.map((emp) => (
-                    <option key={emp} value={emp} className="bg-[#0b1322] text-white">
-                      {emp}
+                    <option key={emp.name} value={emp.name} className="bg-[#0b1322] text-white">
+                      {emp.employee_id ? `${emp.name} (${emp.employee_id})` : emp.name}
                     </option>
                   ))}
                   {employees.length === 0 && (
@@ -1203,7 +1207,9 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 >
                   <option value="">Select employee</option>
                   {employees.map((emp) => (
-                    <option key={emp} value={emp}>{emp}</option>
+                    <option key={emp.name} value={emp.name}>
+                      {emp.employee_id ? `${emp.name} (${emp.employee_id})` : emp.name}
+                    </option>
                   ))}
                 </select>
               </div>

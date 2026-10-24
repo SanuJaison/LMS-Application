@@ -4,6 +4,13 @@ import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { escapeRegex } from '@/lib/employeeAuth';
+import {
+  assignLegacyIds,
+  findLeadByAnyId,
+  leadStatusValuesFromInt,
+  resolveEmployeeAssignment,
+  serializeLeadsForMobile,
+} from '@/lib/mobileLead';
 
 /**
  * 1. GET /api/leads
@@ -18,16 +25,23 @@ export async function GET(req: Request) {
     const id = searchParams.get('id');
     const leadId = searchParams.get('lead_id');
 
-    // Single lead lookup by MongoDB ID or Unique Lead ID (e.g., LD-1001)
+    // Single lead lookup by MongoDB ID, numeric app id, or Unique Lead ID (e.g., LD-1001)
     if (id || leadId) {
-      const query = id ? { _id: id } : { lead_id: leadId };
-      const lead = await Lead.findOne(query).lean();
+      const lead: any = await findLeadByAnyId(String(id || leadId));
       if (!lead) {
         return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
       }
+      const tokenForSingle = extractTokenFromHeader(req);
+      const decodedForSingle = tokenForSingle ? verifyToken(tokenForSingle) : null;
+
+      if (decodedForSingle?.role === 'employee') {
+        const [mobile] = await serializeLeadsForMobile([lead.toObject ? lead.toObject() : lead]);
+        return NextResponse.json({ success: true, data: mobile });
+      }
+
       return NextResponse.json({
         success: true,
-        data: { ...lead, id: (lead as any)._id.toString() },
+        data: { ...lead.toObject?.(), id: lead._id.toString() },
       });
     }
 
@@ -39,7 +53,18 @@ export async function GET(req: Request) {
     if (district) conditions.push({ district });
 
     const status = searchParams.get('status') || searchParams.get('admission_status');
-    if (status) conditions.push({ $or: [{ admission_status: status }, { status }] });
+    if (status) {
+      // The mobile app sends a numeric status (1 New, 4 Admitted, 5 Closed)
+      const statusValues = /^\d+$/.test(status)
+        ? leadStatusValuesFromInt(Number(status))
+        : [status];
+      conditions.push({
+        $or: [
+          { admission_status: { $in: statusValues } },
+          { status: { $in: statusValues } },
+        ],
+      });
+    }
 
     const course = searchParams.get('course') || searchParams.get('interested_course');
     if (course) conditions.push({ $or: [{ interested_course: course }, { course }] });
@@ -91,6 +116,18 @@ export async function GET(req: Request) {
     const filter: Record<string, any> = conditions.length ? { $and: conditions } : {};
 
     const docs = await Lead.find(filter).sort({ createdAt: -1 }).lean();
+
+    // The Flutter app parses a Laravel-style lead object with numeric ids,
+    // integer status/source and snake_case timestamps.
+    if (decoded?.role === 'employee') {
+      const mobile = await serializeLeadsForMobile(docs as any[]);
+      return NextResponse.json({
+        success: true,
+        count: mobile.length,
+        data: mobile,
+      });
+    }
+
     const data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));
 
     return NextResponse.json({
@@ -157,6 +194,7 @@ export async function POST(req: Request) {
       interested_course: (body.interested_course || body.course || '').trim(),
       course: (body.course || body.interested_course || '').trim(),
       employee: (body.employee || 'Aslam').trim(),
+      employee_id: (body.employee_id || '').trim(),
       email: (body.email || '').trim(),
       address: (body.address || '').trim(),
 
@@ -174,6 +212,17 @@ export async function POST(req: Request) {
       proof_url: (body.proof_url || '').trim(),
       followups: Array.isArray(body.followups) ? body.followups : [],
     };
+
+    // Resolve the assigned employee so both the name and the employee ID are
+    // stored. Accepts a name ("Aslam") or an ID ("BDE001").
+    const assignment = await resolveEmployeeAssignment({
+      employee: body.employee || payload.employee,
+      employee_id: body.employee_id || payload.employee_id,
+    });
+    payload.employee = assignment.employee || payload.employee;
+    payload.employee_id = assignment.employee_id;
+
+    await assignLegacyIds([payload as any]);
 
     const created = await Lead.create(payload);
 
@@ -228,6 +277,16 @@ export async function PUT(req: Request) {
     if (updateData.status && !updateData.admission_status) updateData.admission_status = updateData.status;
     if (updateData.remarks && !updateData.notes) updateData.notes = updateData.remarks;
     if (updateData.notes && !updateData.remarks) updateData.remarks = updateData.notes;
+
+    // Keep employee name + employee ID in sync when either one is changed
+    if (updateData.employee !== undefined || updateData.employee_id !== undefined) {
+      const assignment = await resolveEmployeeAssignment({
+        employee: updateData.employee,
+        employee_id: updateData.employee_id,
+      });
+      updateData.employee = assignment.employee;
+      updateData.employee_id = assignment.employee_id;
+    }
 
     // Auto-generate student_id if marked as Admitted without one
     const isAdmitted =
