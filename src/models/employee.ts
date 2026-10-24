@@ -11,6 +11,7 @@ export interface IEmployee extends Document {
   team?: string;
   upi_id?: string;
   password?: string;
+  require_password_change?: boolean;
   bank_name?: string;
   account_holder_name?: string;
   account_number?: string;
@@ -70,6 +71,10 @@ const EmployeeSchema = new Schema<IEmployee>(
       type: String,
       default: '',
       select: false,
+    },
+    require_password_change: {
+      type: Boolean,
+      default: false,
     },
     bank_name: {
       type: String,

@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { User } from '@/models/users';
 import { Employee } from '@/models/employee';
+import { Designation } from '@/models';
 import { signToken } from '@/lib/jwt';
-import bcrypt from 'bcryptjs';
+import { checkPassword, hashPassword } from '@/lib/password';
 
 /**
  * Escape a string so it can be used safely inside a RegExp.
@@ -13,38 +14,77 @@ function escapeRegex(value: string): string {
 }
 
 /**
- * Verify a plain-text password against a stored hash (bcrypt) or a legacy
- * plain-text value. Legacy plain-text passwords are upgraded to bcrypt on
- * the first successful login.
+ * Mongo ObjectIds are strings, but the mobile app expects a numeric id
+ * (Laravel-style). Derive a stable number from the ObjectId.
  */
-async function checkPassword(password: string, doc: any): Promise<boolean> {
-  if (!doc || !doc.password) return false;
+function numericId(id: any): number | null {
+  if (!id) return null;
+  const hex = String(id);
+  const parsed = parseInt(hex.slice(-6), 16);
+  return Number.isNaN(parsed) ? null : parsed;
+}
 
-  const stored = String(doc.password);
+/**
+ * Format a date the way Laravel serialises timestamps: 2026-08-05T05:39:17.000000Z
+ */
+function toLaravelDate(value?: Date | string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value as any);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().replace(/\.(\d{3})Z$/, '.$1000Z');
+}
 
-  // bcrypt hashes ($2a$, $2b$ from bcryptjs, $2y$ from PHP/Laravel)
-  if (/^\$2[aby]\$/.test(stored)) {
-    return bcrypt.compare(password, stored);
+interface LaravelUserShape {
+  id: number | null;
+  name: string;
+  email: string;
+  email_verified_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  designation_name: string | null;
+  designation_id: number | null;
+  roles: string[];
+  permissions: string[];
+}
+
+/**
+ * Build the `data.user` object the Flutter app expects.
+ */
+async function buildLaravelUser(doc: any, designationName?: string): Promise<LaravelUserShape> {
+  const name = designationName || doc.designation || '';
+
+  let designationDoc: any = null;
+  if (name) {
+    designationDoc = await Designation.findOne({
+      name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' },
+    }).lean();
   }
 
-  // Legacy plain-text match -> upgrade to a hash
-  if (stored === password) {
-    doc.password = await bcrypt.hash(password, 10);
-    await doc.save();
-    return true;
-  }
-
-  return false;
+  return {
+    id: numericId(doc._id),
+    name: doc.name || '',
+    email: doc.email || '',
+    email_verified_at: null,
+    created_at: toLaravelDate(doc.createdAt),
+    updated_at: toLaravelDate(doc.updatedAt),
+    designation_name: name || null,
+    designation_id: designationDoc?._id ? numericId(designationDoc._id) : null,
+    roles: [],
+    permissions: [],
+  };
 }
 
 /**
  * POST /api/login
  *
  * Supports two kinds of login:
- *   1. Employee  -> { "employee_id": "BDE005", "password": "test123" }
+ *   1. Employee   -> { "employee_id": "BDE005", "password": "test123" }
  *   2. Admin/User -> { "email": "admin@kide.com", "password": "password123" }
  *
- * Both return the same shape: { success, token, user }
+ * Responds with the Laravel-compatible shape the mobile app expects:
+ *   { success, message, data: { token, user, require_password_change } }
+ *
+ * The top-level `token` and `user` keys are kept for the existing admin web UI.
  */
 export async function POST(req: Request) {
   try {
@@ -115,9 +155,13 @@ export async function POST(req: Request) {
           role: 'employee',
         });
 
+        const requirePasswordChange = Boolean(employee.require_password_change);
+        const laravelUser = await buildLaravelUser(employee, employee.designation);
+
         return NextResponse.json({
           success: true,
-          message: 'Login successful. JWT token issued.',
+          message: 'Logged in successfully',
+          // --- kept for the existing admin web UI ---
           token,
           user: {
             id: employee._id.toString(),
@@ -130,6 +174,12 @@ export async function POST(req: Request) {
             district: employee.district || '',
             role: 'employee',
             status: employee.status,
+          },
+          // --- Laravel-compatible shape for the mobile app ---
+          data: {
+            token,
+            user: laravelUser,
+            require_password_change: requirePasswordChange,
           },
         });
       }
@@ -164,7 +214,7 @@ export async function POST(req: Request) {
     if (!user) {
       const totalUsers = await User.countDocuments();
       if (totalUsers === 0 || cleanEmail.includes('admin')) {
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await hashPassword(password);
         user = await User.create({
           name: 'Admin User',
           email: cleanEmail,
@@ -200,15 +250,24 @@ export async function POST(req: Request) {
       role: user.role,
     });
 
+    const laravelUser = await buildLaravelUser(user);
+
     return NextResponse.json({
       success: true,
-      message: 'Login successful. JWT token issued.',
+      message: 'Logged in successfully',
+      // --- kept for the existing admin web UI ---
       token,
       user: {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,
+      },
+      // --- Laravel-compatible shape for the mobile app ---
+      data: {
+        token,
+        user: laravelUser,
+        require_password_change: false,
       },
     });
   } catch (error: any) {
