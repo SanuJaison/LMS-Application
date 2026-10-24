@@ -265,6 +265,11 @@ export async function PUT(req: Request) {
     const updateData: Record<string, any> = { ...body };
     delete updateData.id;
 
+    if (updateData.age !== undefined) {
+      if (updateData.age === '' || updateData.age === null) delete updateData.age;
+      else updateData.age = Number(updateData.age);
+    }
+
     if (updateData.contact_number && !updateData.phone) updateData.phone = updateData.contact_number;
     if (updateData.phone && !updateData.contact_number) updateData.contact_number = updateData.phone;
     if (updateData.whats_number && !updateData.whatsapp_number) updateData.whatsapp_number = updateData.whats_number;

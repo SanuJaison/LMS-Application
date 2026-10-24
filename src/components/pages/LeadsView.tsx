@@ -28,13 +28,24 @@ export interface LeadItem {
   id?: string;
   name: string;
   phone?: string;
+  whats_number?: string;
   email?: string;
   address?: string;
+  place?: string;
   district?: string;
   course?: string;
+  interested_course?: string;
+  interested_topic?: string;
+  age?: string | number;
+  qualification?: string;
+  college_name?: string;
+  current_year?: string;
   source?: string;
+  lead_source?: string;
   status: any;
+  admission_status?: string;
   employee?: string;
+  employee_id?: string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -94,9 +105,16 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   // Create Form State
   const [formName, setFormName] = useState<string>('');
   const [formPhone, setFormPhone] = useState<string>('');
+  const [formWhatsapp, setFormWhatsapp] = useState<string>('');
   const [formEmail, setFormEmail] = useState<string>('');
   const [formAddress, setFormAddress] = useState<string>('');
+  const [formPlace, setFormPlace] = useState<string>('');
   const [formDistrict, setFormDistrict] = useState<string>('');
+  const [formAge, setFormAge] = useState<string>('');
+  const [formQualification, setFormQualification] = useState<string>('');
+  const [formCollege, setFormCollege] = useState<string>('');
+  const [formCurrentYear, setFormCurrentYear] = useState<string>('');
+  const [formInterestedTopic, setFormInterestedTopic] = useState<string>('');
   const [formCourse, setFormCourse] = useState<string>('');
   const [formSource, setFormSource] = useState<string>('');
   const [formStatus, setFormStatus] = useState<string>('New');
@@ -242,9 +260,16 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   const resetForm = () => {
     setFormName('');
     setFormPhone('');
+    setFormWhatsapp('');
     setFormEmail('');
     setFormAddress('');
+    setFormPlace('');
     setFormDistrict('');
+    setFormAge('');
+    setFormQualification('');
+    setFormCollege('');
+    setFormCurrentYear('');
+    setFormInterestedTopic('');
     setFormCourse('');
     setFormSource('');
     setFormStatus('New');
@@ -280,14 +305,27 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       const payload = {
         name: formName.trim(),
         phone: formPhone.trim(),
+        contact_number: formPhone.trim(),
+        whats_number: formWhatsapp.trim() || formPhone.trim(),
+        whatsapp_number: formWhatsapp.trim() || formPhone.trim(),
         email: formEmail.trim(),
         address: formAddress.trim(),
+        place: formPlace.trim(),
         district: formDistrict,
+        age: formAge.trim(),
+        qualification: formQualification.trim(),
+        college_name: formCollege.trim(),
+        current_year: formCurrentYear.trim(),
+        interested_topic: formInterestedTopic.trim(),
+        interested_course: formCourse,
         course: formCourse,
         source: formSource,
+        lead_source: formSource,
         status: formStatus || 'New',
+        admission_status: formStatus || 'New',
         employee: formEmployee,
         notes: formNotes.trim(),
+        remarks: formNotes.trim(),
       };
 
       await createResourceItem('leads', payload);
@@ -319,12 +357,24 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
         _id: rowId(editingLead),
         name: editingLead.name,
         phone: editingLead.phone,
+        contact_number: editingLead.phone,
+        whats_number: editingLead.whats_number,
+        whatsapp_number: editingLead.whats_number,
         email: editingLead.email,
         address: editingLead.address,
+        place: editingLead.place,
         district: editingLead.district,
+        age: editingLead.age,
+        qualification: editingLead.qualification,
+        college_name: editingLead.college_name,
+        current_year: editingLead.current_year,
+        interested_topic: editingLead.interested_topic,
+        interested_course: editingLead.course,
         course: editingLead.course,
         source: editingLead.source,
+        lead_source: editingLead.source,
         status: editingLead.status,
+        admission_status: editingLead.status,
         employee: editingLead.employee,
         notes: editingLead.notes,
       });
@@ -464,8 +514,20 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
             </div>
           </div>
 
-          {/* Row 2: Email */}
+          {/* Row 2: WhatsApp Number & Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                WhatsApp Number
+              </label>
+              <input
+                type="text"
+                value={formWhatsapp}
+                onChange={(e) => setFormWhatsapp(e.target.value)}
+                placeholder="Defaults to the phone number"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 Email
@@ -477,7 +539,6 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
               />
             </div>
-            <div className="hidden md:block"></div>
           </div>
 
           {/* Row 3: Address (Full Width) */}
@@ -493,8 +554,20 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
             />
           </div>
 
-          {/* Row 4: District & Course */}
+          {/* Row 4: Place & District */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Place
+              </label>
+              <input
+                type="text"
+                value={formPlace}
+                onChange={(e) => setFormPlace(e.target.value)}
+                placeholder="e.g. Edappally, Kochi"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 District <span className="text-rose-500">*</span>
@@ -519,10 +592,82 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
+          </div>
 
+          {/* Row 5: Age & Qualification */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Course <span className="text-rose-500">*</span>
+                Age
+              </label>
+              <input
+                type="number"
+                min={10}
+                max={100}
+                value={formAge}
+                onChange={(e) => setFormAge(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Qualification
+              </label>
+              <input
+                type="text"
+                value={formQualification}
+                onChange={(e) => setFormQualification(e.target.value)}
+                placeholder="e.g. B.Tech Computer Science"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
+          </div>
+
+          {/* Row 6: College / Institute & Current Year */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                College / Institute Name
+              </label>
+              <input
+                type="text"
+                value={formCollege}
+                onChange={(e) => setFormCollege(e.target.value)}
+                placeholder="e.g. Model Engineering College"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Current Year
+              </label>
+              <input
+                type="text"
+                value={formCurrentYear}
+                onChange={(e) => setFormCurrentYear(e.target.value)}
+                placeholder="e.g. Final Year / Passed Out"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
+          </div>
+
+          {/* Row 7: Interested Topic & Interested Course */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Interested Topic
+              </label>
+              <input
+                type="text"
+                value={formInterestedTopic}
+                onChange={(e) => setFormInterestedTopic(e.target.value)}
+                placeholder="e.g. MERN Stack & Next.js"
+                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Interested Course <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <select
@@ -1051,6 +1196,36 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                   <span className="text-white font-medium">{viewingLead.email || '—'}</span>
                 </div>
                 <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">WhatsApp</span>
+                  <span className="text-white font-medium">
+                    {viewingLead.whats_number || viewingLead.phone || '—'}
+                  </span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">Place</span>
+                  <span className="text-white font-medium">{viewingLead.place || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">Age</span>
+                  <span className="text-white font-medium">{viewingLead.age || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">Qualification</span>
+                  <span className="text-white font-medium">{viewingLead.qualification || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">College / Institute</span>
+                  <span className="text-white font-medium">{viewingLead.college_name || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
+                  <span className="text-slate-400 block mb-0.5">Current Year</span>
+                  <span className="text-white font-medium">{viewingLead.current_year || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800 col-span-2">
+                  <span className="text-slate-400 block mb-0.5">Interested Topic</span>
+                  <span className="text-white font-medium">{viewingLead.interested_topic || '—'}</span>
+                </div>
+                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
                   <span className="text-slate-400 block mb-0.5">District</span>
                   <span className="text-white font-medium">{viewingLead.district || '—'}</span>
                 </div>
@@ -1140,6 +1315,81 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                     className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">WhatsApp Number</label>
+                  <input
+                    type="text"
+                    value={editingLead.whats_number || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, whats_number: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Place</label>
+                  <input
+                    type="text"
+                    value={editingLead.place || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, place: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Age</label>
+                  <input
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={editingLead.age ?? ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, age: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Qualification</label>
+                  <input
+                    type="text"
+                    value={editingLead.qualification || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, qualification: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">College / Institute Name</label>
+                  <input
+                    type="text"
+                    value={editingLead.college_name || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, college_name: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Year</label>
+                  <input
+                    type="text"
+                    value={editingLead.current_year || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, current_year: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Interested Topic</label>
+                <input
+                  type="text"
+                  value={editingLead.interested_topic || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, interested_topic: e.target.value })}
+                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
