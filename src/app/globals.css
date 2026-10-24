@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-50: 243, 250, 251;
+  --primary-100: 231, 246, 247;
+  --primary-200: 194, 232, 235;
+  --primary-300: 157, 218, 223;
+  --primary-400: 84, 190, 199;
+  --primary-500: 10, 162, 175;
+  --primary-600: 9, 146, 158;
+  --primary-700: 8, 122, 131;
+  --primary-800: 6, 97, 105;
+  --primary-900: 5, 79, 86;
+  --primary-950: 3, 49, 53;
+
+  --danger-50: 255, 241, 242;
+  --danger-600: 225, 29, 72;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile & Touch optimized smooth scrolling */
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom sleek dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090e1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #09929e;
+}

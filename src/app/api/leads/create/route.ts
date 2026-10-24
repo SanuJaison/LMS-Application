@@ -1,0 +1,259 @@
+import { NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db';
+import { Lead } from '@/models/lead';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+
+/**
+ * Helper to normalize and validate lead fields
+ */
+function normalizeLeadPayload(body: any) {
+  // Support aliases for contact number
+  const contact = body.contact_number || body.phone || body.contact || '';
+  const whatsApp = body.whats_number || body.whatsapp_number || contact;
+
+  // Auto-generate Lead ID if missing (e.g., LD-4921)
+  const leadId = body.lead_id || `LD-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // Determine admission status
+  const admissionStatus = body.admission_status || body.status || 'New';
+  const isAdmitted =
+    admissionStatus === 'Admitted' ||
+    admissionStatus === 'Won' ||
+    admissionStatus === 'admitted' ||
+    body.status === 4 ||
+    body.status === 'Won';
+
+  // Auto-generate Student ID if admitted and not provided
+  let studentId = body.student_id || '';
+  if (isAdmitted && !studentId) {
+    studentId = `STU-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+
+  // Course aliases
+  const course = body.interested_course || body.course || '';
+
+  // Source aliases
+  const source = body.lead_source || body.source || 'Campus Drive / College Seminar';
+
+  // Notes / Remarks aliases
+  const notes = body.remarks || body.notes || '';
+
+  return {
+    lead_id: leadId,
+    name: (body.name || '').trim(),
+    contact_number: String(contact).trim(),
+    phone: String(contact).trim(),
+    whats_number: String(whatsApp).trim(),
+    whatsapp_number: String(whatsApp).trim(),
+    district: body.district || 'Ernakulam',
+    place: (body.place || '').trim(),
+    age: body.age ? Number(body.age) : undefined,
+    qualification: (body.qualification || '').trim(),
+    college_name: (body.college_name || '').trim(),
+    current_year: (body.current_year || '').trim(),
+    interested_topic: (body.interested_topic || '').trim(),
+    interested_course: course.trim(),
+    course: course.trim(),
+    employee: (body.employee || 'Aslam').trim(),
+    email: (body.email || '').trim(),
+    address: (body.address || '').trim(),
+
+    // Follow-up & Admission Tracking
+    lead_source: source,
+    source: source,
+    student_interest: body.student_interest || 'Medium',
+    next_followup_date: body.next_followup_date || '',
+    remarks: notes.trim(),
+    notes: notes.trim(),
+    admission_status: admissionStatus,
+    status: admissionStatus,
+    presentation: body.presentation || 'Not Scheduled',
+    student_id: studentId,
+    proof_url: (body.proof_url || '').trim(),
+    followups: Array.isArray(body.followups) ? body.followups : [],
+  };
+}
+
+/**
+ * 1. POST /api/leads/create
+ * Official Lead Creation Endpoint
+ * Supports JSON payload with full Kerala Institute lead & follow-up fields.
+ */
+export async function POST(req: Request) {
+  try {
+    await connectDB();
+
+    // Check optional Authorization header for audit / verification
+    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
+    let creatorRole = 'guest';
+    let creatorName = '';
+
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        creatorRole = decoded.role || 'admin';
+        creatorName = decoded.name || '';
+      }
+    }
+
+    const body = await req.json().catch(() => null);
+
+    if (!body) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid JSON request body. Please provide lead data.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validation: Name is required
+    if (!body.name || !String(body.name).trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Validation failed: Student Name (name) is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validation: Contact number is required
+    const contact = body.contact_number || body.phone || body.contact;
+    if (!contact || !String(contact).trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Validation failed: Contact Number (contact_number or phone) is required.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Normalize payload
+    const payload = normalizeLeadPayload(body);
+
+    // If an authenticated user is known and no employee was specified, associate them
+    if (creatorName && (!body.employee || body.employee === 'Aslam')) {
+      payload.employee = creatorName;
+    }
+
+    // Save lead in MongoDB
+    const createdLead = await Lead.create(payload);
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Lead ${createdLead.name} (${createdLead.lead_id}) created successfully at /api/leads/create`,
+        endpoint: '/api/leads/create',
+        authorized_by: creatorRole,
+        data: {
+          ...createdLead.toObject(),
+          id: createdLead._id.toString(),
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('POST /api/leads/create error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: error.message || 'Failed to create lead',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * 2. GET /api/leads/create
+ * Information & Schema Guide for testing the Lead Creation endpoint.
+ */
+export async function GET(req: Request) {
+  try {
+    await connectDB();
+    const latestLeads = await Lead.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Lead Creation Endpoint is active. Send a POST request to this endpoint to create a new lead.',
+      endpoint: 'http://localhost:3000/api/leads/create',
+      method: 'POST',
+      validation_rules: {
+        required_fields: ['name', 'contact_number'],
+        optional_fields: [
+          'whats_number',
+          'district',
+          'place',
+          'age',
+          'qualification',
+          'college_name',
+          'current_year',
+          'interested_topic',
+          'interested_course',
+          'lead_source',
+          'student_interest',
+          'presentation',
+          'admission_status',
+          'proof_url',
+          'remarks',
+          'employee',
+        ],
+      },
+      sample_post_payload: {
+        name: 'Rahul Krishna',
+        contact_number: '9847123456',
+        whats_number: '9847123456',
+        district: 'Ernakulam',
+        place: 'Edappally, Kochi',
+        age: 22,
+        qualification: 'B.Tech Computer Science',
+        college_name: 'Model Engineering College',
+        current_year: 'Final Year',
+        interested_topic: 'MERN Stack & Next.js Development',
+        interested_course: 'Full Stack Web Development',
+        lead_source: 'Campus Drive / College Seminar',
+        student_interest: 'High',
+        presentation: 'Scheduled for Saturday',
+        admission_status: 'New',
+        employee: 'Aslam',
+      },
+      recent_created_leads_count: latestLeads.length,
+      recent_leads: latestLeads.map((l: any) => ({
+        id: l._id.toString(),
+        lead_id: l.lead_id,
+        name: l.name,
+        contact_number: l.contact_number,
+        district: l.district,
+        course: l.course,
+        status: l.status,
+      })),
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * 3. OPTIONS /api/leads/create
+ * CORS Preflight Handler
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
