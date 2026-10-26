@@ -231,50 +231,43 @@ Response `200`:
 
 ---
 
-## 4. Close a lead (mark admitted)
+## 4. Add a follow-up
 
-`POST /leads/{id}/close`
+`POST /leads/{id}/followup`  ← use this path (no hyphen)
+
+`POST /leads/{id}/follow-up` also works; both do exactly the same thing.
 
 `{id}` = numeric `id` from the lead object (Mongo `_id` and `lead_id` also work).
 
-No body required.
+### Body
 
-Response `200`:
+| Field                  | Type   | Values / notes                                                        |
+| ---------------------- | ------ | --------------------------------------------------------------------- |
+| `lead_source`          | string | `College Visit`, `Seminar`, `Referral`, `Social Media`, `Cold Call`, `Website`, `Walk-in`, `Google Ads`, `Other` |
+| `student_interest`     | string | `Cold`, `Warm`, `Hot`                                                 |
+| `next_followup_date`   | string | `YYYY-MM-DD`                                                          |
+| `remarks` / `notes`    | string | Free text. Either key works.                                          |
+| `admission_status`     | string | `New Lead`, `Follow Uped`, `Payment Pending`, `Admission`, `Not Interested` |
+| `payment_verification` | string | `Pending`, `Verified` (the typo `verifed` is accepted too)            |
+| `student_id`           | string | Required once the admission is confirmed, e.g. `STU-1001`. Generated automatically if `admission_status` is `Admission` and it is empty. |
+| `course`               | string | Course the student is joining.                                        |
+| `followup_date`        | string | `YYYY-MM-DD`; defaults to today.                                      |
+| `proof_url`            | string | Optional screenshot / recording link.                                 |
 
-```json
-{
-  "success": true,
-  "message": "Lead closed successfully",
-  "data": { "...": "updated lead object, status: 4" }
-}
-```
-
-Errors: `401` unauthenticated, `404` lead not found.
-
----
-
-## 5. Add a follow-up
-
-`POST /leads/{id}/follow-up`
-
-`{id}` = numeric `id` from the lead object.
-
-Body (all optional):
+All fields are optional, but the app should send the first eight.
 
 ```json
 {
-  "notes": "Called again, asked for fee details",
-  "followup_date": "2026-10-27",
+  "lead_source": "College Visit",
+  "student_interest": "Warm",
   "next_followup_date": "2026-10-30",
-  "student_interest": "High",
-  "presentation": "Scheduled",
-  "admission_status": "Follow Up",
-  "proof_url": ""
+  "remarks": "Visited the college, interested in the MERN batch",
+  "admission_status": "Follow Uped",
+  "payment_verification": "Pending",
+  "student_id": "STU-1001",
+  "course": "Full-Stack Web Development"
 }
 ```
-
-`remarks` works in place of `notes`; `type` works in place of `admission_status`;
-`date` works in place of `followup_date`.
 
 Response `200`:
 
@@ -282,7 +275,88 @@ Response `200`:
 {
   "success": true,
   "message": "Follow-up recorded successfully",
-  "data": { "...": "updated lead object with the new entry appended to followups[]" }
+  "data": {
+    "id": 436888973,
+    "status": 2,
+    "admission_status": "Follow Uped",
+    "student_interest": "Warm",
+    "next_followup_date": "2026-10-30",
+    "lead_source": "College Visit",
+    "source": 3,
+    "payment_verification": "Pending",
+    "student_id": "STU-1001",
+    "interested_course": "Full-Stack Web Development",
+    "followups": [
+      {
+        "id": 771203,
+        "lead_id": 436888973,
+        "employee_id": 331,
+        "followup_date": "2026-10-27",
+        "type": "Follow Uped",
+        "notes": "Visited the college, interested in the MERN batch",
+        "student_interest": "Warm",
+        "lead_source": "College Visit",
+        "next_followup_date": "2026-10-30",
+        "payment_verification": "Pending",
+        "student_id": "STU-1001",
+        "course": "Full-Stack Web Development"
+      }
+    ]
+  }
+}
+```
+
+Errors: `401` unauthenticated, `404` lead not found.
+
+---
+
+## 5. Close a lead (admission confirmed)
+
+`POST /leads/{id}/close`
+
+`{id}` = numeric `id` from the lead object.
+
+### Body
+
+| Field                  | Type             | Values / notes                                              |
+| ---------------------- | ---------------- | ----------------------------------------------------------- |
+| `student_id`           | string           | Student ID, e.g. `STU-1001`. Generated if omitted.          |
+| `course`               | string           | Course the student joined.                                  |
+| `payment`              | number \| string | Amount paid (e.g. `25000`) **or** `verified` / `pending`.   |
+| `payment_amount`       | number           | Use instead of `payment` when sending the amount separately.|
+| `payment_verification` | string           | `Pending`, `Verified` (typo `verifed` accepted).            |
+| `remarks` / `notes`    | string           | Optional. Defaults to `Admission confirmed`.                |
+| `lead_source`          | string           | Optional.                                                   |
+
+Nothing is strictly required — if the app closes without a body, the lead's
+current values are kept and a student ID is generated.
+
+```json
+{
+  "student_id": "STU-1001",
+  "course": "Full-Stack Web Development",
+  "payment": 25000,
+  "payment_verification": "Verified",
+  "remarks": "Admission confirmed, fee paid"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "success": true,
+  "message": "Lead closed successfully",
+  "data": {
+    "id": 436888973,
+    "status": 4,
+    "admission_status": "Admission",
+    "student_id": "STU-1001",
+    "interested_course": "Full-Stack Web Development",
+    "payment_verification": "Verified",
+    "payment_amount": 25000,
+    "followups": [ "...including an Admission entry..." ]
+  }
 }
 ```
 
@@ -292,15 +366,18 @@ Errors: `401` unauthenticated, `404` lead not found.
 
 ## Status and source codes
 
-`status` (int) — used by `LeadModel.status`:
+`status` (int) — used by `LeadModel.status`, mapped from `admission_status`:
 
-| Value | Meaning                 |
-| ----- | ----------------------- |
-| 1     | New                     |
-| 2     | Follow Up               |
-| 3     | Presentation Scheduled  |
-| 4     | Admitted / Won          |
-| 5     | Closed / Lost           |
+| Value | `admission_status` values that map to it                          | Meaning                 |
+| ----- | ----------------------------------------------------------------- | ----------------------- |
+| 1     | `New Lead`, `New`                                                 | New                     |
+| 2     | `Follow Uped`, `Follow Up`, `Followup`                            | Follow Up               |
+| 3     | `Payment Pending`, `Presentation Scheduled`                       | In progress             |
+| 4     | `Admission`, `Admitted`, `Won`                                    | Admitted / Won          |
+| 5     | `Not Interested`, `Lost`, `Closed`, `Rejected`                    | Closed / Lost           |
+
+The full string is also returned as `data.admission_status`, so the app can show
+the exact label instead of only the integer.
 
 `source` (int):
 
@@ -308,7 +385,7 @@ Errors: `401` unauthenticated, `404` lead not found.
 | ----- | -------------------------------- |
 | 1     | Cold Call                        |
 | 2     | Website                          |
-| 3     | Campus Drive / College Seminar   |
+| 3     | College Visit / Seminar / Campus Drive |
 | 4     | Referral                         |
 | 5     | Social Media                     |
 | 6     | Instagram Ad                     |

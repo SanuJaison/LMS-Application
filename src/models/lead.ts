@@ -8,6 +8,10 @@ export interface IFollowUpLog {
   presentation?: string;
   next_followup_date?: string;
   admission_status?: string;
+  lead_source?: string;
+  payment_verification?: string;
+  student_id?: string;
+  course?: string;
   proof_url?: string;
   recorded_by?: string;
   createdAt?: Date;
@@ -48,6 +52,8 @@ export interface ILead extends Document {
   status: any; // compatibility alias
   presentation?: string; // Not Scheduled, Scheduled, Completed, Not Attended
   student_id?: string; // Assigned upon Admission, e.g. STU-1001
+  payment_verification?: string; // Pending, Verified
+  payment_amount?: number; // Fee paid / agreed amount
   proof_url?: string; // Screenshot, Screenrecord proof
   followups?: IFollowUpLog[];
 
@@ -84,6 +90,26 @@ const FollowUpLogSchema = new Schema(
     admission_status: {
       type: String,
       default: 'Follow Up',
+      trim: true,
+    },
+    lead_source: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    payment_verification: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    student_id: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    course: {
+      type: String,
+      default: '',
       trim: true,
     },
     proof_url: {
@@ -251,6 +277,15 @@ const LeadSchema = new Schema<ILead>(
       type: String,
       default: '',
       trim: true,
+    },
+    payment_verification: {
+      type: String,
+      default: 'Pending',
+      trim: true,
+    },
+    payment_amount: {
+      type: Number,
+      default: 0,
     },
     proof_url: {
       type: String,

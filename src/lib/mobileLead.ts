@@ -24,6 +24,8 @@ export function leadStatusToInt(value: any): number {
   switch (status) {
     case 'admitted':
     case 'won':
+    case 'admission':
+    case 'enrolled':
       return 4;
     case 'lost':
     case 'closed':
@@ -33,15 +35,22 @@ export function leadStatusToInt(value: any): number {
     case 'presentation scheduled':
     case 'presentation':
     case 'scheduled':
+    case 'payment pending':
+    case 'payment pending verification':
       return 3;
     case 'follow up':
     case 'followup':
+    case 'follow uped':
+    case 'followuped':
+    case 'follow-up':
+    case 'followed up':
     case 'contacted':
     case 'interested':
     case 'pending':
     case 'in progress':
       return 2;
     case 'new':
+    case 'new lead':
     case '':
       return 1;
     default:
@@ -52,15 +61,32 @@ export function leadStatusToInt(value: any): number {
 export function leadStatusValuesFromInt(value: number): string[] {
   switch (value) {
     case 4:
-      return ['Admitted', 'Won'];
+      return ['Admitted', 'Won', 'Admission', 'Enrolled'];
     case 5:
       return ['Lost', 'Closed', 'Not Interested', 'Rejected'];
     case 3:
-      return ['Presentation Scheduled', 'Presentation', 'Scheduled'];
+      return [
+        'Presentation Scheduled',
+        'Presentation',
+        'Scheduled',
+        'Payment Pending',
+        'Payment Pending Verification',
+      ];
     case 2:
-      return ['Follow Up', 'Followup', 'Contacted', 'Interested', 'Pending', 'In Progress'];
+      return [
+        'Follow Up',
+        'Followup',
+        'Follow Uped',
+        'Followuped',
+        'Follow-up',
+        'Followed Up',
+        'Contacted',
+        'Interested',
+        'Pending',
+        'In Progress',
+      ];
     default:
-      return ['New'];
+      return ['New', 'New Lead'];
   }
 }
 
@@ -71,6 +97,8 @@ const SOURCE_IDS: Record<string, number> = {
   'website form': 2,
   'campus drive': 3,
   'campus drive / college seminar': 3,
+  'college visit': 3,
+  seminar: 3,
   referral: 4,
   'social media': 5,
   'instagram ad': 6,
@@ -256,6 +284,13 @@ export async function serializeLeadsForMobile(docs: any[]): Promise<any[]> {
       source: leadSourceToInt(doc.lead_source || doc.source),
       status: leadStatusToInt(doc.admission_status || doc.status),
       notes: doc.notes || doc.remarks || '',
+      student_interest: doc.student_interest || '',
+      next_followup_date: doc.next_followup_date || '',
+      presentation: doc.presentation || '',
+      student_id: doc.student_id || '',
+      payment_verification: doc.payment_verification || 'Pending',
+      payment_amount: doc.payment_amount ?? 0,
+      admission_status: doc.admission_status || doc.status || 'New',
       created_at: toLaravelDate(doc.createdAt),
       updated_at: toLaravelDate(doc.updatedAt),
       // Always expose the name the admin typed, even when it is not in the catalog
@@ -278,6 +313,12 @@ export async function serializeLeadsForMobile(docs: any[]): Promise<any[]> {
             followup_date: f.date || '',
             type: f.admission_status || null,
             notes: f.remarks || null,
+            student_interest: f.student_interest || '',
+            lead_source: f.lead_source || '',
+            next_followup_date: f.next_followup_date || '',
+            payment_verification: f.payment_verification || '',
+            student_id: f.student_id || '',
+            course: f.course || '',
           }))
         : [],
     };
