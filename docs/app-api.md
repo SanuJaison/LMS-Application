@@ -369,6 +369,97 @@ Errors: `400` `Validation failed: student_id is required to close a lead.`,
 
 ---
 
+## 6. Institutes (ASM)
+
+Only employees with the **Area Sales Manager** designation (or an `ASM…`
+employee ID) can add institutes. The ASM is taken from the token, so the app
+never sends `created_by`.
+
+### Add an institute
+
+`POST /institutes`  (alias: `POST /institutes/create`)
+
+Body:
+
+| Field            | Type   | Required | Notes                                          |
+| ---------------- | ------ | -------- | ---------------------------------------------- |
+| `institute_name` | string | yes      | Institute / college name.                      |
+| `person_name`    | string | yes      | Contact person at the institute.               |
+| `position`       | string | no       | Their position, e.g. `Principal`, `HOD`.       |
+| `phone`          | string | yes      | Contact number (`contact_number` also accepted).|
+| `email`          | string | no       |                                                |
+| `district`       | string | no       |                                                |
+| `place`          | string | no       |                                                |
+| `notes`          | string | no       | Free text.                                     |
+
+```json
+{
+  "institute_name": "XYZ College of Arts & Science",
+  "person_name": "Dr. Rajesh Kumar",
+  "position": "Principal",
+  "phone": "9847123456",
+  "email": "principal@xyz.edu",
+  "district": "Ernakulam",
+  "place": "Kakkanad",
+  "notes": "Interested in BCA batch"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "success": true,
+  "message": "Institute XYZ College of Arts & Science added successfully",
+  "data": {
+    "id": "6adefdf3c87a0a94af369a46",
+    "legacy_id": 453429794,
+    "institute_name": "XYZ College of Arts & Science",
+    "person_name": "Dr. Rajesh Kumar",
+    "position": "Principal",
+    "phone": "9847123456",
+    "email": "principal@xyz.edu",
+    "district": "Ernakulam",
+    "place": "Kakkanad",
+    "notes": "Interested in BCA batch",
+    "created_by": "Arya",
+    "created_by_id": "ASM001",
+    "created_at": "2026-10-26T10:20:00.000000Z",
+    "updated_at": "2026-10-26T10:20:00.000000Z"
+  }
+}
+```
+
+Errors: `400` validation, `401` unauthenticated,
+`403` `Only Area Sales Managers (ASM) can add institutes.`
+
+### List institutes
+
+`GET /institutes`
+
+- ASM / employee token → only the institutes that employee added.
+- Admin / manager token → every institute (used by the admin panel).
+
+Optional query: `?search=text` (institute, person, position, phone, district,
+place, ASM name or ID).
+
+Response `200`:
+
+```json
+{
+  "success": true,
+  "count": 1,
+  "data": [ { "...": "same institute object as above" } ]
+}
+```
+
+### Delete an institute (admin panel)
+
+`DELETE /institutes/{id}` — admin / manager only. `{id}` is the `id` from the
+list response.
+
+---
+
 ## Status and source codes
 
 `status` (int) — used by `LeadModel.status`, mapped from `admission_status`:

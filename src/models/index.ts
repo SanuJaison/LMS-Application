@@ -8,6 +8,7 @@ export * from './attendence';
 export * from './employee';
 export * from './taskTemplate';
 export * from './employeeTask';
+export * from './institute';
 
 // District & Course models now live in their own files
 export { District } from './districtModel';

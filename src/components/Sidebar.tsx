@@ -11,6 +11,7 @@ import {
   Users2,
   Globe,
   UserPlus,
+  Building2,
   CheckSquare,
   Layers,
   Clock,
@@ -221,6 +222,36 @@ export default function Sidebar({
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Leads</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Group: Institute Management */}
+        <div className="pt-2">
+          <button
+            onClick={() => toggleGroup('instituteManagement')}
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+          >
+            <span>Institute Management</span>
+            {expandedGroups.instituteManagement ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
+          {expandedGroups.instituteManagement && (
+            <div className="space-y-0.5 mt-1 pl-2">
+              <button
+                onClick={() => handleNav('institutes')}
+                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  activeTab === 'institutes'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Institutes</span>
               </button>
             </div>
           )}

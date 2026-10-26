@@ -17,6 +17,7 @@ import EmployeeTasksView from '@/components/pages/EmployeeTasksView';
 import AttendanceRecordsView from '@/components/pages/AttendanceRecordsView';
 import WalletsView from '@/components/pages/WalletsView';
 import LeadsView from '@/components/pages/LeadsView';
+import InstitutesView from '@/components/pages/InstitutesView';
 import LeavesView from '@/components/pages/LeavesView';
 import WalletWithdrawRequestsView from '@/components/pages/WalletWithdrawRequestsView';
 import RolesView from '@/components/pages/RolesView';
@@ -94,6 +95,7 @@ export default function KeralaCRMApp() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     employeeHierarchy: true,
     leadManagement: true,
+    instituteManagement: true,
     taskManagement: true,
     fieldActivity: true,
     finances: true,
@@ -255,6 +257,8 @@ export default function KeralaCRMApp() {
             <WalletsView showToast={showToast} />
           ) : activeTab === 'leads' ? (
             <LeadsView showToast={showToast} />
+          ) : activeTab === 'institutes' ? (
+            <InstitutesView showToast={showToast} />
           ) : activeTab === 'leaves' ? (
             <LeavesView showToast={showToast} />
           ) : activeTab === 'walletWithdrawRequests' || activeTab === 'wallet-withdraw-requests' ? (
