@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db';
-import { getEmployee, ok } from '@/lib/employeeAuth';
+import { getEmployee, ok, fail } from '@/lib/employeeAuth';
 import { findLeadByAnyId, serializeLeadsForMobile } from '@/lib/mobileLead';
+import { studentIdMismatchError } from '@/lib/leadValidation';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * or the human readable lead_id.
  *
  * Body (the app's "close lead" form):
- *   student_id           "STU-1001"        (generated when omitted)
+ *   student_id           "STU-1001"        (required unless already set by a follow-up)
  *   course               "Full-Stack Web Development"
  *   payment              25000             (amount) or "verified" / "pending"
  *   payment_amount       25000             (alternative to the amount above)
@@ -19,8 +20,8 @@ export const dynamic = 'force-dynamic';
  *   remarks | notes      "Admission confirmed"
  *   lead_source          "Referral"        (optional)
  *
- * Nothing is strictly required: missing values fall back to the lead's current
- * values, so an app build that closes without a body keeps working.
+ * The Student ID must be the same one used during follow-up. If the lead
+ * already has a different ID, the request is rejected with 400.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -40,8 +41,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const body = await req.json().catch(() => ({}));
 
     // ---- student id ------------------------------------------------------
-    let studentId = String(body.student_id || body.studentId || lead.student_id || '').trim();
-    if (!studentId) studentId = generateStudentId();
+    // Must match the ID recorded during follow-up. If the lead has no ID yet,
+    // the close request has to supply one.
+    const incomingStudentId = String(body.student_id || body.studentId || '').trim();
+    const existingStudentId = String(lead.student_id || '').trim();
+
+    const mismatch = studentIdMismatchError(existingStudentId, incomingStudentId);
+    if (mismatch) {
+      return fail(mismatch, 400);
+    }
+
+    const studentId = existingStudentId || incomingStudentId;
+    if (!studentId) {
+      return fail('Validation failed: student_id is required to close a lead.', 400);
+    }
 
     // ---- course ----------------------------------------------------------
     const course = String(
@@ -106,10 +119,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     console.error('POST /api/leads/[id]/close error:', error);
     return ok(null, error.message || 'Failed to close lead', 500);
   }
-}
-
-function generateStudentId(): string {
-  return `STU-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 function titleCase(value: string): string {

@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db';
-import { getEmployee, ok } from '@/lib/employeeAuth';
+import { getEmployee, ok, fail } from '@/lib/employeeAuth';
 import { findLeadByAnyId, serializeLeadsForMobile } from '@/lib/mobileLead';
+import { studentIdMismatchError } from '@/lib/leadValidation';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,9 +75,25 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       body.course || body.interested_course || lead.course || lead.interested_course || ''
     ).trim();
 
-    let studentId = String(body.student_id || body.studentId || lead.student_id || '').trim();
+    let studentId = String(lead.student_id || '').trim();
+    const incomingStudentId = String(body.student_id || body.studentId || '').trim();
+
+    // The Student ID is assigned once and can never change: follow-up and
+    // closing must use the same value.
+    const mismatch = studentIdMismatchError(studentId, incomingStudentId);
+    if (mismatch) {
+      return fail(mismatch, 400);
+    }
+
+    if (!studentId && incomingStudentId) {
+      studentId = incomingStudentId;
+    }
+
     if (!studentId && isAdmittedStatus(admissionStatus)) {
-      studentId = generateStudentId();
+      return fail(
+        'Validation failed: student_id is required when admission_status is "Admission".',
+        400
+      );
     }
 
     const remarks = String(body.notes || body.remarks || '');
@@ -142,10 +159,6 @@ function titleCase(value: string): string {
 function isAdmittedStatus(value: string): boolean {
   const status = value.toLowerCase();
   return status === 'admission' || status === 'admitted' || status === 'won' || status === 'enrolled';
-}
-
-function generateStudentId(): string {
-  return `STU-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 /**

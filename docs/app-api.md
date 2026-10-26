@@ -249,7 +249,7 @@ Response `200`:
 | `remarks` / `notes`    | string | Free text. Either key works.                                          |
 | `admission_status`     | string | `New Lead`, `Follow Uped`, `Payment Pending`, `Admission`, `Not Interested` |
 | `payment_verification` | string | `Pending`, `Verified` (the typo `verifed` is accepted too)            |
-| `student_id`           | string | Required once the admission is confirmed, e.g. `STU-1001`. Generated automatically if `admission_status` is `Admission` and it is empty. |
+| `student_id`           | string | e.g. `STU-1001`. Required when `admission_status` is `Admission`. Once a lead has a Student ID it can never change — sending a different value returns `400`. |
 | `course`               | string | Course the student is joining.                                        |
 | `followup_date`        | string | `YYYY-MM-DD`; defaults to today.                                      |
 | `proof_url`            | string | Optional screenshot / recording link.                                 |
@@ -306,7 +306,9 @@ Response `200`:
 }
 ```
 
-Errors: `401` unauthenticated, `404` lead not found.
+Errors: `400` Student ID mismatch (a different ID than the one already on the lead),
+`400` `student_id is required when admission_status is "Admission"`,
+`401` unauthenticated, `404` lead not found.
 
 ---
 
@@ -320,7 +322,7 @@ Errors: `401` unauthenticated, `404` lead not found.
 
 | Field                  | Type             | Values / notes                                              |
 | ---------------------- | ---------------- | ----------------------------------------------------------- |
-| `student_id`           | string           | Student ID, e.g. `STU-1001`. Generated if omitted.          |
+| `student_id`           | string           | **Required** unless a follow-up already set it. Must match the follow-up Student ID (case-insensitive). |
 | `course`               | string           | Course the student joined.                                  |
 | `payment`              | number \| string | Amount paid (e.g. `25000`) **or** `verified` / `pending`.   |
 | `payment_amount`       | number           | Use instead of `payment` when sending the amount separately.|
@@ -328,8 +330,9 @@ Errors: `401` unauthenticated, `404` lead not found.
 | `remarks` / `notes`    | string           | Optional. Defaults to `Admission confirmed`.                |
 | `lead_source`          | string           | Optional.                                                   |
 
-Nothing is strictly required — if the app closes without a body, the lead's
-current values are kept and a student ID is generated.
+The Student ID must be the same one used during follow-up. If the lead already
+has a different ID, the request is rejected with `400`. If the lead has no ID
+yet, the close request must supply one.
 
 ```json
 {
@@ -360,7 +363,9 @@ Response `200`:
 }
 ```
 
-Errors: `401` unauthenticated, `404` lead not found.
+Errors: `400` `Validation failed: student_id is required to close a lead.`,
+`400` Student ID mismatch (a different ID than the one on the lead),
+`401` unauthenticated, `404` lead not found.
 
 ---
 
