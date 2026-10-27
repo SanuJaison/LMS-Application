@@ -68,6 +68,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     zone: true,
     district: true,
     team: true,
+    reportsTo: true,
   });
   const [showColumnToggle, setShowColumnToggle] = useState<boolean>(false);
   const [perPage, setPerPage] = useState<number>(10);
@@ -94,6 +95,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     zone: 'Central Zone',
     district: 'Ernakulam',
     team: 'Team Kakkanad',
+    reports_to: '',
     status: 'active',
     bank_name: '',
     account_holder_name: '',
@@ -163,6 +165,13 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       .toUpperCase();
 
     return initials || 'EMP';
+  };
+
+  // Friendly label for the manager selected in "Reports To".
+  const managerLabel = (reportsTo?: string): string => {
+    if (!reportsTo) return '—';
+    const manager = employees.find((emp) => emp.employee_id === reportsTo);
+    return manager ? `${manager.name} (${manager.employee_id})` : reportsTo;
   };
 
   // Build the next custom employee ID, e.g. BDE001, BDE002, ASM001
@@ -265,6 +274,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       zone: 'Central Zone',
       district: 'Ernakulam',
       team: teams[0]?.name || 'Team Kakkanad',
+      reports_to: '',
       status: 'active',
       bank_name: '',
       account_holder_name: '',
@@ -288,6 +298,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       zone: emp.zone || 'Central Zone',
       district: emp.district || 'Ernakulam',
       team: emp.team || 'Team Kakkanad',
+      reports_to: emp.reports_to || '',
       status: emp.status || 'active',
       bank_name: (emp as any).bank_name || '',
       account_holder_name: (emp as any).account_holder_name || '',
@@ -331,6 +342,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
         zone: formData.zone.trim(),
         district: formData.district.trim(),
         team: formData.team.trim(),
+        reports_to: formData.reports_to.trim(),
         status: formData.status.toLowerCase(),
         bank_name: formData.bank_name.trim(),
         account_holder_name: formData.account_holder_name.trim(),
@@ -481,6 +493,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     { key: 'zone', label: 'Zone' },
                     { key: 'district', label: 'District' },
                     { key: 'team', label: 'Team' },
+                    { key: 'reportsTo', label: 'Reports To' },
                   ].map(({ key, label }) => (
                     <label
                       key={key}
@@ -603,6 +616,9 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   {columnVisibility.team !== false && (
                     <th className="py-3.5 px-4">Team</th>
                   )}
+                  {columnVisibility.reportsTo !== false && (
+                    <th className="py-3.5 px-4">Reports To</th>
+                  )}
                   <th className="py-3.5 px-4 text-right"></th>
                 </tr>
               </thead>
@@ -660,6 +676,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                             {emp.team || '—'}
                           </td>
                         )}
+                        {columnVisibility.reportsTo !== false && (
+                          <td className="py-3.5 px-4 text-ink/80 font-mono text-[11px]">
+                            {emp.reports_to || '—'}
+                          </td>
+                        )}
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-3.5 whitespace-nowrap">
                             <button
@@ -693,7 +714,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-subtle">
+                    <td colSpan={11} className="py-12 text-center text-subtle">
                       No employees found.
                     </td>
                   </tr>
@@ -746,6 +767,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
               <div className="bg-field p-3 rounded-lg border border-line">
                 <span className="text-muted block mb-0.5">Team</span>
                 <span className="text-ink font-medium">{viewingEmployee.team || 'Team Kakkanad'}</span>
+              </div>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Reports To</span>
+                <span className="text-ink font-medium">
+                  {managerLabel(viewingEmployee.reports_to)}
+                </span>
               </div>
               <div className="bg-field p-3 rounded-lg border border-line">
                 <span className="text-muted block mb-0.5">Zone</span>
@@ -937,6 +964,40 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-ink/80 font-semibold mb-1">Reports To</label>
+                <select
+                  value={formData.reports_to}
+                  onChange={(e) => setFormData({ ...formData, reports_to: e.target.value })}
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                >
+                  <option value="">No manager (top level)</option>
+                  {formData.reports_to &&
+                    !employees.some((emp) => emp.employee_id === formData.reports_to) && (
+                      <option value={formData.reports_to}>{formData.reports_to}</option>
+                    )}
+                  {employees
+                    .filter((emp) => {
+                      const empKey = emp.id || (emp as any)._id;
+                      const editingKey =
+                        editingEmployee?.id || (editingEmployee as any)?._id;
+                      return empKey !== editingKey && emp.employee_id !== formData.employee_id;
+                    })
+                    .map((emp) => (
+                      <option
+                        key={emp.id || (emp as any)._id || emp.employee_id}
+                        value={emp.employee_id}
+                      >
+                        {emp.name} ({emp.employee_id}) — {emp.designation}
+                      </option>
+                    ))}
+                </select>
+                <span className="block mt-1 text-[10px] text-subtle">
+                  Used by the mobile team hierarchy: a BDE reports to a BDM, and a BDM
+                  reports to an ASM.
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

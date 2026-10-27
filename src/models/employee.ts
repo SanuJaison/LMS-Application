@@ -9,6 +9,8 @@ export interface IEmployee extends Document {
   district?: string;
   zone?: string;
   team?: string;
+  /** Employee ID of this employee's manager (e.g. BDE004 reports to BDM001). */
+  reports_to?: string;
   upi_id?: string;
   password?: string;
   require_password_change?: boolean;
@@ -61,6 +63,11 @@ const EmployeeSchema = new Schema<IEmployee>(
     team: {
       type: String,
       default: 'Team Kakkanad',
+      trim: true,
+    },
+    reports_to: {
+      type: String,
+      default: '',
       trim: true,
     },
     upi_id: {

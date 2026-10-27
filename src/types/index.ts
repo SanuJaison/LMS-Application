@@ -36,6 +36,7 @@ export interface Employee {
   district: string;
   zone: string;
   team?: string;
+  reports_to?: string;
   upi_id?: string;
   status: 'active' | 'inactive';
   created_at: string;

@@ -10,6 +10,8 @@ import {
   serializeEmployee,
   todayKey,
 } from '@/lib/employeeAuth';
+import { buildTeamOverview, emptyTeam } from '@/lib/hierarchy';
+import type { TeamScope } from '@/lib/hierarchy';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +31,7 @@ function emptyHome() {
     leaves: { total: 0, pending: 0, approved: 0, rejected: 0, list: [] },
     wallet: { balance: 0, currency: 'INR' },
     leads: { total: 0, today: 0, admitted: 0 },
+    team: emptyTeam(),
   };
 }
 
@@ -51,6 +54,12 @@ export async function GET(req: Request) {
     const today = todayKey();
     const startOfToday = new Date(`${today}T00:00:00.000Z`);
 
+    // Optional: ?team_scope=all returns the whole reporting subtree (ASM ->
+    // BDMs -> BDEs). Default stays direct reports so existing clients are
+    // unaffected.
+    const teamScope: TeamScope =
+      new URL(req.url).searchParams.get('team_scope') === 'all' ? 'all' : 'direct';
+
     const taskQuery: any = nameFilter
       ? { $or: [{ employee: nameFilter }, { employee_id: employee.employee_id || '__none__' }] }
       : { employee_id: employee.employee_id || '__none__' };
@@ -64,12 +73,13 @@ export async function GET(req: Request) {
     })();
     const walletQuery: any = nameFilter ? { employee: nameFilter } : { employee: '__none__' };
 
-    const [attendance, tasks, leaves, wallet, leads] = await Promise.all([
+    const [attendance, tasks, leaves, wallet, leads, team] = await Promise.all([
       Attendance.findOne({ ...(nameFilter ? { name: nameFilter } : { name: '__none__' }), date: today }).lean(),
       EmployeeTask.find(taskQuery).sort({ createdAt: -1 }).limit(10).lean(),
       Leave.find(leaveQuery).sort({ createdAt: -1 }).lean(),
       Wallet.findOne(walletQuery).lean(),
       Lead.find(leadQuery).lean(),
+      buildTeamOverview(employee, { scope: teamScope }),
     ]);
 
     const taskList = tasks as any[];
@@ -112,6 +122,7 @@ export async function GET(req: Request) {
             (l) => l.admission_status === 'Admitted' || l.status === 'Won'
           ).length,
         },
+        team,
       },
       'Home data fetched successfully'
     );

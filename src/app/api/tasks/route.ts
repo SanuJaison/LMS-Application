@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db';
 import { EmployeeTask } from '@/models/employeeTask';
 import { getEmployee, nameRegex, ok } from '@/lib/employeeAuth';
+import { getTeamMembers } from '@/lib/hierarchy';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +19,49 @@ export async function GET(req: Request) {
     }
 
     const nameFilter = nameRegex(employee.name);
-    const query: any = nameFilter
-      ? { $or: [{ employee: nameFilter }, { employee_id: employee.employee_id || '__none__' }] }
-      : { employee_id: employee.employee_id || '__none__' };
+    const { searchParams } = new URL(req.url);
+    const scope = searchParams.get('scope');
+    const requestedEmployeeId = String(searchParams.get('employee_id') || '').trim();
+
+    let query: any;
+
+    if (scope === 'team' || scope === 'all') {
+      // Manager view: tasks belonging to direct reports (or the whole subtree).
+      const reports = await getTeamMembers(employee, scope === 'all' ? 'all' : 'direct');
+      const employeeIds = reports
+        .map((report) => String(report.employee_id || '').trim())
+        .filter(Boolean);
+
+      const conditions: any[] = [];
+      if (employeeIds.length > 0) conditions.push({ employee_id: { $in: employeeIds } });
+      for (const report of reports) {
+        const reportName = nameRegex(report.name);
+        if (reportName) conditions.push({ employee: reportName });
+      }
+
+      query = conditions.length > 0 ? { $or: conditions } : { employee_id: '__none__' };
+    } else if (requestedEmployeeId) {
+      // Single report lookup, limited to employees inside the caller's subtree.
+      const reports = await getTeamMembers(employee, 'all');
+      const report = reports.find(
+        (item) =>
+          String(item.employee_id || '').toLowerCase() === requestedEmployeeId.toLowerCase()
+      );
+
+      if (!report) {
+        return ok([], 'Not authorized to view this employee');
+      }
+
+      const conditions: any[] = [{ employee_id: String(report.employee_id || '') }];
+      const reportName = nameRegex(report.name);
+      if (reportName) conditions.push({ employee: reportName });
+      query = { $or: conditions };
+    } else {
+      // Default: the signed-in employee's own tasks (unchanged behaviour).
+      query = nameFilter
+        ? { $or: [{ employee: nameFilter }, { employee_id: employee.employee_id || '__none__' }] }
+        : { employee_id: employee.employee_id || '__none__' };
+    }
 
     const tasks = await EmployeeTask.find(query).sort({ createdAt: -1 }).lean();
 

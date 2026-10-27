@@ -56,6 +56,8 @@ function cleanData(tab: string, body: any) {
     if (data.phone && !data.contact_number) data.contact_number = data.phone;
     if (!data.email && data.contact?.includes('@')) data.email = data.contact;
     if (data.status) data.status = data.status.toLowerCase();
+    if (data.reports_to) data.reports_to = String(data.reports_to).trim().toUpperCase();
+    if (data.reports_to === data.employee_id) data.reports_to = '';
 
     // Hash the employee password; never store it in plain text.
     // On update an empty password means "keep the existing one".
