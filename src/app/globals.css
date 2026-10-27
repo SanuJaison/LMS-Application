@@ -19,9 +19,85 @@
   --danger-600: 225, 29, 72;
 }
 
+/* -------------------------------------------------------------------------
+   Dark theme (default). Every surface, border and text colour in the admin
+   UI resolves to one of these tokens, so both themes stay consistent.
+   ------------------------------------------------------------------------- */
+:root,
+.dark {
+  color-scheme: dark;
+
+  --c-app: 8 13 25;
+  --c-panel: 9 14 26;
+  --c-surface: 11 19 34;
+  --c-surface-2: 12 19 34;
+  --c-field: 8 13 26;
+  --c-elevated: 16 23 40;
+  --c-nav: 13 20 36;
+  --c-side: 10 16 29;
+  --c-hover: 19 28 46;
+  --c-selected: 14 34 51;
+  --c-bulk: 16 36 62;
+  --c-active: 27 38 59;
+  --c-line: 27 38 59;
+  --c-line-2: 23 34 54;
+  --c-ink: 255 255 255;
+  --c-muted: 148 163 184;
+  --c-subtle: 100 116 139;
+  --c-accent: 9 146 158;
+  --c-accent-hover: 8 129 140;
+  --c-success: 52 211 153;
+  --c-warning: 251 191 36;
+  --c-danger: 244 63 94;
+
+  --c-scroll-track: #090e1a;
+  --c-scroll-thumb: #1e293b;
+  --c-overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* -------------------------------------------------------------------------
+   Light theme
+   ------------------------------------------------------------------------- */
+html:not(.dark) {
+  color-scheme: light;
+
+  --c-app: 241 245 249;
+  --c-panel: 248 250 252;
+  --c-surface: 255 255 255;
+  --c-surface-2: 248 250 252;
+  --c-field: 255 255 255;
+  --c-elevated: 255 255 255;
+  --c-nav: 255 255 255;
+  --c-side: 255 255 255;
+  --c-hover: 241 245 249;
+  --c-selected: 224 242 254;
+  --c-bulk: 224 242 254;
+  --c-active: 226 232 240;
+  --c-line: 226 232 240;
+  --c-line-2: 238 242 247;
+  --c-ink: 15 23 42;
+  --c-muted: 71 85 105;
+  --c-subtle: 100 116 139;
+  --c-accent: 8 122 131;
+  --c-accent-hover: 6 105 113;
+  --c-success: 5 150 105;
+  --c-warning: 180 83 9;
+  --c-danger: 225 29 72;
+
+  --c-scroll-track: #f1f5f9;
+  --c-scroll-thumb: #cbd5e1;
+  --c-overlay: rgba(15, 23, 42, 0.45);
+}
+
+html {
+  background-color: rgb(var(--c-app));
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
+  background-color: rgb(var(--c-app));
+  color: rgb(var(--c-ink));
 }
 
 * {
@@ -34,21 +110,44 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Custom sleek dark scrollbar */
+/* Scrollbars follow the active theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090e1a;
+  background: var(--c-scroll-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--c-scroll-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #09929e;
+  background: rgb(var(--c-accent));
+}
+
+/* Keep native select dropdowns legible in both themes */
+select option {
+  background-color: rgb(var(--c-elevated));
+  color: rgb(var(--c-ink));
+}
+
+/* Subtle, theme-aware focus ring used by form controls */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

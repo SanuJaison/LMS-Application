@@ -12,6 +12,7 @@ import {
   fetchResourceList,
   updateResourceItem,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 export interface EmployeeTaskItem {
   _id?: string;
@@ -101,7 +102,6 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
   }, [tasks, searchQuery, sortField, sortAsc]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredTasks.length / perPage) || 1;
   const paginatedTasks = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filteredTasks.slice(start, start + perPage);
@@ -153,20 +153,20 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Breadcrumb matching Screenshot 1 */}
       <div>
-        <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+        <div className="flex items-center gap-2 text-xs text-muted mb-1">
           <span>Employee Tasks</span>
-          <span className="text-slate-500">&gt;</span>
-          <span className="text-slate-300">List</span>
+          <span className="text-subtle">&gt;</span>
+          <span className="text-ink/80">List</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white">Employee Tasks</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Employee Tasks</h1>
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
         {/* Search Toolbar matching Screenshot 1 (Right aligned) */}
-        <div className="p-4 flex items-center justify-end border-b border-[#1b263b]">
+        <div className="p-4 flex items-center justify-end border-b border-line">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -175,7 +175,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
         </div>
@@ -184,14 +184,14 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-300 font-semibold text-[13px]">
+              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
                 <th
                   onClick={() => handleSort('employee')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Employee</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th className="py-3.5 px-6 font-semibold">Task template</th>
@@ -203,12 +203,12 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                 <th className="py-3.5 px-6 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236] text-[13px]">
+            <tbody className="divide-y divide-line-2 text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading employee tasks...</span>
                     </div>
                   </td>
@@ -220,22 +220,22 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                   return (
                     <tr
                       key={id}
-                      className="hover:bg-[#131c2e]/60 transition text-slate-200"
+                      className="hover:bg-hover/60 transition text-ink"
                     >
-                      <td className="py-3.5 px-6 font-normal text-white">{item.employee || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-300">{item.task_template || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-300">{item.period_start || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-300">{item.period_end || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-200">{item.total_target ?? 15}</td>
-                      <td className="py-3.5 px-6 text-slate-200">{item.achieved ?? 0}</td>
+                      <td className="py-3.5 px-6 font-normal text-ink">{item.employee || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">{item.task_template || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">{item.period_start || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">{item.period_end || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink">{item.total_target ?? 15}</td>
+                      <td className="py-3.5 px-6 text-ink">{item.achieved ?? 0}</td>
                       <td className="py-3.5 px-6">
                         {item.is_completed ? (
-                          <svg className="w-4 h-4 text-emerald-400" viewBox="0 0 20 20" fill="none">
+                          <svg className="w-4 h-4 text-success" viewBox="0 0 20 20" fill="none">
                             <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
                             <path d="M6 10l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         ) : (
-                          <svg className="w-4 h-4 text-rose-500" viewBox="0 0 20 20" fill="none">
+                          <svg className="w-4 h-4 text-danger" viewBox="0 0 20 20" fill="none">
                             <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
                             <path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
@@ -244,9 +244,9 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                       <td className="py-3.5 px-6 text-right">
                         <button
                           onClick={() => openViewModal(item)}
-                          className="inline-flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
                         >
-                          <Eye className="w-4 h-4 text-slate-400" />
+                          <Eye className="w-4 h-4 text-muted" />
                           <span>View</span>
                         </button>
                       </td>
@@ -255,7 +255,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500">
+                  <td colSpan={8} className="py-12 text-center text-subtle">
                     No employee tasks found.
                   </td>
                 </tr>
@@ -264,104 +264,82 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
           </table>
         </div>
 
-        {/* Footer Pagination */}
-        <div className="px-6 py-3.5 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-400">
-          <span>
-            {filteredTasks.length > 0
-              ? `Showing ${(currentPage - 1) * perPage + 1} to ${Math.min(
-                  currentPage * perPage,
-                  filteredTasks.length
-                )} of ${filteredTasks.length} results`
-              : 'Showing 0 results'}
-          </span>
-
-          <div className="flex items-center gap-2">
-            <span>Per page</span>
-            <div className="relative inline-block">
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="appearance-none bg-[#080d1a] border border-slate-700/80 rounded-lg pl-3 pr-8 py-1 text-white text-[13px] focus:outline-none focus:ring-1 focus:ring-[#09929e] cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredTasks.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* VIEW MODAL: Show Task Progress & Quick Update */}
       {viewModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-white">Employee Task Details</h3>
-                <p className="text-xs text-slate-400">{viewModalItem.task_template}</p>
+                <h3 className="text-base font-semibold text-ink">Employee Task Details</h3>
+                <p className="text-xs text-muted">{viewModalItem.task_template}</p>
               </div>
               <button
                 onClick={() => setViewModalItem(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4 text-[13px]">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-400 block mb-1">Employee</span>
-                  <span className="font-medium text-white">{viewModalItem.employee}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-field p-3 rounded-xl border border-line">
+                  <span className="text-xs text-muted block mb-1">Employee</span>
+                  <span className="font-medium text-ink">{viewModalItem.employee}</span>
                   {viewModalItem.employee_id && (
-                    <span className="text-xs text-slate-400 block font-mono">({viewModalItem.employee_id})</span>
+                    <span className="text-xs text-muted block font-mono">({viewModalItem.employee_id})</span>
                   )}
                 </div>
 
-                <div className="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-400 block mb-1">Status</span>
+                <div className="bg-field p-3 rounded-xl border border-line">
+                  <span className="text-xs text-muted block mb-1">Status</span>
                   {viewModalItem.is_completed ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 text-success text-xs font-semibold">
                       Completed
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-rose-400 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 text-danger text-xs font-semibold">
                       In Progress
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-400 block mb-1">Period Start</span>
-                  <span className="text-white">{viewModalItem.period_start}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-field p-3 rounded-xl border border-line">
+                  <span className="text-xs text-muted block mb-1">Period Start</span>
+                  <span className="text-ink">{viewModalItem.period_start}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-400 block mb-1">Period End</span>
-                  <span className="text-white">{viewModalItem.period_end}</span>
+                <div className="bg-field p-3 rounded-xl border border-line">
+                  <span className="text-xs text-muted block mb-1">Period End</span>
+                  <span className="text-ink">{viewModalItem.period_end}</span>
                 </div>
               </div>
 
               {/* Progress Bar & Achieved Counter */}
-              <div className="bg-[#080d1a] p-4 rounded-xl border border-slate-800 space-y-3">
+              <div className="bg-field p-4 rounded-xl border border-line space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Target Progress:</span>
-                  <span className="font-semibold text-white">
+                  <span className="text-muted">Target Progress:</span>
+                  <span className="font-semibold text-ink">
                     {viewModalItem.achieved} / {viewModalItem.total_target} (
                     {Math.round(((viewModalItem.achieved || 0) / (viewModalItem.total_target || 1)) * 100)}%)
                   </span>
                 </div>
 
-                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-active h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      viewModalItem.is_completed ? 'bg-emerald-500' : 'bg-[#09929e]'
+                      viewModalItem.is_completed ? 'bg-emerald-500' : 'bg-accent'
                     }`}
                     style={{
                       width: `${Math.min(
@@ -373,21 +351,21 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                 </div>
 
                 {/* Quick Achieved increment / editor */}
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-300">Update Achieved:</span>
+                <div className="pt-2 border-t border-line flex items-center justify-between gap-3">
+                  <span className="text-xs text-ink/80">Update Achieved:</span>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={0}
                       value={editAchievedVal}
                       onChange={(e) => setEditAchievedVal(Number(e.target.value))}
-                      className="w-20 px-2.5 py-1 bg-[#101728] border border-slate-700 rounded-lg text-xs text-white text-center focus:ring-1 focus:ring-[#09929e]"
+                      className="w-20 px-2.5 py-1 bg-elevated border border-line rounded-lg text-xs text-ink text-center focus:ring-1 focus:ring-accent"
                     />
                     <button
                       type="button"
                       disabled={isUpdatingAchieved}
                       onClick={() => handleUpdateAchieved(editAchievedVal)}
-                      className="px-3 py-1 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-medium rounded-lg transition disabled:opacity-50 cursor-pointer"
+                      className="px-3 py-1 bg-accent hover:bg-accent-hover text-white text-xs font-medium rounded-lg transition disabled:opacity-50 cursor-pointer"
                     >
                       {isUpdatingAchieved ? 'Saving...' : 'Save'}
                     </button>
@@ -396,10 +374,10 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
               </div>
             </div>
 
-            <div className="px-6 py-3.5 bg-[#0b1322] border-t border-slate-800 flex justify-end">
+            <div className="px-6 py-3.5 bg-surface border-t border-line flex justify-end">
               <button
                 onClick={() => setViewModalItem(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
               >
                 Close
               </button>

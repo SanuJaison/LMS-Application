@@ -23,6 +23,7 @@ import {
   deleteResourceItem,
   authHeaders,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 export interface LeadItem {
   _id?: string;
@@ -212,7 +213,6 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   }, [leads, searchQuery, sortField, sortAsc]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredLeads.length / perPage) || 1;
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filteredLeads.slice(start, start + perPage);
@@ -484,17 +484,17 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       <div className="space-y-6 animate-in fade-in duration-200">
         {/* Breadcrumb matching Screenshot 1 */}
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <button
               onClick={() => setViewMode('list')}
-              className="text-slate-400 hover:text-white hover:underline cursor-pointer"
+              className="text-muted hover:text-ink hover:underline cursor-pointer"
             >
               Leads
             </button>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">Create</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">Create</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Create Lead</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Create Lead</h1>
         </div>
 
         {/* Form Fields matching Screenshots 1 & 2 */}
@@ -508,26 +508,26 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 1: Name & Phone */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Name <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Name <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Phone
               </label>
               <input
                 type="text"
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
@@ -535,7 +535,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 2: WhatsApp Number & Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 WhatsApp Number
               </label>
               <input
@@ -543,39 +543,39 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formWhatsapp}
                 onChange={(e) => setFormWhatsapp(e.target.value)}
                 placeholder="Defaults to the phone number"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Email
               </label>
               <input
                 type="email"
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
 
           {/* Row 3: Address (Full Width) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-ink/80 mb-1.5">
               Address
             </label>
             <textarea
               rows={2}
               value={formAddress}
               onChange={(e) => setFormAddress(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           {/* Row 4: Place & District */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Place
               </label>
               <input
@@ -583,31 +583,31 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formPlace}
                 onChange={(e) => setFormPlace(e.target.value)}
                 placeholder="e.g. Edappally, Kochi"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                District <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                District <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formDistrict}
                   onChange={(e) => setFormDistrict(e.target.value)}
-                  className="w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select an option</option>
                   {districts.map((d) => (
-                    <option key={d} value={d} className="bg-[#0b1322] text-white">
+                    <option key={d} value={d} className="bg-surface text-ink">
                       {d}
                     </option>
                   ))}
                   {districts.length === 0 && (
-                    <option value="Ernakulam" className="bg-[#0b1322] text-white">Ernakulam</option>
+                    <option value="Ernakulam" className="bg-surface text-ink">Ernakulam</option>
                   )}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -615,7 +615,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 5: Age & Qualification */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Age
               </label>
               <input
@@ -624,11 +624,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 max={100}
                 value={formAge}
                 onChange={(e) => setFormAge(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Qualification
               </label>
               <input
@@ -636,7 +636,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formQualification}
                 onChange={(e) => setFormQualification(e.target.value)}
                 placeholder="e.g. B.Tech Computer Science"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
@@ -644,7 +644,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 6: College / Institute & Current Year */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 College / Institute Name
               </label>
               <input
@@ -652,11 +652,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formCollege}
                 onChange={(e) => setFormCollege(e.target.value)}
                 placeholder="e.g. Model Engineering College"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Current Year
               </label>
               <input
@@ -664,7 +664,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formCurrentYear}
                 onChange={(e) => setFormCurrentYear(e.target.value)}
                 placeholder="e.g. Final Year / Passed Out"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
@@ -672,7 +672,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 7: Interested Topic & Interested Course */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                 Interested Topic
               </label>
               <input
@@ -680,35 +680,35 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 value={formInterestedTopic}
                 onChange={(e) => setFormInterestedTopic(e.target.value)}
                 placeholder="e.g. MERN Stack & Next.js"
-                className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Interested Course <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Interested Course <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formCourse}
                   onChange={(e) => setFormCourse(e.target.value)}
-                  className="w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select an option</option>
                   {courses.map((c) => (
-                    <option key={c} value={c} className="bg-[#0b1322] text-white">
+                    <option key={c} value={c} className="bg-surface text-ink">
                       {c}
                     </option>
                   ))}
                   {courses.length === 0 && (
                     <>
-                      <option value="Fullstack Development" className="bg-[#0b1322] text-white">Fullstack Development</option>
-                      <option value="Data Analytics" className="bg-[#0b1322] text-white">Data Analytics</option>
-                      <option value="Medical Coding" className="bg-[#0b1322] text-white">Medical Coding</option>
+                      <option value="Fullstack Development" className="bg-surface text-ink">Fullstack Development</option>
+                      <option value="Data Analytics" className="bg-surface text-ink">Data Analytics</option>
+                      <option value="Medical Coding" className="bg-surface text-ink">Medical Coding</option>
                     </>
                   )}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -716,46 +716,46 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 5: Lead Source & Lead Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Lead Source <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Lead Source <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formSource}
                   onChange={(e) => setFormSource(e.target.value)}
-                  className="w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select an option</option>
                   {DEFAULT_SOURCES.map((s) => (
-                    <option key={s} value={s} className="bg-[#0b1322] text-white">
+                    <option key={s} value={s} className="bg-surface text-ink">
                       {s}
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Lead Status <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Lead Status <span className="text-danger">*</span>
               </label>
               <div className="relative flex items-center">
                 <select
                   required
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value)}
-                  className="w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select an option</option>
                   {DEFAULT_STATUSES.map((st) => (
-                    <option key={st} value={st} className="bg-[#0b1322] text-white">
+                    <option key={st} value={st} className="bg-surface text-ink">
                       {st}
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3 flex items-center gap-1.5 text-slate-400">
+                <div className="absolute right-3 flex items-center gap-1.5 text-muted">
                   {formStatus && (
                     <button
                       type="button"
@@ -763,7 +763,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                         e.stopPropagation();
                         setFormStatus('');
                       }}
-                      className="hover:text-white cursor-pointer"
+                      className="hover:text-ink cursor-pointer"
                       title="Clear status"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -778,27 +778,27 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Row 6: Assigned Employee */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Assigned employee <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Assigned employee <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formEmployee}
                   onChange={(e) => setFormEmployee(e.target.value)}
-                  className="w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 >
                   <option value="" disabled>Select an option</option>
                   {employees.map((emp) => (
-                    <option key={emp.name} value={emp.name} className="bg-[#0b1322] text-white">
+                    <option key={emp.name} value={emp.name} className="bg-surface text-ink">
                       {emp.employee_id ? `${emp.name} (${emp.employee_id})` : emp.name}
                     </option>
                   ))}
                   {employees.length === 0 && (
-                    <option value="Aslam" className="bg-[#0b1322] text-white">Aslam</option>
+                    <option value="Aslam" className="bg-surface text-ink">Aslam</option>
                   )}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
             <div className="hidden md:block"></div>
@@ -806,14 +806,14 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
           {/* Row 7: Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-ink/80 mb-1.5">
               Notes
             </label>
             <textarea
               rows={2}
               value={formNotes}
               onChange={(e) => setFormNotes(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
@@ -822,7 +822,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? 'Creating…' : 'Create'}
             </button>
@@ -831,7 +831,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
               type="button"
               disabled={isSaving}
               onClick={() => handleCreateLead(true)}
-              className="px-4 py-2 bg-[#0b1322] hover:bg-slate-800 text-white text-[13px] font-semibold rounded-lg border border-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 bg-surface hover:bg-active text-ink text-[13px] font-semibold rounded-lg border border-line transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               Create &amp; create another
             </button>
@@ -842,7 +842,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 resetForm();
                 setViewMode('list');
               }}
-              className="px-4 py-2 bg-[#0b1322] hover:bg-slate-800 text-white text-[13px] font-semibold rounded-lg border border-slate-700 transition active:scale-95 cursor-pointer"
+              className="px-4 py-2 bg-surface hover:bg-active text-ink text-[13px] font-semibold rounded-lg border border-line transition active:scale-95 cursor-pointer"
             >
               Cancel
             </button>
@@ -860,19 +860,19 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       {/* Top Header & Breadcrumb matching Screenshot 3 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <span>Leads</span>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Leads</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Leads</h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* New lead button */}
           <button
             onClick={() => setViewMode('create')}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#081e2b] hover:bg-[#0b283a] text-[#38bdf8] border border-[#09929e]/50 hover:border-[#09929e] text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-bulk hover:bg-bulk text-accent border border-accent/50 hover:border-accent text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
           >
             <span>New lead</span>
           </button>
@@ -880,7 +880,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           {/* Import leads button matching Screenshot 3 */}
           <button
             onClick={() => setImportModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#10b981] hover:bg-[#059669] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
           >
             <Upload className="w-4 h-4" />
             <span>Import leads</span>
@@ -889,11 +889,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
         {/* Search Toolbar */}
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-[#1b263b]">
+        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -902,19 +902,19 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer disabled:opacity-50"
+            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer disabled:opacity-50"
             title="Refresh leads"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
           <button
-            className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer"
+            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
             title="Columns"
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -923,20 +923,20 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
         {/* Bulk Selection Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="bg-[#10243e] px-4 py-2 flex items-center justify-between text-xs border-b border-[#1b263b]">
-            <span className="text-slate-200">
-              <strong className="text-white">{selectedIds.length}</strong> lead(s) selected
+          <div className="bg-bulk px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs border-b border-line">
+            <span className="text-ink">
+              <strong className="text-ink">{selectedIds.length}</strong> lead(s) selected
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-slate-300 hover:text-white underline text-xs cursor-pointer"
+                className="text-ink/80 hover:text-ink underline text-xs cursor-pointer"
               >
                 Deselect all
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="text-red-400 hover:text-red-300 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                className="text-danger hover:text-danger font-semibold text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete selected</span>
@@ -949,11 +949,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-300 font-semibold text-[13px]">
+              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
                 <th className="py-3.5 px-4 w-10">
                   <input
                     type="checkbox"
-                    className="accent-[#09929e] cursor-pointer rounded"
+                    className="accent-accent cursor-pointer rounded"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
                     title="Select all"
@@ -961,11 +961,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 </th>
                 <th
                   onClick={() => handleSort('name')}
-                  className="py-3.5 px-5 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-5 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Name</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th className="py-3.5 px-5 font-semibold">Phone</th>
@@ -974,40 +974,40 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 <th className="py-3.5 px-5 font-semibold">Course</th>
                 <th
                   onClick={() => handleSort('source')}
-                  className="py-3.5 px-5 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-5 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Lead Source</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('status')}
-                  className="py-3.5 px-5 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-5 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Lead Status</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('employee')}
-                  className="py-3.5 px-5 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-5 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Assigned Employee</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th className="py-3.5 px-5 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236] text-[13px]">
+            <tbody className="divide-y divide-line-2 text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400">
+                  <td colSpan={10} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading leads...</span>
                     </div>
                   </td>
@@ -1020,35 +1020,35 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                   return (
                     <tr
                       key={id}
-                      className={`transition text-slate-200 ${
-                        isSelected ? 'bg-[#0e2233]' : 'hover:bg-[#131c2e]/60'
+                      className={`transition text-ink ${
+                        isSelected ? 'bg-selected' : 'hover:bg-hover/60'
                       }`}
                     >
                       <td
                         className={`py-3.5 px-4 border-l-2 ${
-                          isSelected ? 'border-[#09929e]' : 'border-transparent'
+                          isSelected ? 'border-accent' : 'border-transparent'
                         }`}
                       >
                         <input
                           type="checkbox"
-                          className="accent-[#09929e] cursor-pointer rounded"
+                          className="accent-accent cursor-pointer rounded"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(id)}
                         />
                       </td>
-                      <td className="py-3.5 px-5 font-normal text-white">{item.name || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.phone || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.email || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.district || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.course || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-300">{item.source || '—'}</td>
-                      <td className="py-3.5 px-5 text-slate-200">{String(item.status || 'New')}</td>
-                      <td className="py-3.5 px-5 text-slate-300">
+                      <td className="py-3.5 px-5 font-normal text-ink">{item.name || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink/80">{item.phone || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink/80">{item.email || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink/80">{item.district || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink/80">{item.course || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink/80">{item.source || '—'}</td>
+                      <td className="py-3.5 px-5 text-ink">{String(item.status || 'New')}</td>
+                      <td className="py-3.5 px-5 text-ink/80">
                         {item.employee ? (
                           <span>
                             {item.employee}
                             {item.employee_id ? (
-                              <span className="text-slate-500"> ({item.employee_id})</span>
+                              <span className="text-subtle"> ({item.employee_id})</span>
                             ) : null}
                           </span>
                         ) : (
@@ -1059,16 +1059,16 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                         <div className="flex items-center justify-end gap-3">
                           <button
                             onClick={() => setViewingLead(item)}
-                            className="inline-flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
                           >
-                            <Eye className="w-4 h-4 text-slate-400" />
+                            <Eye className="w-4 h-4 text-muted" />
                             <span>View</span>
                           </button>
                           <button
                             onClick={() => setEditingLead(item)}
-                            className="inline-flex items-center gap-1.5 text-[13px] text-[#09929e] hover:text-[#08818c] transition cursor-pointer"
+                            className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:text-accent-hover transition cursor-pointer"
                           >
-                            <Pencil className="w-3.5 h-3.5 text-[#09929e]" />
+                            <Pencil className="w-3.5 h-3.5 text-accent" />
                             <span>Edit</span>
                           </button>
                         </div>
@@ -1078,7 +1078,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-500">
+                  <td colSpan={10} className="py-12 text-center text-subtle">
                     No leads found. Click &quot;New lead&quot; to create one.
                   </td>
                 </tr>
@@ -1088,51 +1088,30 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-400">
-          <span>
-            {filteredLeads.length > 0
-              ? `Showing ${(currentPage - 1) * perPage + 1} to ${Math.min(
-                  currentPage * perPage,
-                  filteredLeads.length
-                )} of ${filteredLeads.length} results`
-              : 'Showing 0 results'}
-          </span>
-
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              Per page:
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d1a] border border-slate-700 rounded px-2 py-1 text-white text-[13px] focus:outline-none focus:ring-1 focus:ring-[#09929e]"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </span>
-          </div>
-        </div>
+        <TablePagination
+          total={filteredLeads.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* ------------------------------------------------------------- */}
       {/* IMPORT LEADS MODAL matching Screenshot 3                     */}
       {/* ------------------------------------------------------------- */}
       {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 dark:bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Import leads</h3>
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h3 className="text-base font-semibold text-ink">Import leads</h3>
               <button
                 onClick={() => {
                   setImportModalOpen(false);
                   setImportFile(null);
                 }}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1144,7 +1123,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
               <button
                 type="button"
                 onClick={handleDownloadExampleCSV}
-                className="text-[13px] text-[#09929e] hover:underline block font-medium cursor-pointer"
+                className="text-[13px] text-accent hover:underline block font-medium cursor-pointer"
               >
                 Download example CSV file
               </button>
@@ -1164,14 +1143,14 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border border-slate-700/80 bg-[#080d1a] hover:bg-[#0c1424] hover:border-[#09929e] transition rounded-xl p-10 text-center cursor-pointer group"
+                className="border border-line bg-field hover:bg-app hover:border-accent transition rounded-xl p-10 text-center cursor-pointer group"
               >
-                <FileSpreadsheet className="w-8 h-8 text-slate-400 group-hover:text-[#09929e] mx-auto mb-2 transition" />
-                <span className="text-sm text-slate-300 font-medium block">
+                <FileSpreadsheet className="w-8 h-8 text-muted group-hover:text-accent mx-auto mb-2 transition" />
+                <span className="text-sm text-ink/80 font-medium block">
                   {importFile ? importFile.name : 'Upload a CSV file'}
                 </span>
                 {importFile && (
-                  <span className="text-xs text-emerald-400 mt-1 block">
+                  <span className="text-xs text-success mt-1 block">
                     {(importFile.size / 1024).toFixed(1)} KB selected
                   </span>
                 )}
@@ -1179,12 +1158,12 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
             </div>
 
             {/* Modal Footer Buttons matching Screenshot 3 */}
-            <div className="px-6 py-4 bg-[#0b1322] border-t border-slate-800 flex items-center gap-3">
+            <div className="px-6 py-4 bg-surface border-t border-line flex items-center gap-3">
               <button
                 type="button"
                 disabled={isImporting || !importFile}
                 onClick={handleImportCSV}
-                className="px-4 py-2 bg-[#10b981] hover:bg-[#059669] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isImporting ? 'Importing…' : 'Import'}
               </button>
@@ -1194,7 +1173,7 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                   setImportModalOpen(false);
                   setImportFile(null);
                 }}
-                className="px-4 py-2 bg-[#101728] hover:bg-slate-800 text-white text-[13px] font-semibold rounded-lg border border-slate-700 transition cursor-pointer"
+                className="px-4 py-2 bg-elevated hover:bg-active text-ink text-[13px] font-semibold rounded-lg border border-line transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1207,94 +1186,94 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       {/* VIEW LEAD MODAL                                               */}
       {/* ------------------------------------------------------------- */}
       {viewingLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-white">Lead Details</h3>
-                <p className="text-xs text-slate-400">{viewingLead.name}</p>
+                <h3 className="text-base font-semibold text-ink">Lead Details</h3>
+                <p className="text-xs text-muted">{viewingLead.name}</p>
               </div>
               <button
                 onClick={() => setViewingLead(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-3 text-[13px]">
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Phone</span>
-                  <span className="text-white font-medium">{viewingLead.phone || '—'}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Phone</span>
+                  <span className="text-ink font-medium">{viewingLead.phone || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Email</span>
-                  <span className="text-white font-medium">{viewingLead.email || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Email</span>
+                  <span className="text-ink font-medium">{viewingLead.email || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">WhatsApp</span>
-                  <span className="text-white font-medium">
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">WhatsApp</span>
+                  <span className="text-ink font-medium">
                     {viewingLead.whats_number || viewingLead.phone || '—'}
                   </span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Place</span>
-                  <span className="text-white font-medium">{viewingLead.place || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Place</span>
+                  <span className="text-ink font-medium">{viewingLead.place || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Age</span>
-                  <span className="text-white font-medium">{viewingLead.age || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Age</span>
+                  <span className="text-ink font-medium">{viewingLead.age || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Qualification</span>
-                  <span className="text-white font-medium">{viewingLead.qualification || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Qualification</span>
+                  <span className="text-ink font-medium">{viewingLead.qualification || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">College / Institute</span>
-                  <span className="text-white font-medium">{viewingLead.college_name || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">College / Institute</span>
+                  <span className="text-ink font-medium">{viewingLead.college_name || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Current Year</span>
-                  <span className="text-white font-medium">{viewingLead.current_year || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Current Year</span>
+                  <span className="text-ink font-medium">{viewingLead.current_year || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800 col-span-2">
-                  <span className="text-slate-400 block mb-0.5">Interested Topic</span>
-                  <span className="text-white font-medium">{viewingLead.interested_topic || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2">
+                  <span className="text-muted block mb-0.5">Interested Topic</span>
+                  <span className="text-ink font-medium">{viewingLead.interested_topic || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">District</span>
-                  <span className="text-white font-medium">{viewingLead.district || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">District</span>
+                  <span className="text-ink font-medium">{viewingLead.district || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Course</span>
-                  <span className="text-white font-medium">{viewingLead.course || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Course</span>
+                  <span className="text-ink font-medium">{viewingLead.course || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Lead Source</span>
-                  <span className="text-white font-medium">{viewingLead.source || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Lead Source</span>
+                  <span className="text-ink font-medium">{viewingLead.source || '—'}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Lead Status</span>
-                  <span className="text-emerald-400 font-medium">{String(viewingLead.status || 'New')}</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Lead Status</span>
+                  <span className="text-success font-medium">{String(viewingLead.status || 'New')}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800 col-span-2">
-                  <span className="text-slate-400 block mb-0.5">Assigned Employee</span>
-                  <span className="text-white font-medium">{viewingLead.employee || '—'}</span>
+                <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2">
+                  <span className="text-muted block mb-0.5">Assigned Employee</span>
+                  <span className="text-ink font-medium">{viewingLead.employee || '—'}</span>
                 </div>
                 {viewingLead.notes && (
-                  <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800 col-span-2">
-                    <span className="text-slate-400 block mb-0.5">Notes</span>
-                    <span className="text-slate-300">{viewingLead.notes}</span>
+                  <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2">
+                    <span className="text-muted block mb-0.5">Notes</span>
+                    <span className="text-ink/80">{viewingLead.notes}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="px-6 py-3.5 bg-[#0b1322] border-t border-slate-800 flex justify-end">
+            <div className="px-6 py-3.5 bg-surface border-t border-line flex justify-end">
               <button
                 onClick={() => setViewingLead(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
               >
                 Close
               </button>
@@ -1307,13 +1286,13 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       {/* EDIT LEAD MODAL                                               */}
       {/* ------------------------------------------------------------- */}
       {editingLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Edit Lead</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h3 className="text-base font-semibold text-ink">Edit Lead</h3>
               <button
                 onClick={() => setEditingLead(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1321,121 +1300,121 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
             <form onSubmit={handleUpdateLead} className="p-6 space-y-4 text-[13px]">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Name <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                  Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={editingLead.name || ''}
                   onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Phone</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Phone</label>
                   <input
                     type="text"
                     value={editingLead.phone || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Email</label>
                   <input
                     type="email"
                     value={editingLead.email || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">WhatsApp Number</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">WhatsApp Number</label>
                   <input
                     type="text"
                     value={editingLead.whats_number || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, whats_number: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Place</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Place</label>
                   <input
                     type="text"
                     value={editingLead.place || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, place: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Age</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Age</label>
                   <input
                     type="number"
                     min={10}
                     max={100}
                     value={editingLead.age ?? ''}
                     onChange={(e) => setEditingLead({ ...editingLead, age: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Qualification</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Qualification</label>
                   <input
                     type="text"
                     value={editingLead.qualification || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, qualification: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">College / Institute Name</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">College / Institute Name</label>
                   <input
                     type="text"
                     value={editingLead.college_name || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, college_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Current Year</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Current Year</label>
                   <input
                     type="text"
                     value={editingLead.current_year || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, current_year: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Interested Topic</label>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Interested Topic</label>
                 <input
                   type="text"
                   value={editingLead.interested_topic || ''}
                   onChange={(e) => setEditingLead({ ...editingLead, interested_topic: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">District</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">District</label>
                   <select
                     value={editingLead.district || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, district: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   >
                     <option value="">Select district</option>
                     {districts.map((d) => (
@@ -1444,11 +1423,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Course</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Course</label>
                   <select
                     value={editingLead.course || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, course: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   >
                     <option value="">Select course</option>
                     {courses.map((c) => (
@@ -1458,13 +1437,13 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Lead Source</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Lead Source</label>
                   <select
                     value={editingLead.source || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, source: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   >
                     {DEFAULT_SOURCES.map((s) => (
                       <option key={s} value={s}>{s}</option>
@@ -1472,11 +1451,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Lead Status</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Lead Status</label>
                   <select
                     value={String(editingLead.status || 'New')}
                     onChange={(e) => setEditingLead({ ...editingLead, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   >
                     {DEFAULT_STATUSES.map((st) => (
                       <option key={st} value={st}>{st}</option>
@@ -1486,11 +1465,11 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Assigned Employee</label>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Assigned Employee</label>
                 <select
                   value={editingLead.employee || ''}
                   onChange={(e) => setEditingLead({ ...editingLead, employee: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 >
                   <option value="">Select employee</option>
                   {employees.map((emp) => (
@@ -1501,18 +1480,18 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                 </select>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+              <div className="pt-3 flex items-center justify-end gap-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setEditingLead(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                  className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSaving ? 'Saving…' : 'Save Changes'}
                 </button>

@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Employee } from '../../types';
+import TablePagination from '@/components/ui/TablePagination';
 
 interface EmployeesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -417,33 +418,33 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header with Breadcrumbs & Action Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
             <span>Employees</span>
-            <span className="text-slate-600">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Employees</h1>
+          <h1 className="text-2xl font-bold text-ink tracking-tight">Employees</h1>
         </div>
 
         <button
           id="btn-new-employee"
           onClick={openNewModal}
-          className="px-4 py-2 bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold rounded-lg shadow transition self-start sm:self-auto cursor-pointer"
+          className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow transition self-start sm:self-auto cursor-pointer"
         >
           New employee
         </button>
       </div>
 
       {/* Table Container Card */}
-      <div className="bg-[#0b1322] border border-[#1b253b] rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-surface border border-line rounded-xl shadow-lg overflow-hidden">
         {/* Top Bar with Search on Right & Column Visibility Toggle */}
-        <div className="p-3.5 flex items-center justify-between sm:justify-end gap-2 border-b border-[#1b253b]">
+        <div className="p-3.5 flex items-center justify-between sm:justify-end gap-2 border-b border-line">
           <div className="relative flex-1 sm:w-64 sm:flex-initial">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -452,22 +453,22 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d18] border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00a2b8]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           <div className="relative">
             <button
               onClick={() => setShowColumnToggle(!showColumnToggle)}
-              className="p-2 border border-slate-700/80 rounded-lg bg-[#080d18] text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer"
+              className="p-2 border border-line rounded-lg bg-field text-muted hover:text-ink transition flex items-center justify-center cursor-pointer"
               title="Toggle columns"
             >
               <Columns3 className="w-3.5 h-3.5" />
             </button>
 
             {showColumnToggle && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#0d1627] border border-[#223352] rounded-xl shadow-2xl p-3 z-30 text-xs">
-                <div className="font-semibold text-slate-300 mb-2 pb-1 border-b border-slate-800">
+              <div className="absolute right-0 mt-2 w-48 bg-elevated border border-line rounded-xl shadow-2xl p-3 z-30 text-xs">
+                <div className="font-semibold text-ink/80 mb-2 pb-1 border-b border-line">
                   Columns
                 </div>
                 <div className="space-y-1.5">
@@ -483,7 +484,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   ].map(({ key, label }) => (
                     <label
                       key={key}
-                      className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none"
+                      className="flex items-center gap-2 text-ink/80 hover:text-ink cursor-pointer select-none"
                     >
                       <input
                         type="checkbox"
@@ -494,7 +495,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                             [key]: !prev[key],
                           }))
                         }
-                        className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                        className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                       />
                       <span>{label}</span>
                     </label>
@@ -507,23 +508,23 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
         {/* Bulk Actions Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="px-4 py-2.5 bg-[#132038] border-b border-[#203254] flex items-center justify-between text-xs animate-in fade-in">
-            <div className="flex items-center gap-2 text-white">
+          <div className="px-4 py-2.5 bg-bulk border-b border-line flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-ink">
               <span className="font-semibold">{selectedIds.length}</span>
-              <span className="text-slate-300">
+              <span className="text-ink/80">
                 employee{selectedIds.length > 1 ? 's' : ''} selected
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedIds([])}
-                className="px-2.5 py-1 rounded bg-[#0b1322] border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                className="px-2.5 py-1 rounded bg-surface border border-line text-ink/80 hover:text-ink transition cursor-pointer"
               >
                 Deselect all
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-700/60 transition flex items-center gap-1.5 font-medium cursor-pointer"
+                className="px-3 py-1 rounded bg-danger/15 hover:bg-danger/20 text-danger border border-danger/30 transition flex items-center gap-1.5 font-medium cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete selected</span>
@@ -534,15 +535,15 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
         {/* Table Content */}
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-6 h-6 text-[#00a2b8] animate-spin" />
+          <div className="py-16 flex flex-col items-center justify-center text-muted gap-2">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
             <span className="text-xs">Loading employees...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[#1b253b] text-slate-300 font-semibold text-xs bg-[#0b1322]">
+                <tr className="border-b border-line text-ink/80 font-semibold text-xs bg-surface">
                   <th className="py-3.5 px-4 w-10">
                     <input
                       type="checkbox"
@@ -551,18 +552,18 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                         paginatedEmployees.length > 0
                       }
                       onChange={toggleSelectAll}
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                   </th>
                   {columnVisibility.name !== false && (
                     <th
                       onClick={() => handleSort('name')}
-                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                      className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
                         <span>Name</span>
                         <ChevronDown
-                          className={`w-3 h-3 text-slate-500 transition-transform ${
+                          className={`w-3 h-3 text-subtle transition-transform ${
                             sortField === 'name' && sortOrder === 'desc' ? 'rotate-180' : ''
                           }`}
                         />
@@ -572,12 +573,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   {columnVisibility.email !== false && (
                     <th
                       onClick={() => handleSort('email')}
-                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                      className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
                         <span>Email</span>
                         <ChevronDown
-                          className={`w-3 h-3 text-slate-500 transition-transform ${
+                          className={`w-3 h-3 text-subtle transition-transform ${
                             sortField === 'email' && sortOrder === 'desc' ? 'rotate-180' : ''
                           }`}
                         />
@@ -605,57 +606,57 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   <th className="py-3.5 px-4 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#172236]">
+              <tbody className="divide-y divide-line-2">
                 {paginatedEmployees.length > 0 ? (
                   paginatedEmployees.map((emp, idx) => {
                     const id = emp.id || (emp as any)._id || String(idx);
                     return (
-                      <tr key={id} className="hover:bg-[#131d2e]/60 transition">
+                      <tr key={id} className="hover:bg-hover/60 transition">
                         <td className="py-3.5 px-4">
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(id)}
                             onChange={() => toggleSelectOne(id)}
-                            className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                            className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                           />
                         </td>
                         {columnVisibility.name !== false && (
-                          <td className="py-3.5 px-4 font-normal text-slate-200">
+                          <td className="py-3.5 px-4 font-normal text-ink">
                             {emp.name}
                           </td>
                         )}
                         {columnVisibility.email !== false && (
-                          <td className="py-3.5 px-4 text-slate-400">
+                          <td className="py-3.5 px-4 text-muted">
                             {emp.email}
                           </td>
                         )}
                         {columnVisibility.employeeId !== false && (
-                          <td className="py-3.5 px-4 font-mono text-slate-300 text-[11px]">
+                          <td className="py-3.5 px-4 font-mono text-ink/80 text-[11px]">
                             {emp.employee_id}
                           </td>
                         )}
                         {columnVisibility.contactNo !== false && (
-                          <td className="py-3.5 px-4 text-slate-300">
+                          <td className="py-3.5 px-4 text-ink/80">
                             {emp.contact_number}
                           </td>
                         )}
                         {columnVisibility.designation !== false && (
-                          <td className="py-3.5 px-4 text-slate-400">
+                          <td className="py-3.5 px-4 text-muted">
                             {emp.designation || '—'}
                           </td>
                         )}
                         {columnVisibility.zone !== false && (
-                          <td className="py-3.5 px-4 text-slate-300">
+                          <td className="py-3.5 px-4 text-ink/80">
                             {emp.zone}
                           </td>
                         )}
                         {columnVisibility.district !== false && (
-                          <td className="py-3.5 px-4 text-slate-300">
+                          <td className="py-3.5 px-4 text-ink/80">
                             {emp.district}
                           </td>
                         )}
                         {columnVisibility.team !== false && (
-                          <td className="py-3.5 px-4 text-slate-300">
+                          <td className="py-3.5 px-4 text-ink/80">
                             {emp.team || '—'}
                           </td>
                         )}
@@ -663,26 +664,26 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                           <div className="flex items-center justify-end gap-3.5 whitespace-nowrap">
                             <button
                               onClick={() => setViewingEmployee(emp)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="View details"
                             >
-                              <Eye className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Eye className="w-3.5 h-3.5 text-accent" />
                               <span>View</span>
                             </button>
                             <button
                               onClick={() => openEditModal(emp)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="Edit employee"
                             >
-                              <Pencil className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Pencil className="w-3.5 h-3.5 text-accent" />
                               <span>Edit</span>
                             </button>
                             <button
                               onClick={() => handleDeleteEmployee(emp)}
-                              className="inline-flex items-center gap-1.5 text-[#f43f5e] hover:text-red-400 transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-danger hover:text-danger transition font-medium text-xs hover:underline cursor-pointer"
                               title="Delete employee"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-[#f43f5e]" />
+                              <Trash2 className="w-3.5 h-3.5 text-danger" />
                               <span>Delete</span>
                             </button>
                           </div>
@@ -692,7 +693,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-slate-500">
+                    <td colSpan={10} className="py-12 text-center text-subtle">
                       No employees found.
                     </td>
                   </tr>
@@ -702,120 +703,61 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           </div>
         )}
 
-        {/* Table Footer with Record Count & Pagination */}
-        <div className="px-4 py-3 bg-[#0a101d] border-t border-[#1b253b] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-          <div>
-            Showing{' '}
-            <span className="font-semibold text-white">
-              {filteredAndSortedEmployees.length === 0
-                ? 0
-                : (currentPage - 1) * perPage + 1}
-            </span>{' '}
-            to{' '}
-            <span className="font-semibold text-white">
-              {Math.min(currentPage * perPage, filteredAndSortedEmployees.length)}
-            </span>{' '}
-            of{' '}
-            <span className="font-semibold text-white">
-              {filteredAndSortedEmployees.length}
-            </span>{' '}
-            results
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span>Per page</span>
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d18] border border-slate-700/80 rounded px-2.5 py-1 text-white text-xs outline-none focus:border-[#00a2b8]"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-
-            {Math.ceil(filteredAndSortedEmployees.length / perPage) > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) =>
-                      Math.min(
-                        Math.ceil(filteredAndSortedEmployees.length / perPage),
-                        p + 1
-                      )
-                    )
-                  }
-                  disabled={
-                    currentPage >=
-                    Math.ceil(filteredAndSortedEmployees.length / perPage)
-                  }
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredAndSortedEmployees.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* VIEW EMPLOYEE MODAL */}
       {viewingEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5 border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-5 border-b border-line pb-3">
               <div>
-                <h3 className="font-bold text-white text-base">{viewingEmployee.name}</h3>
-                <p className="text-xs text-slate-400">{viewingEmployee.email}</p>
+                <h3 className="font-bold text-ink text-base">{viewingEmployee.name}</h3>
+                <p className="text-xs text-muted">{viewingEmployee.email}</p>
               </div>
               <button
                 onClick={() => setViewingEmployee(null)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted hover:text-ink p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Employee ID</span>
-                <span className="text-white font-mono font-medium">{viewingEmployee.employee_id}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Employee ID</span>
+                <span className="text-ink font-mono font-medium">{viewingEmployee.employee_id}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Contact</span>
-                <span className="text-white font-medium">{viewingEmployee.contact_number}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Contact</span>
+                <span className="text-ink font-medium">{viewingEmployee.contact_number}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Designation</span>
-                <span className="text-white font-medium">{viewingEmployee.designation || '—'}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Designation</span>
+                <span className="text-ink font-medium">{viewingEmployee.designation || '—'}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Team</span>
-                <span className="text-white font-medium">{viewingEmployee.team || 'Team Kakkanad'}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Team</span>
+                <span className="text-ink font-medium">{viewingEmployee.team || 'Team Kakkanad'}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Zone</span>
-                <span className="text-white font-medium">{viewingEmployee.zone || 'Central Zone'}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">Zone</span>
+                <span className="text-ink font-medium">{viewingEmployee.zone || 'Central Zone'}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">District</span>
-                <span className="text-white font-medium">{viewingEmployee.district || 'Ernakulam'}</span>
+              <div className="bg-field p-3 rounded-lg border border-line">
+                <span className="text-muted block mb-0.5">District</span>
+                <span className="text-ink font-medium">{viewingEmployee.district || 'Ernakulam'}</span>
               </div>
-              <div className="bg-[#0b101d] p-3 rounded-lg border border-slate-800 col-span-2 flex justify-between items-center">
-                <span className="text-slate-400">Status</span>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800 uppercase">
+              <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2 flex justify-between items-center">
+                <span className="text-muted">Status</span>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-success/10 text-success border border-success/30 uppercase">
                   {viewingEmployee.status || 'Active'}
                 </span>
               </div>
@@ -828,13 +770,13 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   setViewingEmployee(null);
                   openEditModal(emp);
                 }}
-                className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
+                className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow cursor-pointer"
               >
                 Edit Employee
               </button>
               <button
                 onClick={() => setViewingEmployee(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg cursor-pointer"
+                className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs rounded-lg cursor-pointer"
               >
                 Close
               </button>
@@ -845,15 +787,15 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
       {/* CREATE / EDIT EMPLOYEE MODAL */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-xl bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-white text-base">
+              <h3 className="font-bold text-ink text-base">
                 {editingEmployee ? 'Edit' : 'New'} Employee
               </h3>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted hover:text-ink p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -862,33 +804,33 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
             <form onSubmit={handleSaveEmployee} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Name</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Name</label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Aslam"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Email</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Email</label>
                   <input
                     type="email"
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="e.g. aslam@gmail.com"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Password <span className="text-[#f43f5e]">*</span>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Password <span className="text-danger">*</span>
                   </label>
                   <input
                     type="password"
@@ -897,45 +839,45 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder={editingEmployee ? 'Leave blank to keep current' : 'e.g. password123'}
                     autoComplete="new-password"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                   {editingEmployee && (
-                    <span className="block mt-1 text-[10px] text-slate-500">
+                    <span className="block mt-1 text-[10px] text-subtle">
                       Leave blank to keep the existing password.
                     </span>
                   )}
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Contact No</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Contact No</label>
                   <input
                     type="text"
                     required
                     value={formData.contact_number}
                     onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
                     placeholder="e.g. 9746543243"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Employee ID</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Employee ID</label>
                   <input
                     type="text"
                     required
                     value={formData.employee_id}
                     onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
                     placeholder="e.g. BDE001"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none font-mono"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
                   />
-                  <span className="block mt-1 text-[10px] text-slate-500">
+                  <span className="block mt-1 text-[10px] text-subtle">
                     Auto-generated from the designation prefix.
                   </span>
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Designation <span className="text-[#f43f5e]">*</span>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Designation <span className="text-danger">*</span>
                   </label>
                   <select
                     required
@@ -951,7 +893,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                           : buildEmployeeId(value, currentKey),
                       }));
                     }}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     {formData.designation &&
                       !designations.some((d) => d.name === formData.designation) && (
@@ -968,11 +910,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Team</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Team</label>
                   <select
                     value={formData.team}
                     onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     {formData.team && !teams.some((t) => t.name === formData.team) && (
                       <option value={formData.team}>{formData.team}</option>
@@ -985,11 +927,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Status</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Status</label>
                   <select
                     value={formData.status.toLowerCase()}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -999,11 +941,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Zone</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Zone</label>
                   <select
                     value={formData.zone}
                     onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     {ZONE_OPTIONS.map((z) => (
                       <option key={z} value={z}>{z}</option>
@@ -1011,11 +953,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">District</label>
+                  <label className="block text-ink/80 font-semibold mb-1">District</label>
                   <select
                     value={formData.district}
                     onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     {DISTRICT_OPTIONS.map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -1026,80 +968,80 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
               {/* Payment Details */}
               <div className="pt-1">
-                <h4 className="text-[11px] font-bold text-slate-200 uppercase tracking-wide border-t border-slate-800 pt-3">
+                <h4 className="text-[11px] font-bold text-ink uppercase tracking-wide border-t border-line pt-3">
                   Payment Details
                 </h4>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Bank Name</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Bank Name</label>
                   <input
                     type="text"
                     value={formData.bank_name}
                     onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                     placeholder="e.g. State Bank of India"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Account Holder Name</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Account Holder Name</label>
                   <input
                     type="text"
                     value={formData.account_holder_name}
                     onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
                     placeholder="e.g. Aslam K"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Account Number</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Account Number</label>
                   <input
                     type="text"
                     value={formData.account_number}
                     onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
                     placeholder="e.g. 32165498701"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">IFSC Code</label>
+                  <label className="block text-ink/80 font-semibold mb-1">IFSC Code</label>
                   <input
                     type="text"
                     value={formData.ifsc_code}
                     onChange={(e) => setFormData({ ...formData, ifsc_code: e.target.value })}
                     placeholder="e.g. SBIN0001234"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none uppercase"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none uppercase"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">UPI ID (Optional)</label>
+                <label className="block text-ink/80 font-semibold mb-1">UPI ID (Optional)</label>
                 <input
                   type="text"
                   value={formData.upi_id}
                   onChange={(e) => setFormData({ ...formData, upi_id: e.target.value })}
                   placeholder="e.g. aslam@okhdfcbank"
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-line text-ink/80 hover:bg-active transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-lg bg-[#09929e] hover:bg-[#08818c] text-white font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingEmployee ? 'Update Employee' : 'Save Employee'}</span>

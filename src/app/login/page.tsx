@@ -76,9 +76,9 @@ export default function LoginPage() {
 
   if (isVerifyingExistingSession) {
     return (
-      <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-slate-300">
-        <div className="w-8 h-8 border-3 border-cyan-500/20 border-t-[#09929e] rounded-full animate-spin mb-4" />
-        <p className="text-xs font-medium text-slate-400">Verifying session authorization...</p>
+      <div className="min-h-screen bg-app flex flex-col items-center justify-center text-ink/80">
+        <div className="w-8 h-8 border-2 border-accent/20 border-t-accent rounded-full animate-spin mb-4" />
+        <p className="text-xs font-medium text-muted">Verifying session authorization...</p>
       </div>
     );
   }

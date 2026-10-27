@@ -21,6 +21,7 @@ import {
   fetchDistricts,
   fetchDashboardStats,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 export default function DashboardView() {
   const [selectedZone, setSelectedZone] = useState<string>('Central Zone');
@@ -65,9 +66,6 @@ export default function DashboardView() {
     return filteredAttendance.slice(start, start + attendancePerPage);
   }, [filteredAttendance, attendancePage, attendancePerPage]);
 
-  const totalAttendancePages =
-    Math.ceil(filteredAttendance.length / attendancePerPage) || 1;
-
   // Donut Chart Calculations
   const donutData = useMemo<DonutSlice[]>(() => {
     if (!statsData?.leadsByStatus) return [];
@@ -92,24 +90,6 @@ export default function DashboardView() {
       };
     });
   }, [statsData?.leadsByStatus]);
-
-  // Lead Generation Trend (Monthly) Coordinates
-  const trendPoints = useMemo(() => {
-    const data = statsData?.leadGenerationTrend?.data || [];
-    if (!data.length) return '0,170 500,170';
-    const max = Math.max(...data, 5);
-    const width = 500;
-    const height = 180;
-    const step = width / (data.length - 1 || 1);
-
-    return data
-      .map((val: number, idx: number) => {
-        const x = idx * step;
-        const y = height - (val / max) * height * 0.75 - 20;
-        return `${x},${y}`;
-      })
-      .join(' ');
-  }, [statsData?.leadGenerationTrend]);
 
   // Dynamic coordinates for Leads Created Line Chart
   const createdTrendCoords = useMemo(() => {
@@ -139,16 +119,16 @@ export default function DashboardView() {
   }, [statsData?.leadGenerationTrend]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Dashboard Title & Top Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-ink tracking-tight">Dashboard</h1>
 
         {/* Filter Dropdowns */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full sm:w-auto">
           {/* Filter by Zone */}
           <div className="flex flex-col flex-1 sm:flex-initial min-w-[130px]">
-            <label className="text-[11px] font-semibold text-slate-400 mb-1">
+            <label className="text-[11px] font-semibold text-muted mb-1">
               Filter by Zone
             </label>
             <div className="relative inline-flex items-center w-full">
@@ -158,7 +138,7 @@ export default function DashboardView() {
                   setSelectedZone(e.target.value);
                   setSelectedDistrict('');
                 }}
-                className="w-full appearance-none bg-[#101726] border border-[#1e2a42] rounded-lg px-3.5 py-1.5 pr-8 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#09929e] shadow-sm cursor-pointer"
+                className="w-full appearance-none bg-elevated border border-line rounded-lg px-3.5 py-1.5 pr-8 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent shadow-sm cursor-pointer"
               >
                 <option value="All Zones">All Zones</option>
                 {zonesList.map((z, idx) => (
@@ -173,26 +153,26 @@ export default function DashboardView() {
                     setSelectedZone('All Zones');
                     setSelectedDistrict('');
                   }}
-                  className="absolute right-6 text-slate-400 hover:text-white text-xs cursor-pointer"
+                  className="absolute right-6 text-muted hover:text-ink text-xs cursor-pointer"
                   title="Clear zone filter"
                 >
                   ×
                 </button>
               ) : null}
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-muted absolute right-2.5 pointer-events-none" />
             </div>
           </div>
 
           {/* Filter by District */}
           <div className="flex flex-col flex-1 sm:flex-initial min-w-[130px]">
-            <label className="text-[11px] font-semibold text-slate-400 mb-1">
+            <label className="text-[11px] font-semibold text-muted mb-1">
               Filter by District
             </label>
             <div className="relative inline-flex items-center w-full">
               <select
                 value={selectedDistrict}
                 onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="w-full appearance-none bg-[#101726] border border-[#1e2a42] rounded-lg px-3.5 py-1.5 pr-8 text-xs text-white focus:outline-none focus:ring-1 focus:ring-[#09929e] shadow-sm cursor-pointer"
+                className="w-full appearance-none bg-elevated border border-line rounded-lg px-3.5 py-1.5 pr-8 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent shadow-sm cursor-pointer"
               >
                 <option value="">All Districts</option>
                 {districtsList
@@ -206,7 +186,7 @@ export default function DashboardView() {
                     </option>
                   ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-muted absolute right-2.5 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -215,37 +195,37 @@ export default function DashboardView() {
       {/* 3 KPI Stats Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Total Leads Card */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-4 sm:p-5 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 mb-1">Total Leads</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <div className="bg-elevated border border-line rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="text-xs font-semibold text-muted mb-1">Total Leads</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             {statsData?.totalLeads ?? 0}
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-400">
-            <Users className="w-3.5 h-3.5 text-[#09929e]" />
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted">
+            <Users className="w-3.5 h-3.5 text-accent" />
             <span>All time leads captured</span>
           </div>
         </div>
 
         {/* New Leads Today Card */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-4 sm:p-5 shadow-sm">
-          <div className="text-xs font-semibold text-slate-400 mb-1">New Leads Today</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <div className="bg-elevated border border-line rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="text-xs font-semibold text-muted mb-1">New Leads Today</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             {statsData?.newLeadsToday ?? 0}
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-400">
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-success">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>Leads generated today</span>
           </div>
         </div>
 
         {/* Active Field Force Card */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-4 sm:p-5 shadow-sm sm:col-span-2 lg:col-span-1">
-          <div className="text-xs font-semibold text-slate-400 mb-1">Active Field Force</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <div className="bg-elevated border border-line rounded-xl p-4 sm:p-5 shadow-sm sm:col-span-2 lg:col-span-1">
+          <div className="text-xs font-semibold text-muted mb-1">Active Field Force</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
             {statsData?.activeFieldForce || '0 / 0 Active'}
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-slate-400">
-            <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted">
+            <Radio className="w-3.5 h-3.5 text-success animate-pulse" />
             <span>Employees currently checked In ((•))</span>
           </div>
         </div>
@@ -254,8 +234,8 @@ export default function DashboardView() {
       {/* CHARTS ROW 1: Leads by Status & Leads Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Leads by Status (Donut Chart) */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-5 shadow-sm flex flex-col justify-between">
-          <div className="font-semibold text-white text-sm mb-4">Leads by Status</div>
+        <div className="bg-elevated border border-line rounded-xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="font-semibold text-ink text-sm mb-4">Leads by Status</div>
           <div className="flex flex-col items-center justify-center my-auto">
             <div className="relative w-48 h-48">
               <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
@@ -275,17 +255,17 @@ export default function DashboardView() {
                 ))}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-bold text-white">
+                <span className="text-2xl font-bold text-ink">
                   {statsData?.totalLeads ?? 0}
                 </span>
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">
+                <span className="text-[10px] text-muted uppercase tracking-wider">
                   Leads
                 </span>
               </div>
             </div>
 
             {/* Donut Legend */}
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6 text-[11px] text-slate-300">
+            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6 text-[11px] text-ink/80">
               {donutData.map((slice: DonutSlice, idx: number) => (
                 <div key={idx} className="flex items-center gap-1.5">
                   <span
@@ -302,22 +282,22 @@ export default function DashboardView() {
         </div>
 
         {/* Leads Chart (Dynamic Monthly Line Chart) */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-5 shadow-sm flex flex-col justify-between">
-          <div className="font-semibold text-white text-sm mb-2">Leads Monthly Performance</div>
+        <div className="bg-elevated border border-line rounded-xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="font-semibold text-ink text-sm mb-2">Leads Monthly Performance</div>
           <div className="h-56 w-full pt-4">
             <svg viewBox="0 0 500 200" className="w-full h-full">
-              <line x1="40" y1="20" x2="480" y2="20" stroke="#1e2a42" strokeDasharray="3 3" />
-              <line x1="40" y1="70" x2="480" y2="70" stroke="#1e2a42" strokeDasharray="3 3" />
-              <line x1="40" y1="120" x2="480" y2="120" stroke="#1e2a42" strokeDasharray="3 3" />
-              <line x1="40" y1="170" x2="480" y2="170" stroke="#1e2a42" />
+              <line x1="40" y1="20" x2="480" y2="20" className="stroke-line" strokeDasharray="3 3" />
+              <line x1="40" y1="70" x2="480" y2="70" className="stroke-line" strokeDasharray="3 3" />
+              <line x1="40" y1="120" x2="480" y2="120" className="stroke-line" strokeDasharray="3 3" />
+              <line x1="40" y1="170" x2="480" y2="170" className="stroke-line" />
 
-              <text x="20" y="25" fill="#64748b" fontSize="10">
+              <text x="20" y="25" className="fill-subtle" fontSize="10">
                 {Math.max(...(statsData?.leadGenerationTrend?.data || [5]), 5)}
               </text>
-              <text x="20" y="95" fill="#64748b" fontSize="10">
+              <text x="20" y="95" className="fill-subtle" fontSize="10">
                 {Math.round(Math.max(...(statsData?.leadGenerationTrend?.data || [5]), 5) / 2)}
               </text>
-              <text x="20" y="175" fill="#64748b" fontSize="10">0</text>
+              <text x="20" y="175" className="fill-subtle" fontSize="10">0</text>
 
               {(statsData?.leadGenerationTrend?.months || ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']).map((m, idx, arr) => {
                 const step = 420 / (arr.length - 1 || 1);
@@ -326,7 +306,7 @@ export default function DashboardView() {
                     key={m}
                     x={50 + idx * step}
                     y="192"
-                    fill="#64748b"
+                    className="fill-subtle"
                     fontSize="10"
                     textAnchor="middle"
                   >
@@ -340,7 +320,7 @@ export default function DashboardView() {
                 <>
                   <polyline
                     fill="none"
-                    stroke="#3b82f6"
+                    className="stroke-blue-500"
                     strokeWidth="2.5"
                     points={createdTrendCoords.map((c) => `${c.cx},${c.cy}`).join(' ')}
                   />
@@ -350,8 +330,7 @@ export default function DashboardView() {
                       cx={c.cx}
                       cy={c.cy}
                       r="3.5"
-                      fill="#3b82f6"
-                      stroke="#0e1526"
+                      className="fill-blue-500 stroke-elevated"
                       strokeWidth="1.5"
                     />
                   ))}
@@ -363,7 +342,7 @@ export default function DashboardView() {
                 <>
                   <polyline
                     fill="none"
-                    stroke="#10b981"
+                    className="stroke-emerald-500"
                     strokeWidth="2.5"
                     points={wonTrendCoords.map((c) => `${c.cx},${c.cy}`).join(' ')}
                   />
@@ -373,8 +352,7 @@ export default function DashboardView() {
                       cx={c.cx}
                       cy={c.cy}
                       r="3.5"
-                      fill="#10b981"
-                      stroke="#0e1526"
+                      className="fill-emerald-500 stroke-elevated"
                       strokeWidth="1.5"
                     />
                   ))}
@@ -382,13 +360,13 @@ export default function DashboardView() {
               )}
             </svg>
           </div>
-          <div className="flex justify-center gap-6 mt-4 text-xs text-slate-300">
+          <div className="flex justify-center gap-6 mt-4 text-xs text-ink/80">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 bg-[#3b82f6] rounded-sm" />
+              <span className="w-3 h-3 bg-blue-500 rounded-sm" />
               <span>Leads Created</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 bg-[#10b981] rounded-sm" />
+              <span className="w-3 h-3 bg-emerald-500 rounded-sm" />
               <span>Leads Won / Admitted</span>
             </div>
           </div>
@@ -398,8 +376,8 @@ export default function DashboardView() {
       {/* CHARTS ROW 2: Lead Generation Trend & Leads by District */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Lead Generation Trend Area Chart */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-4 sm:p-5 shadow-sm">
-          <div className="font-semibold text-white text-sm mb-3">
+        <div className="bg-elevated border border-line rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="font-semibold text-ink text-sm mb-3">
             Lead Generation Trend
           </div>
           <div className="h-48 w-full pt-2">
@@ -414,19 +392,19 @@ export default function DashboardView() {
                 fill="none"
                 stroke="#09929e"
                 strokeWidth="2.5"
-                points={trendPoints}
+                points={createdTrendCoords.map((c) => `${c.cx},${c.cy}`).join(' ')}
               />
               <polygon
                 fill="url(#trendGradient)"
-                points={`0,170 ${trendPoints} 500,170`}
+                points={`0,170 ${createdTrendCoords.map((c) => `${c.cx},${c.cy}`).join(' ')} 500,170`}
               />
             </svg>
           </div>
         </div>
 
         {/* Leads by District */}
-        <div className="bg-[#101726] border border-[#1e2a42] rounded-xl p-4 sm:p-5 shadow-sm">
-          <div className="font-semibold text-white text-sm mb-4">Leads by District</div>
+        <div className="bg-elevated border border-line rounded-xl p-4 sm:p-5 shadow-sm">
+          <div className="font-semibold text-ink text-sm mb-4">Leads by District</div>
           <div className="space-y-3 pt-1">
             {statsData?.leadsByDistrict?.labels && statsData.leadsByDistrict.labels.length > 0 ? (
               statsData.leadsByDistrict.labels.map((districtName, idx) => {
@@ -436,14 +414,14 @@ export default function DashboardView() {
                 return (
                   <div key={districtName} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-300 font-medium">{districtName}</span>
-                      <span className="text-slate-400 font-mono">
+                      <span className="text-ink/80 font-medium">{districtName}</span>
+                      <span className="text-muted font-mono">
                         {count} lead{count === 1 ? '' : 's'} ({pct}%)
                       </span>
                     </div>
-                    <div className="w-full bg-[#1b253b] h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-line h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-[#09929e] h-full rounded-full transition-all duration-500"
+                        className="bg-accent h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -451,7 +429,7 @@ export default function DashboardView() {
                 );
               })
             ) : (
-              <div className="text-center py-6 text-xs text-slate-500">
+              <div className="text-center py-6 text-xs text-subtle">
                 No district leads captured yet.
               </div>
             )}
@@ -460,16 +438,16 @@ export default function DashboardView() {
       </div>
 
       {/* LIVE ATTENDANCE TABLE */}
-      <div className="bg-[#101726] border border-[#1e2a42] rounded-xl shadow-sm overflow-hidden">
-        <div className="p-3.5 sm:p-4 border-b border-[#1c283f] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <div className="bg-elevated border border-line rounded-xl shadow-sm overflow-hidden">
+        <div className="p-3.5 sm:p-4 border-b border-line flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#09929e]" />
-            <h2 className="font-semibold text-white text-sm">Live Attendance</h2>
+            <Clock className="w-4 h-4 text-accent" />
+            <h2 className="font-semibold text-ink text-sm">Live Attendance</h2>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-2.5" />
               <input
                 type="text"
                 placeholder="Search attendance..."
@@ -478,7 +456,7 @@ export default function DashboardView() {
                   setAttendanceSearch(e.target.value);
                   setAttendancePage(1);
                 }}
-                className="pl-8 pr-3 py-1.5 bg-[#0b1120] border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e] w-full"
+                className="pl-8 pr-3 py-1.5 bg-app border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent w-full"
               />
             </div>
           </div>
@@ -488,27 +466,27 @@ export default function DashboardView() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+              <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-6">Name</th>
                 <th className="py-3 px-6">Designation</th>
                 <th className="py-3 px-6">District</th>
                 <th className="py-3 px-6 text-center">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236]">
+            <tbody className="divide-y divide-line-2">
               {paginatedAttendance.length > 0 ? (
                 paginatedAttendance.map((row: AttendanceRecord, idx) => (
-                  <tr key={row.id || (row as any)._id || `att-${idx}`} className="hover:bg-[#131c2e]/60 transition">
-                    <td className="py-3.5 px-6 font-medium text-white">{row.name}</td>
-                    <td className="py-3.5 px-6 text-slate-300">{row.designation || '—'}</td>
-                    <td className="py-3.5 px-6 text-slate-300">{row.district}</td>
+                  <tr key={row.id || (row as any)._id || `att-${idx}`} className="hover:bg-hover/60 transition">
+                    <td className="py-3.5 px-6 font-medium text-ink">{row.name}</td>
+                    <td className="py-3.5 px-6 text-ink/80">{row.designation || '—'}</td>
+                    <td className="py-3.5 px-6 text-ink/80">{row.district}</td>
                     <td className="py-3.5 px-6 text-center">
                       {row.status === 'ONLINE' ? (
-                        <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-[#143625] text-[#34d399] border border-[#065f46]">
+                        <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-success/10 text-success border border-success/30">
                           ONLINE
                         </span>
                       ) : (
-                        <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-[#3f1618] text-[#f87171] border border-[#7f1d1d]">
+                        <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold tracking-wider bg-danger/10 text-danger border border-danger/30">
                           OFFLINE
                         </span>
                       )}
@@ -517,7 +495,7 @@ export default function DashboardView() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-slate-500">
+                  <td colSpan={4} className="py-8 text-center text-subtle">
                     No attendance records match your search.
                   </td>
                 </tr>
@@ -526,44 +504,16 @@ export default function DashboardView() {
           </table>
         </div>
 
-        {/* Attendance Pagination */}
-        <div className="px-6 py-3 border-t border-[#1c283f] flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <span>Per page</span>
-            <select
-              value={attendancePerPage}
-              onChange={(e) => {
-                setAttendancePerPage(Number(e.target.value));
-                setAttendancePage(1);
-              }}
-              className="bg-[#0b1120] border border-slate-700/80 rounded px-2 py-1 text-xs text-white"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span>
-              Page {attendancePage} of {totalAttendancePages}
-            </span>
-            <button
-              disabled={attendancePage <= 1}
-              onClick={() => setAttendancePage((p) => Math.max(1, p - 1))}
-              className="px-2.5 py-1 rounded border border-slate-700 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer"
-            >
-              Prev
-            </button>
-            <button
-              disabled={attendancePage >= totalAttendancePages}
-              onClick={() => setAttendancePage((p) => Math.min(totalAttendancePages, p + 1))}
-              className="px-2.5 py-1 rounded border border-slate-700 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white cursor-pointer"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredAttendance.length}
+          page={attendancePage}
+          perPage={attendancePerPage}
+          onPageChange={setAttendancePage}
+          onPerPageChange={setAttendancePerPage}
+          perPageOptions={[5, 10, 25, 50]}
+          label="records"
+        />
       </div>
     </div>
   );

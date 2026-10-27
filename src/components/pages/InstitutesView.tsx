@@ -16,6 +16,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { authHeaders } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 interface InstituteItem {
   id: string;
@@ -120,7 +121,6 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
     );
   }, [institutes, searchQuery]);
 
-  const totalPages = Math.ceil(filtered.length / perPage) || 1;
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filtered.slice(start, start + perPage);
@@ -162,30 +162,30 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <span>Institute Management</span>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">Institutes</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">Institutes</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Institutes</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Institutes</h1>
+          <p className="text-xs text-muted mt-1">
             Institutes added by Area Sales Managers from the mobile app.
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#0b1322] border border-[#1b263b] rounded-lg text-[13px] text-slate-300">
-          <Building2 className="w-4 h-4 text-[#09929e]" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface border border-line rounded-lg text-[13px] text-ink/80">
+          <Building2 className="w-4 h-4 text-accent" />
           <span>
-            Total: <strong className="text-white">{institutes.length}</strong>
+            Total: <strong className="text-ink">{institutes.length}</strong>
           </span>
         </div>
       </div>
 
       {/* Table container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-[#1b263b]">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
+        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search institute, person, phone, ASM..."
@@ -194,13 +194,13 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer disabled:opacity-50"
+            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer disabled:opacity-50"
             title="Refresh institutes"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -210,7 +210,7 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-300 font-semibold text-[13px]">
+              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
                 <th className="py-3.5 px-5">Institute</th>
                 <th className="py-3.5 px-5">Contact Person</th>
                 <th className="py-3.5 px-5">Position</th>
@@ -221,52 +221,52 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
                 <th className="py-3.5 px-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236] text-[13px]">
+            <tbody className="divide-y divide-line-2 text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading institutes...</span>
                     </div>
                   </td>
                 </tr>
               ) : paginated.length > 0 ? (
                 paginated.map((item) => (
-                  <tr key={item.id} className="transition text-slate-200 hover:bg-[#131c2e]/60">
-                    <td className="py-3.5 px-5 font-medium text-white">
+                  <tr key={item.id} className="transition text-ink hover:bg-hover/60">
+                    <td className="py-3.5 px-5 font-medium text-ink">
                       {item.institute_name || '—'}
                     </td>
-                    <td className="py-3.5 px-5 text-slate-300">{item.person_name || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-300">{item.position || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-300">{item.phone || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-300">{item.district || '—'}</td>
-                    <td className="py-3.5 px-5 text-slate-300">
+                    <td className="py-3.5 px-5 text-ink/80">{item.person_name || '—'}</td>
+                    <td className="py-3.5 px-5 text-ink/80">{item.position || '—'}</td>
+                    <td className="py-3.5 px-5 text-ink/80">{item.phone || '—'}</td>
+                    <td className="py-3.5 px-5 text-ink/80">{item.district || '—'}</td>
+                    <td className="py-3.5 px-5 text-ink/80">
                       {item.created_by ? (
                         <span>
                           {item.created_by}
                           {item.created_by_id ? (
-                            <span className="text-slate-500"> ({item.created_by_id})</span>
+                            <span className="text-subtle"> ({item.created_by_id})</span>
                           ) : null}
                         </span>
                       ) : (
                         '—'
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-slate-400">{formatDate(item.created_at)}</td>
+                    <td className="py-3.5 px-5 text-muted">{formatDate(item.created_at)}</td>
                     <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => setViewing(item)}
-                          className="inline-flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
                         >
-                          <Eye className="w-4 h-4 text-slate-400" />
+                          <Eye className="w-4 h-4 text-muted" />
                           <span>View</span>
                         </button>
                         <button
                           onClick={() => handleDelete(item)}
                           disabled={deletingId === item.id}
-                          className="inline-flex items-center gap-1.5 text-[13px] text-red-400 hover:text-red-300 transition disabled:opacity-50 cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-[13px] text-danger hover:text-danger transition disabled:opacity-50 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                           <span>{deletingId === item.id ? 'Deleting…' : 'Delete'}</span>
@@ -277,7 +277,7 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-14 text-center text-slate-500">
+                  <td colSpan={8} className="py-14 text-center text-subtle">
                     {institutes.length === 0
                       ? 'No institutes added yet. ASMs can add them from the mobile app.'
                       : 'No institutes match your search.'}
@@ -289,67 +289,24 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
-          <span>
-            Showing{' '}
-            <strong className="text-white">
-              {filtered.length > 0 ? (currentPage - 1) * perPage + 1 : 0}
-            </strong>{' '}
-            to <strong className="text-white">{Math.min(currentPage * perPage, filtered.length)}</strong>{' '}
-            of <strong className="text-white">{filtered.length}</strong> results
-          </span>
-
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              Per page:
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d1a] border border-slate-700 rounded px-1.5 py-0.5 text-white text-[11px] focus:outline-none focus:ring-1 focus:ring-[#09929e]"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </span>
-
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <span className="px-2 text-white">
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <TablePagination
+          total={filtered.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* View modal */}
       {viewing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-white text-base">Institute details</h3>
+              <h3 className="font-bold text-ink text-base">Institute details</h3>
               <button
                 onClick={() => setViewing(null)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted hover:text-ink p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -357,72 +314,72 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
 
             <div className="space-y-4 text-[13px]">
               <div className="flex items-start gap-3">
-                <Building2 className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <Building2 className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Institute</p>
-                  <p className="text-white font-medium">{viewing.institute_name || '—'}</p>
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Institute</p>
+                  <p className="text-ink font-medium">{viewing.institute_name || '—'}</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <User className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <User className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Contact person</p>
-                  <p className="text-white">
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Contact person</p>
+                  <p className="text-ink">
                     {viewing.person_name || '—'}
                     {viewing.position ? (
-                      <span className="text-slate-400"> · {viewing.position}</span>
+                      <span className="text-muted"> · {viewing.position}</span>
                     ) : null}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <Phone className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <Phone className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Phone</p>
-                  <p className="text-white">{viewing.phone || '—'}</p>
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Phone</p>
+                  <p className="text-ink">{viewing.phone || '—'}</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <Mail className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <Mail className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Email</p>
-                  <p className="text-white">{viewing.email || '—'}</p>
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Email</p>
+                  <p className="text-ink">{viewing.email || '—'}</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <MapPin className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Location</p>
-                  <p className="text-white">
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Location</p>
+                  <p className="text-ink">
                     {[viewing.place, viewing.district].filter(Boolean).join(', ') || '—'}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <BadgeCheck className="w-4 h-4 text-[#09929e] mt-0.5" />
+                <BadgeCheck className="w-4 h-4 text-accent mt-0.5" />
                 <div>
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide">Added by</p>
-                  <p className="text-white">
+                  <p className="text-muted text-[11px] uppercase tracking-wide">Added by</p>
+                  <p className="text-ink">
                     {viewing.created_by || '—'}
                     {viewing.created_by_id ? (
-                      <span className="text-slate-400"> ({viewing.created_by_id})</span>
+                      <span className="text-muted"> ({viewing.created_by_id})</span>
                     ) : null}
                   </p>
-                  <p className="text-slate-500 text-[11px] mt-0.5">
+                  <p className="text-subtle text-[11px] mt-0.5">
                     {formatDate(viewing.created_at)}
                   </p>
                 </div>
               </div>
 
               {viewing.notes ? (
-                <div className="pt-3 border-t border-slate-700/60">
-                  <p className="text-slate-400 text-[11px] uppercase tracking-wide mb-1">Notes</p>
-                  <p className="text-slate-200 whitespace-pre-wrap">{viewing.notes}</p>
+                <div className="pt-3 border-t border-line">
+                  <p className="text-muted text-[11px] uppercase tracking-wide mb-1">Notes</p>
+                  <p className="text-ink whitespace-pre-wrap">{viewing.notes}</p>
                 </div>
               ) : null}
             </div>
@@ -431,7 +388,7 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
               <button
                 type="button"
                 onClick={() => setViewing(null)}
-                className="px-4 py-1.5 rounded-lg border border-slate-600 bg-[#1b263b] text-slate-200 hover:bg-slate-700 text-xs font-medium transition cursor-pointer"
+                className="px-4 py-1.5 rounded-lg border border-line bg-active text-ink hover:bg-active text-xs font-medium transition cursor-pointer"
               >
                 Close
               </button>

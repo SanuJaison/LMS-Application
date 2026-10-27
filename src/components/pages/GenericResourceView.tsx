@@ -156,14 +156,14 @@ export default function GenericResourceView({
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white capitalize tracking-tight">
+          <h1 className="text-2xl font-bold text-ink capitalize tracking-tight">
             {activeTab.replace(/([A-Z])/g, ' $1').trim()}
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-muted mt-0.5">
             Manage {activeTab.replace(/([A-Z])/g, ' $1').toLowerCase()} records
           </p>
         </div>
@@ -171,7 +171,7 @@ export default function GenericResourceView({
         <div className="flex items-center gap-2">
           <button
             onClick={openNewModal}
-            className="px-3.5 py-1.5 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow flex items-center gap-1.5 transition cursor-pointer"
+            className="px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow flex items-center gap-1.5 transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>New {activeTab.replace(/s$/, '')}</span>
@@ -180,31 +180,31 @@ export default function GenericResourceView({
       </div>
 
       {/* Table Container */}
-      <div className="bg-[#101726] border border-[#1e2a42] rounded-xl shadow-sm overflow-hidden">
-        <div className="p-3.5 border-b border-[#1c283f] flex items-center justify-between">
+      <div className="bg-elevated border border-line rounded-xl shadow-sm overflow-hidden">
+        <div className="p-3.5 border-b border-line flex items-center justify-between">
           <div className="relative w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search records..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#0b1120] border border-slate-700/70 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-app border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
-          <span className="text-xs text-slate-400">Total: {filteredData.length}</span>
+          <span className="text-xs text-muted">Total: {filteredData.length}</span>
         </div>
 
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-6 h-6 text-[#09929e] animate-spin" />
+          <div className="py-16 flex flex-col items-center justify-center text-muted gap-2">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
             <span className="text-xs">Loading records...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
                   <th className="py-3 px-5">ID / CODE</th>
                   <th className="py-3 px-5">NAME / TITLE</th>
                   <th className="py-3 px-5">DETAILS / RELATION</th>
@@ -212,7 +212,7 @@ export default function GenericResourceView({
                   <th className="py-3 px-5 text-right">ACTIONS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#172236]">
+              <tbody className="divide-y divide-line-2">
                 {filteredData.length > 0 ? (
                   filteredData.map((item, idx) => {
                     const id = item.id || item._id || `item-${idx}`;
@@ -220,14 +220,14 @@ export default function GenericResourceView({
                     const statusStr = String(item.status || 'Active').toUpperCase();
 
                     return (
-                      <tr key={id} className="hover:bg-[#131c2e]/60 transition">
-                        <td className="py-3 px-5 font-mono text-slate-400 text-[11px]">
+                      <tr key={id} className="hover:bg-hover/60 transition">
+                        <td className="py-3 px-5 font-mono text-muted text-[11px]">
                           {codeDisplay}
                         </td>
-                        <td className="py-3 px-5 font-medium text-white">
+                        <td className="py-3 px-5 font-medium text-ink">
                           {item.name || item.title || item.employee || '—'}
                         </td>
-                        <td className="py-3 px-5 text-slate-400">
+                        <td className="py-3 px-5 text-muted">
                           {item.details ||
                             item.description ||
                             item.designation ||
@@ -238,25 +238,25 @@ export default function GenericResourceView({
                         <td className="py-3 px-5">
                           {item.status !== undefined ? (
                             <span
-                              className="inline-block px-2.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border border-slate-700 bg-slate-800/40 text-slate-300"
+                              className="inline-block px-2.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border border-line bg-hover text-ink/80"
                             >
                               {statusStr}
                             </span>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-subtle">—</span>
                           )}
                         </td>
                         <td className="py-3 px-5 text-right whitespace-nowrap">
                           <button
                             onClick={() => openEditModal(item)}
-                            className="inline-flex items-center gap-1 text-[#09929e] hover:text-[#08818c] text-xs font-semibold mr-3 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 text-accent hover:text-accent-hover text-xs font-semibold mr-3 transition cursor-pointer"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             <span>Edit</span>
                           </button>
                           <button
                             onClick={() => handleDelete(item)}
-                            className="inline-flex items-center gap-1 text-red-400 hover:text-red-300 text-xs font-semibold transition cursor-pointer"
+                            className="inline-flex items-center gap-1 text-danger hover:text-danger text-xs font-semibold transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>Delete</span>
@@ -267,7 +267,7 @@ export default function GenericResourceView({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                    <td colSpan={5} className="py-12 text-center text-subtle">
                       No {activeTab} records found.
                     </td>
                   </tr>
@@ -280,15 +280,15 @@ export default function GenericResourceView({
 
       {/* CREATE / EDIT MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-xl bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-white text-base">
+              <h3 className="font-bold text-ink text-base">
                 {editingItem ? 'Edit' : 'New'} {activeTab.replace(/s$/, '')}
               </h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted hover:text-ink p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -296,30 +296,30 @@ export default function GenericResourceView({
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Name / Title</label>
+                <label className="block text-ink/80 font-semibold mb-1">Name / Title</label>
                 <input
                   type="text"
                   required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Enter name..."
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Contact / Email</label>
+                <label className="block text-ink/80 font-semibold mb-1">Contact / Email</label>
                 <input
                   type="text"
                   value={formContact}
                   onChange={(e) => setFormContact(e.target.value)}
                   placeholder="e.g. email or phone..."
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">
+                <label className="block text-ink/80 font-semibold mb-1">
                   {activeTab === 'leads' ? 'Course' : 'Details / Notes'}
                 </label>
                 <input
@@ -327,17 +327,17 @@ export default function GenericResourceView({
                   value={formDetail}
                   onChange={(e) => setFormDetail(e.target.value)}
                   placeholder="Additional details..."
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                 />
               </div>
 
               {activeTab === 'leads' ? (
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Status</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Status</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     <option value="1">1: New</option>
                     <option value="2">2: Contacted</option>
@@ -348,11 +348,11 @@ export default function GenericResourceView({
                 </div>
               ) : (
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Status</label>
+                  <label className="block text-ink/80 font-semibold mb-1">Status</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -360,18 +360,18 @@ export default function GenericResourceView({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex justify-end gap-2 pt-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg border border-line text-ink/80 hover:bg-active transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-1.5 rounded-lg bg-[#09929e] hover:bg-[#08818c] text-white font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingItem ? 'Update Record' : 'Save Record'}</span>

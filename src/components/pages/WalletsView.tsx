@@ -13,6 +13,7 @@ import {
   fetchResourceList,
   createResourceItem,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 export interface WalletItem {
   _id?: string;
@@ -123,28 +124,28 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
       {/* Breadcrumb & Heading matching Screenshot 4 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <span>Wallets</span>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Wallets</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Wallets</h1>
         </div>
 
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
         >
           <span>New wallet</span>
         </button>
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
         {/* Card toolbar matching Screenshot 4 (right aligned columns toggle) */}
-        <div className="p-3 px-6 flex items-center justify-end border-b border-[#1b263b]">
+        <div className="p-3 px-6 flex items-center justify-end border-b border-line">
           <button
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-1.5 rounded-lg text-muted hover:text-ink transition cursor-pointer"
             title="Columns"
           >
             <Columns3 className="w-4 h-4" />
@@ -155,51 +156,51 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-300 font-semibold text-[13px]">
+              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
                 <th
                   onClick={() => handleSort('employee')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Employee</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('balance')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Balance</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th className="py-3.5 px-6 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236] text-[13px]">
+            <tbody className="divide-y divide-line-2 text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="py-16 text-center text-slate-400">
+                  <td colSpan={3} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading wallets...</span>
                     </div>
                   </td>
                 </tr>
               ) : paginatedWallets.length > 0 ? (
                 paginatedWallets.map((item, idx) => (
-                  <tr key={item._id || item.id || idx} className="hover:bg-[#131c2e]/60 transition text-slate-200">
-                    <td className="py-3.5 px-6 font-normal text-white">{item.employee}</td>
-                    <td className="py-3.5 px-6 text-slate-200 font-normal">
+                  <tr key={item._id || item.id || idx} className="hover:bg-hover/60 transition text-ink">
+                    <td className="py-3.5 px-6 font-normal text-ink">{item.employee}</td>
+                    <td className="py-3.5 px-6 text-ink font-normal">
                       {(item.balance || 0).toLocaleString()}
                     </td>
                     <td className="py-3.5 px-6 text-right">
                       <button
                         onClick={() => setViewWallet(item)}
-                        className="inline-flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
                       >
-                        <Eye className="w-4 h-4 text-slate-400" />
+                        <Eye className="w-4 h-4 text-muted" />
                         <span>View</span>
                       </button>
                     </td>
@@ -207,7 +208,7 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="py-12 text-center text-slate-500">
+                  <td colSpan={3} className="py-12 text-center text-subtle">
                     No wallets found.
                   </td>
                 </tr>
@@ -216,80 +217,58 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
           </table>
         </div>
 
-        {/* Footer matching Screenshot 4 */}
-        <div className="px-6 py-3.5 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-400">
-          <span>
-            {sortedWallets.length > 0
-              ? `Showing ${(currentPage - 1) * perPage + 1} to ${Math.min(
-                  currentPage * perPage,
-                  sortedWallets.length
-                )} of ${sortedWallets.length} results`
-              : 'Showing 0 results'}
-          </span>
-
-          <div className="flex items-center gap-2">
-            <span>Per page</span>
-            <div className="relative inline-block">
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="appearance-none bg-[#080d1a] border border-slate-700/80 rounded-lg pl-3 pr-8 py-1 text-white text-[13px] focus:outline-none focus:ring-1 focus:ring-[#09929e] cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={sortedWallets.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* VIEW MODAL: Show Wallet Details */}
       {viewWallet && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-white">Wallet Overview</h3>
-                <p className="text-xs text-slate-400">{viewWallet.employee}</p>
+                <h3 className="text-base font-semibold text-ink">Wallet Overview</h3>
+                <p className="text-xs text-muted">{viewWallet.employee}</p>
               </div>
               <button
                 onClick={() => setViewWallet(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4 text-[13px]">
-              <div className="bg-[#080d1a] p-4 rounded-xl border border-slate-800 text-center">
-                <span className="text-xs text-slate-400 block mb-1">Available Balance</span>
-                <span className="text-3xl font-bold text-white block">
+              <div className="bg-field p-4 rounded-xl border border-line text-center">
+                <span className="text-xs text-muted block mb-1">Available Balance</span>
+                <span className="text-3xl font-bold text-ink block">
                   ₹{(viewWallet.balance || 0).toLocaleString()}
                 </span>
-                <span className="text-xs text-emerald-400 mt-1 inline-block">INR Account</span>
+                <span className="text-xs text-success mt-1 inline-block">INR Account</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Employee</span>
-                  <span className="font-medium text-white">{viewWallet.employee}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Employee</span>
+                  <span className="font-medium text-ink">{viewWallet.employee}</span>
                 </div>
-                <div className="bg-[#080d1a] p-3 rounded-lg border border-slate-800">
-                  <span className="text-slate-400 block mb-0.5">Status</span>
-                  <span className="text-emerald-400 font-medium">Active</span>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Status</span>
+                  <span className="text-success font-medium">Active</span>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-3.5 bg-[#0b1322] border-t border-slate-800 flex justify-end">
+            <div className="px-6 py-3.5 bg-surface border-t border-line flex justify-end">
               <button
                 onClick={() => setViewWallet(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
               >
                 Close
               </button>
@@ -300,13 +279,13 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
 
       {/* CREATE MODAL: New Wallet */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Create New Wallet</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h3 className="text-base font-semibold text-ink">Create New Wallet</h3>
               <button
                 onClick={() => setCreateModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -314,8 +293,8 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
 
             <form onSubmit={handleSaveWallet} className="p-6 space-y-4 text-[13px]">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Employee Name <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                  Employee Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -323,12 +302,12 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
                   placeholder="e.g. Aslam"
                   value={formEmployee}
                   onChange={(e) => setFormEmployee(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3.5 py-2 bg-field border border-line rounded-lg text-ink text-[13px] placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">
                   Initial Balance (INR)
                 </label>
                 <input
@@ -337,22 +316,22 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
                   placeholder="0"
                   value={formBalance}
                   onChange={(e) => setFormBalance(Number(e.target.value))}
-                  className="w-full px-3.5 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3.5 py-2 bg-field border border-line rounded-lg text-ink text-[13px] placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-line">
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                  className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSaving ? 'Saving...' : 'Create Wallet'}
                 </button>

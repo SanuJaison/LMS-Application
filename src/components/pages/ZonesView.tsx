@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Zone } from '@/types';
+import TablePagination from '@/components/ui/TablePagination';
 
 interface ZonesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -238,32 +239,32 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6">
       {/* Top Header: Breadcrumbs, Title & "New zone" Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
             <span>Zones</span>
-            <span className="text-slate-600">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Zones</h1>
+          <h1 className="text-2xl font-bold text-ink tracking-tight">Zones</h1>
         </div>
 
         <button
           onClick={openNewModal}
-          className="px-4 py-2 bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer"
+          className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer self-start sm:self-auto"
         >
           New zone
         </button>
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-[#0b1322] border border-[#1b253b] rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-surface border border-line rounded-xl shadow-lg overflow-hidden">
         {/* Top Bar: Search Input & Column Visibility Toggle Button */}
-        <div className="p-3.5 flex items-center justify-end gap-2 border-b border-[#1b253b]">
+        <div className="p-3.5 flex items-center justify-end gap-2 border-b border-line">
           <div className="relative w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -272,33 +273,33 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d18] border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00a2b8]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           <div className="relative">
             <button
               onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-              className="p-2 border border-slate-700/80 rounded-lg bg-[#080d18] text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer"
+              className="p-2 border border-line rounded-lg bg-field text-muted hover:text-ink transition flex items-center justify-center cursor-pointer"
               title="Toggle columns"
             >
               <Columns3 className="w-3.5 h-3.5" />
             </button>
 
             {showColumnDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#0d1627] border border-[#223352] rounded-xl shadow-2xl p-3 z-30 text-xs">
-                <div className="font-semibold text-slate-300 mb-2 pb-1 border-b border-slate-800">
+              <div className="absolute right-0 mt-2 w-48 bg-elevated border border-line rounded-xl shadow-2xl p-3 z-30 text-xs">
+                <div className="font-semibold text-ink/80 mb-2 pb-1 border-b border-line">
                   Columns
                 </div>
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-ink/80 hover:text-ink cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={visibleColumns.name}
                       onChange={() =>
                         setVisibleColumns((prev) => ({ ...prev, name: !prev.name }))
                       }
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Name</span>
                   </label>
@@ -310,23 +311,23 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
 
         {/* Bulk Actions Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="px-4 py-2.5 bg-[#132038] border-b border-[#203254] flex items-center justify-between text-xs animate-in fade-in">
-            <div className="flex items-center gap-2 text-white">
+          <div className="px-4 py-2.5 bg-bulk border-b border-line flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-ink">
               <span className="font-semibold">{selectedIds.length}</span>
-              <span className="text-slate-300">
+              <span className="text-ink/80">
                 zone{selectedIds.length > 1 ? 's' : ''} selected
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedIds([])}
-                className="px-2.5 py-1 rounded bg-[#0b1322] border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                className="px-2.5 py-1 rounded bg-surface border border-line text-ink/80 hover:text-ink transition cursor-pointer"
               >
                 Deselect all
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-700/60 transition flex items-center gap-1.5 font-medium cursor-pointer"
+                className="px-3 py-1 rounded bg-danger/15 hover:bg-danger/20 text-danger border border-danger/30 transition flex items-center gap-1.5 font-medium cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete selected</span>
@@ -337,15 +338,15 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
 
         {/* Table Content */}
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-6 h-6 text-[#00a2b8] animate-spin" />
+          <div className="py-16 flex flex-col items-center justify-center text-muted gap-2">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
             <span className="text-xs">Loading zones...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[#1b253b] text-slate-300 font-semibold text-xs bg-[#0b1322]">
+                <tr className="border-b border-line text-ink/80 font-semibold text-xs bg-surface">
                   <th className="py-3.5 px-4 w-10">
                     <input
                       type="checkbox"
@@ -354,19 +355,19 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                         paginatedZones.length > 0
                       }
                       onChange={toggleSelectAll}
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                   </th>
                   {visibleColumns.name && (
                     <th
                       onClick={handleSort}
-                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                      className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
                         <span>Name</span>
                         {sortOrder && (
                           <ChevronDown
-                            className={`w-3 h-3 text-slate-500 transition-transform ${
+                            className={`w-3 h-3 text-subtle transition-transform ${
                               sortOrder === 'desc' ? 'rotate-180' : ''
                             }`}
                           />
@@ -377,22 +378,22 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                   <th className="py-3.5 px-4 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#172236]">
+              <tbody className="divide-y divide-line-2">
                 {paginatedZones.length > 0 ? (
                   paginatedZones.map((zone, idx) => {
                     const id = zone.id || zone._id || String(idx);
                     return (
-                      <tr key={id} className="hover:bg-[#131d2e]/60 transition">
+                      <tr key={id} className="hover:bg-hover/60 transition">
                         <td className="py-3.5 px-4">
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(id)}
                             onChange={() => toggleSelectOne(id)}
-                            className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                            className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                           />
                         </td>
                         {visibleColumns.name && (
-                          <td className="py-3.5 px-4 font-normal text-slate-200">
+                          <td className="py-3.5 px-4 font-normal text-ink">
                             {zone.name}
                           </td>
                         )}
@@ -400,26 +401,26 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                           <div className="flex items-center justify-end gap-3.5 whitespace-nowrap">
                             <button
                               onClick={() => setViewModalZone(zone)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="View details"
                             >
-                              <Eye className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Eye className="w-3.5 h-3.5 text-accent" />
                               <span>View</span>
                             </button>
                             <button
                               onClick={() => openEditModal(zone)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="Edit zone"
                             >
-                              <Pencil className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Pencil className="w-3.5 h-3.5 text-accent" />
                               <span>Edit</span>
                             </button>
                             <button
                               onClick={() => handleDeleteZone(zone)}
-                              className="inline-flex items-center gap-1.5 text-[#f43f5e] hover:text-red-400 transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-danger hover:text-danger transition font-medium text-xs hover:underline cursor-pointer"
                               title="Delete zone"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-[#f43f5e]" />
+                              <Trash2 className="w-3.5 h-3.5 text-danger" />
                               <span>Delete</span>
                             </button>
                           </div>
@@ -431,7 +432,7 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                   <tr>
                     <td
                       colSpan={3}
-                      className="py-12 text-center text-slate-500 text-xs"
+                      className="py-12 text-center text-subtle text-xs"
                     >
                       No zones found.
                     </td>
@@ -442,128 +443,69 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
           </div>
         )}
 
-        {/* Table Footer: Result Count & Per Page */}
-        <div className="px-4 py-3 bg-[#0a101d] border-t border-[#1b253b] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-          <div>
-            Showing{' '}
-            <span className="font-semibold text-white">
-              {filteredAndSortedZones.length === 0
-                ? 0
-                : (currentPage - 1) * perPage + 1}
-            </span>{' '}
-            to{' '}
-            <span className="font-semibold text-white">
-              {Math.min(currentPage * perPage, filteredAndSortedZones.length)}
-            </span>{' '}
-            of{' '}
-            <span className="font-semibold text-white">
-              {filteredAndSortedZones.length}
-            </span>{' '}
-            results
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span>Per page</span>
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d18] border border-slate-700/80 rounded px-2.5 py-1 text-white text-xs outline-none focus:border-[#00a2b8]"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-
-            {Math.ceil(filteredAndSortedZones.length / perPage) > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) =>
-                      Math.min(
-                        Math.ceil(filteredAndSortedZones.length / perPage),
-                        p + 1
-                      )
-                    )
-                  }
-                  disabled={
-                    currentPage >=
-                    Math.ceil(filteredAndSortedZones.length / perPage)
-                  }
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredAndSortedZones.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* VIEW MODAL */}
       {viewModalZone && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 dark:bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
                   <Eye className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Zone Details</h3>
-                  <p className="text-[11px] text-slate-400">{viewModalZone.name}</p>
+                  <h3 className="text-sm font-bold text-ink">Zone Details</h3>
+                  <p className="text-[11px] text-muted">{viewModalZone.name}</p>
                 </div>
               </div>
               <button
                 onClick={() => setViewModalZone(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-3.5 text-xs">
-              <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                <div className="text-slate-400 text-[11px] mb-1">Zone Name</div>
-                <div className="text-white font-semibold text-sm">
+              <div className="p-3 bg-field rounded-xl border border-line">
+                <div className="text-muted text-[11px] mb-1">Zone Name</div>
+                <div className="text-ink font-semibold text-sm">
                   {viewModalZone.name}
                 </div>
               </div>
               {viewModalZone.description && (
-                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                  <div className="text-slate-400 text-[11px] mb-1">Description</div>
-                  <div className="text-slate-200">
+                <div className="p-3 bg-field rounded-xl border border-line">
+                  <div className="text-muted text-[11px] mb-1">Description</div>
+                  <div className="text-ink">
                     {viewModalZone.description}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-3.5 bg-[#090d16] border-t border-[#223352] flex items-center justify-end gap-2.5">
+            <div className="p-3.5 bg-elevated border-t border-line flex items-center justify-end gap-2.5">
               <button
                 onClick={() => {
                   const target = viewModalZone;
                   setViewModalZone(null);
                   openEditModal(target);
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-medium transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition cursor-pointer"
               >
                 Edit zone
               </button>
               <button
                 onClick={() => setViewModalZone(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-active hover:bg-active text-ink/80 text-xs transition cursor-pointer"
               >
                 Close
               </button>
@@ -574,24 +516,24 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
 
       {/* CREATE / EDIT MODAL */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 dark:bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
                   {editingZone ? (
                     <Pencil className="w-4 h-4" />
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}
                 </div>
-                <h3 className="text-sm font-bold text-white">
+                <h3 className="text-sm font-bold text-ink">
                   {editingZone ? 'Edit Zone' : 'New Zone'}
                 </h3>
               </div>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -599,8 +541,8 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
 
             <form onSubmit={handleSaveZone} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Zone Name <span className="text-red-400">*</span>
+                <label className="block text-ink/80 font-semibold mb-1">
+                  Zone Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -610,12 +552,12 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">
+                <label className="block text-ink/80 font-semibold mb-1">
                   Description
                 </label>
                 <textarea
@@ -625,22 +567,22 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8] resize-none"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent resize-none"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-line flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-active hover:bg-active text-ink/80 text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingZone ? 'Save changes' : 'Create zone'}</span>

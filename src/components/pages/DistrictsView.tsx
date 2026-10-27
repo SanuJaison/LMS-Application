@@ -17,6 +17,7 @@ import {
   updateResourceItem,
   deleteResourceItem,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 interface DistrictItem {
   _id?: string;
@@ -99,7 +100,6 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
   }, [districts, searchQuery]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredDistricts.length / perPage) || 1;
   const paginatedDistricts = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filteredDistricts.slice(start, start + perPage);
@@ -225,17 +225,17 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
       {/* Top Header & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <span>Districts</span>
             <span>&gt;</span>
-            <span className="text-slate-200">List</span>
+            <span className="text-ink">List</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Districts</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Districts</h1>
         </div>
 
         <button
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95"
         >
           <Plus className="w-4 h-4" />
           <span>New district</span>
@@ -243,11 +243,11 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
         {/* Search & Bulk Actions Toolbar */}
-        <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#1b263b]">
+        <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-line">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search districts..."
@@ -256,33 +256,33 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d1a] border border-slate-700/70 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
-          <div className="text-xs text-slate-400 flex items-center gap-2">
+          <div className="text-xs text-muted flex items-center gap-2">
             <span>
-              Total: <strong className="text-white">{filteredDistricts.length}</strong>
+              Total: <strong className="text-ink">{filteredDistricts.length}</strong>
             </span>
           </div>
         </div>
 
         {/* Bulk Selection Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="bg-[#10243e] px-4 py-2 flex items-center justify-between text-xs border-b border-[#1b263b]">
-            <span className="text-slate-200">
-              <strong className="text-white">{selectedIds.length}</strong> district(s) selected
+          <div className="bg-bulk px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs border-b border-line">
+            <span className="text-ink">
+              <strong className="text-ink">{selectedIds.length}</strong> district(s) selected
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-slate-300 hover:text-white underline text-xs"
+                className="text-ink/80 hover:text-ink underline text-xs"
               >
                 Deselect all
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="text-red-400 hover:text-red-300 font-semibold text-xs flex items-center gap-1"
+                className="text-danger hover:text-danger font-semibold text-xs flex items-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete selected</span>
@@ -295,11 +295,11 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+              <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4 w-10">
                   <input
                     type="checkbox"
-                    className="accent-[#09929e] cursor-pointer"
+                    className="accent-accent cursor-pointer"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
                     title="Select all"
@@ -310,12 +310,12 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                 <th className="py-3 px-5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236]">
+            <tbody className="divide-y divide-line-2">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="py-16 text-center text-slate-400">
+                  <td colSpan={4} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading districts...</span>
                     </div>
                   </td>
@@ -329,35 +329,35 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                     <tr
                       key={id}
                       className={`transition ${
-                        isSelected ? 'bg-[#0e2233]' : 'hover:bg-[#131c2e]/60'
+                        isSelected ? 'bg-selected' : 'hover:bg-hover/60'
                       }`}
                     >
                       <td
                         className={`py-3 px-4 border-l-2 ${
-                          isSelected ? 'border-[#09929e]' : 'border-transparent'
+                          isSelected ? 'border-accent' : 'border-transparent'
                         }`}
                       >
                         <input
                           type="checkbox"
-                          className="accent-[#09929e] cursor-pointer"
+                          className="accent-accent cursor-pointer"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(id)}
                         />
                       </td>
-                      <td className="py-3 px-5 text-slate-300">{item.zone || '—'}</td>
-                      <td className="py-3 px-5 font-medium text-white">{item.name || '—'}</td>
+                      <td className="py-3 px-5 text-ink/80">{item.zone || '—'}</td>
+                      <td className="py-3 px-5 font-medium text-ink">{item.name || '—'}</td>
                       <td className="py-3 px-5 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <button
                             onClick={() => setViewModalItem(item)}
-                            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-[#09929e] transition cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs text-muted hover:text-accent transition cursor-pointer"
                           >
                             <Eye className="w-3.5 h-3.5" />
                             <span>View</span>
                           </button>
                           <button
                             onClick={() => openEditModal(item)}
-                            className="inline-flex items-center gap-1 text-xs text-[#09929e] hover:underline transition cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs text-accent hover:underline transition cursor-pointer"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             <span>Edit</span>
@@ -365,7 +365,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                           <button
                             onClick={() => handleDeleteDistrict(id)}
                             disabled={isDeleting === id}
-                            className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300 hover:underline transition disabled:opacity-50 cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs text-danger hover:text-danger hover:underline transition disabled:opacity-50 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span>{isDeleting === id ? 'Deleting…' : 'Delete'}</span>
@@ -377,7 +377,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                 })
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-500">
+                  <td colSpan={4} className="py-12 text-center text-subtle">
                     No districts found. Click &quot;New district&quot; to create one.
                   </td>
                 </tr>
@@ -386,71 +386,25 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
           </table>
         </div>
 
-        {/* Footer Pagination */}
-        <div className="px-5 py-3 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
-          <span>
-            Showing{' '}
-            <strong className="text-white">
-              {filteredDistricts.length > 0 ? (currentPage - 1) * perPage + 1 : 0}
-            </strong>{' '}
-            to{' '}
-            <strong className="text-white">
-              {Math.min(currentPage * perPage, filteredDistricts.length)}
-            </strong>{' '}
-            of <strong className="text-white">{filteredDistricts.length}</strong> results
-          </span>
-
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              Per page:
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d1a] border border-slate-700 rounded px-1.5 py-0.5 text-white text-[11px] focus:outline-none focus:ring-1 focus:ring-[#09929e]"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </span>
-
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <span className="px-2 text-white">
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredDistricts.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* VIEW MODAL */}
       {viewModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-white text-base">View district</h3>
+              <h3 className="font-bold text-ink text-base">View district</h3>
               <button
                 onClick={() => setViewModalItem(null)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-muted hover:text-ink p-1"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -459,35 +413,35 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
             <div className="text-xs space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Zone</label>
+                  <label className="block text-ink/80 font-semibold mb-1.5">Zone</label>
                   <input
                     type="text"
                     readOnly
                     disabled
                     value={viewModalItem.zone || '—'}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-slate-300 text-xs cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink/80 text-xs cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Name</label>
+                  <label className="block text-ink/80 font-semibold mb-1.5">Name</label>
                   <input
                     type="text"
                     readOnly
                     disabled
                     value={viewModalItem.name || '—'}
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-slate-300 text-xs cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink/80 text-xs cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Description</label>
+                <label className="block text-ink/80 font-semibold mb-1.5">Description</label>
                 <textarea
                   readOnly
                   disabled
                   rows={3}
                   value={viewModalItem.description || '—'}
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-slate-300 text-xs cursor-not-allowed resize-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink/80 text-xs cursor-not-allowed resize-none"
                 />
               </div>
             </div>
@@ -496,7 +450,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
               <button
                 type="button"
                 onClick={() => setViewModalItem(null)}
-                className="px-4 py-1.5 rounded-lg border border-slate-600 bg-[#1b263b] text-slate-200 hover:bg-slate-700 text-xs font-medium transition"
+                className="px-4 py-1.5 rounded-lg border border-line bg-active text-ink hover:bg-active text-xs font-medium transition"
               >
                 Close
               </button>
@@ -507,15 +461,15 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
 
       {/* CREATE / EDIT MODAL */}
       {formModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-[#111827] border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-white text-base">
+              <h3 className="font-bold text-ink text-base">
                 {editingItem ? 'Edit district' : 'Create district'}
               </h3>
               <button
                 onClick={() => setFormModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-muted hover:text-ink p-1"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -524,15 +478,15 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
             <form onSubmit={(e) => handleSaveDistrict(e, false)} className="text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">
-                    Zone <span className="text-red-400">*</span>
+                  <label className="block text-ink/80 font-semibold mb-1.5">
+                    Zone <span className="text-danger">*</span>
                   </label>
                   <div className="relative">
                     <select
                       required
                       value={formZone}
                       onChange={(e) => setFormZone(e.target.value)}
-                      className="w-full appearance-none px-3 py-2 pr-8 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none cursor-pointer"
+                      className="w-full appearance-none px-3 py-2 pr-8 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none cursor-pointer"
                     >
                       {zonesList.map((z) => (
                         <option key={z} value={z}>
@@ -540,13 +494,13 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-muted absolute right-2.5 top-2.5 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">
-                    Name <span className="text-red-400">*</span>
+                  <label className="block text-ink/80 font-semibold mb-1.5">
+                    Name <span className="text-danger">*</span>
                   </label>
                   <input
                     type="text"
@@ -554,19 +508,19 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="e.g. Ernakulam"
-                    className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   />
                 </div>
               </div>
 
               <div className="mb-5">
-                <label className="block text-slate-300 font-semibold mb-1.5">Description</label>
+                <label className="block text-ink/80 font-semibold mb-1.5">Description</label>
                 <textarea
                   rows={3}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Optional description..."
-                  className="w-full px-3 py-2 bg-[#0b101d] border border-slate-700 rounded-lg text-white text-xs focus:ring-1 focus:ring-[#09929e] outline-none resize-none"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none resize-none"
                 />
               </div>
 
@@ -574,7 +528,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                 <button
                   type="button"
                   onClick={() => setFormModalOpen(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+                  className="px-3.5 py-1.5 rounded-lg border border-line text-ink/80 hover:bg-active text-xs"
                 >
                   Cancel
                 </button>
@@ -583,7 +537,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                     type="button"
                     disabled={isSaving}
                     onClick={(e) => handleSaveDistrict(e, true)}
-                    className="px-3.5 py-1.5 rounded-lg border border-[#09929e] text-[#09929e] hover:bg-[#09929e]/10 text-xs disabled:opacity-60"
+                    className="px-3.5 py-1.5 rounded-lg border border-accent text-accent hover:bg-accent/10 text-xs disabled:opacity-60"
                   >
                     {isSaving ? 'Saving…' : 'Create & create another'}
                   </button>
@@ -591,7 +545,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-4 py-1.5 rounded-lg bg-[#09929e] hover:bg-[#08818c] text-white font-semibold text-xs disabled:opacity-60"
+                  className="px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-xs disabled:opacity-60"
                 >
                   {isSaving ? 'Saving…' : editingItem ? 'Save' : 'Create'}
                 </button>

@@ -18,6 +18,7 @@ import {
   updateResourceItem,
   deleteResourceItem,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 export interface LeaveItem {
   _id?: string;
@@ -131,7 +132,6 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
   }, [leaves, activeFilterTab, searchQuery, sortField, sortAsc]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredLeaves.length / perPage) || 1;
   const paginatedLeaves = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filteredLeaves.slice(start, start + perPage);
@@ -322,17 +322,17 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
       <div className="space-y-6 animate-in fade-in duration-200">
         {/* Breadcrumb matching Screenshot 2 */}
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <button
               onClick={() => setViewMode('list')}
-              className="text-slate-400 hover:text-white hover:underline cursor-pointer"
+              className="text-muted hover:text-ink hover:underline cursor-pointer"
             >
               Leaves
             </button>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">Create</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">Create</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Create Leave</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Create Leave</h1>
         </div>
 
         {/* Form Fields matching Screenshot 2 */}
@@ -346,39 +346,39 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
           {/* Row 1: Employee & Start Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Employee <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Employee <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formEmployee}
                   onChange={(e) => setFormEmployee(e.target.value)}
-                  className={`w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] ${
-                    !formEmployee ? 'text-slate-400' : 'text-slate-200'
-                  } focus:outline-none focus:ring-1 focus:ring-[#09929e] cursor-pointer`}
+                  className={`w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] ${
+                    !formEmployee ? 'text-muted' : 'text-ink'
+                  } focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer`}
                 >
                   <option value="" disabled>Select an option</option>
                   {employees.map((emp) => (
-                    <option key={emp} value={emp} className="bg-[#0b1322] text-white">
+                    <option key={emp} value={emp} className="bg-surface text-ink">
                       {emp}
                     </option>
                   ))}
                   {employees.length === 0 && (
                     <>
-                      <option value="Aslam" className="bg-[#0b1322] text-white">Aslam</option>
-                      <option value="Devika" className="bg-[#0b1322] text-white">Devika</option>
-                      <option value="Tony" className="bg-[#0b1322] text-white">Tony</option>
+                      <option value="Aslam" className="bg-surface text-ink">Aslam</option>
+                      <option value="Devika" className="bg-surface text-ink">Devika</option>
+                      <option value="Tony" className="bg-surface text-ink">Tony</option>
                     </>
                   )}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Start date <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Start date <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <input
@@ -386,7 +386,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                   required
                   value={formStartDate}
                   onChange={(e) => setFormStartDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e] [color-scheme:dark]"
+                  className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -395,8 +395,8 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
           {/* Row 2: End Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                End date <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                End date <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <input
@@ -404,7 +404,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                   required
                   value={formEndDate}
                   onChange={(e) => setFormEndDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e] [color-scheme:dark]"
+                  className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -413,38 +413,38 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
           {/* Row 3: Reason (Full Width) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-ink/80 mb-1.5">
               Reason
             </label>
             <textarea
               rows={3}
               value={formReason}
               onChange={(e) => setFormReason(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] text-ink focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           {/* Row 4: Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Status <span className="text-rose-500">*</span>
+              <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                Status <span className="text-danger">*</span>
               </label>
               <div className="relative">
                 <select
                   required
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value)}
-                  className={`w-full appearance-none px-3.5 py-2.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] ${
-                    !formStatus ? 'text-slate-400' : 'text-slate-200'
-                  } focus:outline-none focus:ring-1 focus:ring-[#09929e] cursor-pointer`}
+                  className={`w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-[13px] ${
+                    !formStatus ? 'text-muted' : 'text-ink'
+                  } focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer`}
                 >
                   <option value="" disabled>Select an option</option>
-                  <option value="Pending" className="bg-[#0b1322] text-white">Pending</option>
-                  <option value="Approved" className="bg-[#0b1322] text-white">Approved</option>
-                  <option value="Rejected" className="bg-[#0b1322] text-white">Rejected</option>
+                  <option value="Pending" className="bg-surface text-ink">Pending</option>
+                  <option value="Approved" className="bg-surface text-ink">Approved</option>
+                  <option value="Rejected" className="bg-surface text-ink">Rejected</option>
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
             <div className="hidden md:block"></div>
@@ -455,7 +455,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {isSaving ? 'Creating…' : 'Create'}
             </button>
@@ -464,7 +464,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
               type="button"
               disabled={isSaving}
               onClick={() => handleCreateLeave(true)}
-              className="px-4 py-2 bg-[#0b1322] hover:bg-slate-800 text-white text-[13px] font-semibold rounded-lg border border-slate-700 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 bg-surface hover:bg-active text-ink text-[13px] font-semibold rounded-lg border border-line transition active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               Create &amp; create another
             </button>
@@ -475,7 +475,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 resetForm();
                 setViewMode('list');
               }}
-              className="px-4 py-2 bg-[#0b1322] hover:bg-slate-800 text-white text-[13px] font-semibold rounded-lg border border-slate-700 transition active:scale-95 cursor-pointer"
+              className="px-4 py-2 bg-surface hover:bg-active text-ink text-[13px] font-semibold rounded-lg border border-line transition active:scale-95 cursor-pointer"
             >
               Cancel
             </button>
@@ -493,25 +493,25 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
       {/* Top Header & Breadcrumb matching Screenshot 1 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs text-muted mb-1">
             <span>Leaves</span>
-            <span className="text-slate-500">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Leaves</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">Leaves</h1>
         </div>
 
         <button
           onClick={() => setViewMode('create')}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white text-[13px] font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer self-start sm:self-auto"
         >
           <span>New leave</span>
         </button>
       </div>
 
       {/* Filament Filter Segment Tabs matching Screenshot 1 (Pending | Approved | Rejected | All) */}
-      <div className="flex items-center justify-center">
-        <div className="inline-flex items-center p-1 bg-[#0b1322] border border-[#1b263b] rounded-xl shadow-md gap-1">
+      <div className="flex items-center justify-center max-w-full overflow-x-auto">
+        <div className="inline-flex items-center p-1 bg-surface border border-line rounded-xl shadow-md gap-1">
           {STATUS_FILTERS.map((tab) => {
             const isActive = activeFilterTab === tab;
             return (
@@ -521,10 +521,10 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                   setActiveFilterTab(tab);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition cursor-pointer ${
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-[13px] font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-[#15233e] text-white shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink shadow'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 {tab}
@@ -535,11 +535,11 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-[#0b1322] border border-[#1b263b] rounded-xl overflow-hidden shadow-xl">
+      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
         {/* Search Toolbar */}
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-[#1b263b]">
+        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -548,11 +548,11 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d1a] border border-slate-700/60 rounded-lg text-[13px] text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#09929e]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
           <button
-            className="p-2 border border-slate-700/60 rounded-lg text-slate-400 hover:text-white bg-[#080d1a] cursor-pointer"
+            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
             title="Columns"
           >
             <Columns3 className="w-4 h-4" />
@@ -561,20 +561,20 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
         {/* Bulk Selection Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="bg-[#10243e] px-4 py-2 flex items-center justify-between text-xs border-b border-[#1b263b]">
-            <span className="text-slate-200">
-              <strong className="text-white">{selectedIds.length}</strong> record(s) selected
+          <div className="bg-bulk px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs border-b border-line">
+            <span className="text-ink">
+              <strong className="text-ink">{selectedIds.length}</strong> record(s) selected
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-slate-300 hover:text-white underline text-xs cursor-pointer"
+                className="text-ink/80 hover:text-ink underline text-xs cursor-pointer"
               >
                 Deselect all
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="text-red-400 hover:text-red-300 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                className="text-danger hover:text-danger font-semibold text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete selected</span>
@@ -587,11 +587,11 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#1c283f] bg-[#0c1322] text-slate-300 font-semibold text-[13px]">
+              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
                 <th className="py-3.5 px-4 w-10">
                   <input
                     type="checkbox"
-                    className="accent-[#09929e] cursor-pointer rounded"
+                    className="accent-accent cursor-pointer rounded"
                     checked={allVisibleSelected}
                     onChange={toggleSelectAllVisible}
                     title="Select all"
@@ -599,41 +599,41 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 </th>
                 <th
                   onClick={() => handleSort('employee')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Employee</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('start_date')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Start date</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th
                   onClick={() => handleSort('end_date')}
-                  className="py-3.5 px-6 cursor-pointer hover:text-white select-none"
+                  className="py-3.5 px-6 cursor-pointer hover:text-ink select-none"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>End date</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
                 <th className="py-3.5 px-6 font-semibold">Status</th>
                 <th className="py-3.5 px-6 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#172236] text-[13px]">
+            <tbody className="divide-y divide-line-2 text-[13px]">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400">
+                  <td colSpan={6} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#09929e]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading leaves...</span>
                     </div>
                   </td>
@@ -647,33 +647,33 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                   return (
                     <tr
                       key={id}
-                      className={`transition text-slate-200 ${
-                        isSelected ? 'bg-[#0e2233]' : 'hover:bg-[#131c2e]/60'
+                      className={`transition text-ink ${
+                        isSelected ? 'bg-selected' : 'hover:bg-hover/60'
                       }`}
                     >
                       <td
                         className={`py-3.5 px-4 border-l-2 ${
-                          isSelected ? 'border-[#09929e]' : 'border-transparent'
+                          isSelected ? 'border-accent' : 'border-transparent'
                         }`}
                       >
                         <input
                           type="checkbox"
-                          className="accent-[#09929e] cursor-pointer rounded"
+                          className="accent-accent cursor-pointer rounded"
                           checked={isSelected}
                           onChange={() => toggleSelectRow(id)}
                         />
                       </td>
-                      <td className="py-3.5 px-6 font-normal text-white">{item.employee || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-300">{item.start_date || '—'}</td>
-                      <td className="py-3.5 px-6 text-slate-300">{item.end_date || '—'}</td>
+                      <td className="py-3.5 px-6 font-normal text-ink">{item.employee || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">{item.start_date || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">{item.end_date || '—'}</td>
                       <td className="py-3.5 px-6">
                         <span
                           className={`inline-block px-3 py-0.5 rounded text-xs font-medium ${
                             status === 'pending'
-                              ? 'border border-amber-600/40 bg-amber-500/10 text-amber-400'
+                              ? 'border border-warning/40 bg-warning/10 text-warning'
                               : status === 'approved'
-                              ? 'border border-emerald-600/40 bg-emerald-500/10 text-emerald-400'
-                              : 'border border-rose-600/40 bg-rose-500/10 text-rose-400'
+                              ? 'border border-success/40 bg-success/10 text-success'
+                              : 'border border-danger/40 bg-danger/10 text-danger'
                           }`}
                         >
                           {item.status || 'Pending'}
@@ -682,9 +682,9 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                       <td className="py-3.5 px-6 text-right">
                         <button
                           onClick={() => setEditingLeave(item)}
-                          className="inline-flex items-center gap-1.5 text-[13px] text-[#09929e] hover:text-[#08818c] transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:text-accent-hover transition cursor-pointer"
                         >
-                          <Pencil className="w-3.5 h-3.5 text-[#09929e]" />
+                          <Pencil className="w-3.5 h-3.5 text-accent" />
                           <span>Edit</span>
                         </button>
                       </td>
@@ -693,7 +693,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-subtle">
                     No {activeFilterTab !== 'All' ? activeFilterTab.toLowerCase() : ''} leaves found. Click &quot;New leave&quot; to create one.
                   </td>
                 </tr>
@@ -703,48 +703,26 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-[#1c283f] flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-slate-400">
-          <span>
-            {filteredLeaves.length > 0
-              ? `Showing ${(currentPage - 1) * perPage + 1} to ${Math.min(
-                  currentPage * perPage,
-                  filteredLeaves.length
-                )} of ${filteredLeaves.length} results`
-              : 'Showing 0 results'}
-          </span>
-
-          <div className="flex items-center gap-2">
-            <span>Per page</span>
-            <div className="relative inline-block">
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="appearance-none bg-[#080d1a] border border-slate-700/80 rounded-lg pl-3 pr-8 py-1 text-white text-[13px] focus:outline-none focus:ring-1 focus:ring-[#09929e] cursor-pointer"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+        <TablePagination
+          total={filteredLeaves.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+        />
       </div>
 
       {/* ------------------------------------------------------------- */}
       {/* EDIT LEAVE MODAL                                              */}
       {/* ------------------------------------------------------------- */}
       {editingLeave && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#101728] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b border-slate-700/70 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Edit Leave Record</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between">
+              <h3 className="text-base font-semibold text-ink">Edit Leave Record</h3>
               <button
                 onClick={() => setEditingLeave(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-active transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -752,14 +730,14 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
             <form onSubmit={handleUpdateLeave} className="p-6 space-y-4 text-[13px]">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Employee <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">
+                  Employee <span className="text-danger">*</span>
                 </label>
                 <select
                   required
                   value={editingLeave.employee || ''}
                   onChange={(e) => setEditingLeave({ ...editingLeave, employee: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 >
                   {employees.map((emp) => (
                     <option key={emp} value={emp}>{emp}</option>
@@ -770,45 +748,45 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Start Date</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">Start Date</label>
                   <input
                     type="date"
                     required
                     value={formatDateForInput(editingLeave.start_date)}
                     onChange={(e) => setEditingLeave({ ...editingLeave, start_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">End Date</label>
+                  <label className="block text-xs font-semibold text-ink/80 mb-1.5">End Date</label>
                   <input
                     type="date"
                     required
                     value={formatDateForInput(editingLeave.end_date)}
                     onChange={(e) => setEditingLeave({ ...editingLeave, end_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Reason</label>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Reason</label>
                 <textarea
                   rows={2}
                   value={editingLeave.reason || ''}
                   onChange={(e) => setEditingLeave({ ...editingLeave, reason: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Status</label>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Status</label>
                 <select
                   value={editingLeave.status || 'Pending'}
                   onChange={(e) => setEditingLeave({ ...editingLeave, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#080d1a] border border-slate-700 rounded-lg text-white text-[13px] focus:ring-1 focus:ring-[#09929e]"
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-[13px] focus:ring-1 focus:ring-accent"
                 >
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
@@ -816,7 +794,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                 </select>
               </div>
 
-              <div className="pt-3 flex items-center justify-between border-t border-slate-800">
+              <div className="pt-3 flex items-center justify-between border-t border-line">
                 <button
                   type="button"
                   onClick={() => {
@@ -824,7 +802,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                     setEditingLeave(null);
                     handleDeleteLeave(id);
                   }}
-                  className="text-red-400 hover:text-red-300 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                  className="text-danger hover:text-danger text-xs font-medium flex items-center gap-1 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete</span>
@@ -834,14 +812,14 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
                   <button
                     type="button"
                     onClick={() => setEditingLeave(null)}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                    className="px-4 py-2 bg-active hover:bg-active text-ink/80 text-xs font-medium rounded-lg transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-4 py-2 bg-[#09929e] hover:bg-[#08818c] text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
                   >
                     {isSaving ? 'Saving…' : 'Save Changes'}
                   </button>

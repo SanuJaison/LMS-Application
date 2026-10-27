@@ -2,12 +2,30 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Login - kide_crm_backend',
-  description: 'Kerala CRM Backend - Next.js, Node.js & MongoDB',
+  title: 'KIDE CRM — Admin Portal',
+  description: 'Kerala Institute Field CRM',
   icons: {
     icon: '/images/logo.png',
   },
 };
+
+/**
+ * Applies the saved theme before the first paint so there is no flash of the
+ * wrong theme. Dark is the default; light is opt-in via the theme toggle.
+ */
+const themeScript = `
+(function () {
+  try {
+    var stored = localStorage.getItem('theme');
+    var root = document.documentElement;
+    if (stored === 'light') {
+      root.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+    }
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -15,12 +33,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="min-h-screen">
+    <html lang="en" className="dark min-h-screen" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.bunny.net" />
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen font-sans antialiased bg-gray-50 dark:bg-gray-950 text-gray-950 dark:text-white transition-colors duration-200">
+      <body className="min-h-screen font-sans antialiased bg-app text-ink transition-colors duration-200">
         {children}
       </body>
     </html>

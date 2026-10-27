@@ -130,6 +130,12 @@ export default function KeralaCRMApp() {
   }, []);
 
   // Theme Management
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    }
+  }, []);
+
   const toggleTheme = () => {
     setIsDarkMode((prev) => {
       const next = !prev;
@@ -157,9 +163,9 @@ export default function KeralaCRMApp() {
   // 1. Session verification spinner
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-slate-300">
-        <div className="w-8 h-8 border-2 border-cyan-500/20 border-t-[#09929e] rounded-full animate-spin mb-4" />
-        <p className="text-xs font-medium text-slate-400">Verifying session authorization...</p>
+      <div className="min-h-screen bg-app flex flex-col items-center justify-center text-ink/80">
+        <div className="w-8 h-8 border-2 border-accent/20 border-t-accent rounded-full animate-spin mb-4" />
+        <p className="text-xs font-medium text-muted">Verifying session authorization...</p>
       </div>
     );
   }
@@ -181,14 +187,14 @@ export default function KeralaCRMApp() {
 
   // 2. Authenticated Dashboard & CRM Layout
   return (
-    <div className="min-h-screen bg-[#080d19] text-slate-200 flex flex-col font-sans selection:bg-[#09929e] selection:text-white">
+    <div className="min-h-screen bg-app text-ink flex flex-col font-sans selection:bg-accent selection:text-white">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl border text-sm animate-in fade-in slide-in-from-top-2 bg-[#101728] border-slate-700 text-white">
+        <div className="fixed top-5 right-4 left-4 sm:left-auto sm:right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl border text-sm animate-in fade-in slide-in-from-top-2 bg-elevated border-line text-ink max-w-[calc(100vw-2rem)] sm:max-w-sm">
           {toast.type === 'success' ? (
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
+            <CheckCircle className="w-5 h-5 text-success" />
           ) : (
-            <AlertCircle className="w-5 h-5 text-red-400" />
+            <AlertCircle className="w-5 h-5 text-danger" />
           )}
           <span>{toast.message}</span>
         </div>
@@ -229,7 +235,7 @@ export default function KeralaCRMApp() {
         />
 
         {/* Dynamic Page Viewport */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-[#090e1a] min-w-0">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 bg-panel min-w-0">
           {activeTab === 'dashboard' ? (
             <DashboardView />
           ) : activeTab === 'employees' ? (

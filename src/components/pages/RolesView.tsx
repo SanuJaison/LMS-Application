@@ -19,6 +19,7 @@ import {
   updateResourceItem,
   deleteResourceItem,
 } from '../../services/api';
+import TablePagination from '@/components/ui/TablePagination';
 
 // 12 standard Filament Shield permissions in 4 columns
 const PERMISSION_COLUMNS = [
@@ -140,7 +141,6 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
   }, [roles, searchQuery]);
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredRoles.length / perPage) || 1;
   const paginatedRoles = useMemo(() => {
     const start = (currentPage - 1) * perPage;
     return filteredRoles.slice(start, start + perPage);
@@ -296,61 +296,61 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
     return (
       <div className="space-y-6 max-w-7xl mx-auto pb-16 font-sans">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2 text-xs text-muted">
           <button
             onClick={() => setMode('list')}
-            className="hover:text-cyan-400 transition flex items-center gap-1 cursor-pointer"
+            className="hover:text-accent transition flex items-center gap-1 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Roles
           </button>
           <span>&gt;</span>
-          <span className="text-slate-200 capitalize">
+          <span className="text-ink capitalize">
             {mode === 'create' ? 'Create' : 'Edit'}
           </span>
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-white tracking-tight">
+        <h1 className="text-2xl font-bold text-ink tracking-tight">
           {mode === 'create' ? 'Create Role' : 'Edit Role'}
         </h1>
 
         {/* Main Configuration Card */}
-        <div className="bg-[#0b1222] border border-[#19263e] rounded-xl p-5 md:p-6 shadow-xl space-y-6">
+        <div className="bg-surface border border-line rounded-xl p-5 md:p-6 shadow-xl space-y-6">
           {/* Top Row Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             {/* Name Input */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Name<span className="text-rose-500 ml-0.5">*</span>
+              <label className="block text-xs font-medium text-ink/80 mb-1.5">
+                Name<span className="text-danger ml-0.5">*</span>
               </label>
               <input
                 type="text"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g. Manager"
-                className="w-full px-3.5 py-2 rounded-lg bg-[#080d19] border border-[#1f2d47] text-white text-sm focus:outline-none focus:border-cyan-500 transition"
+                className="w-full px-3.5 py-2 rounded-lg bg-app border border-line text-ink text-sm focus:outline-none focus:border-accent transition"
               />
             </div>
 
             {/* Guard Name Input */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-ink/80 mb-1.5">
                 Guard Name
               </label>
               <input
                 type="text"
                 value={formGuard}
                 onChange={(e) => setFormGuard(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-lg bg-[#080d19] border border-[#1f2d47] text-white text-sm focus:outline-none focus:border-cyan-500 transition"
+                className="w-full px-3.5 py-2 rounded-lg bg-app border border-line text-ink text-sm focus:outline-none focus:border-accent transition"
               />
             </div>
 
             {/* Select All Toggle Switch */}
             <div className="flex items-center justify-between md:justify-end gap-4 pt-2 md:pt-4">
               <div className="text-right">
-                <span className="text-xs font-semibold text-white block">Select All</span>
-                <span className="text-[11px] text-slate-400 block">
+                <span className="text-xs font-semibold text-ink block">Select All</span>
+                <span className="text-[11px] text-muted block">
                   Enables/Disables all Permissions for this role
                 </span>
               </div>
@@ -358,7 +358,7 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                 type="button"
                 onClick={toggleMasterSelectAll}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isMasterSelectAll ? 'bg-[#06b6d4]' : 'bg-slate-700'
+                  isMasterSelectAll ? 'bg-accent' : 'bg-active'
                 }`}
               >
                 <span
@@ -371,17 +371,17 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
           </div>
 
           {/* Resources / Widgets Tab Pill Selector */}
-          <div className="flex items-center gap-2 border-b border-[#18243a] pb-3">
+          <div className="flex items-center gap-2 border-b border-line pb-3">
             <button
               onClick={() => setActiveSubTab('resources')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 activeSubTab === 'resources'
-                  ? 'bg-[#0f243c] text-cyan-300 border border-cyan-800/80 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-bulk text-accent border border-accent/30 shadow-sm'
+                  : 'text-muted hover:text-ink'
               }`}
             >
               <span>Resources</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#09929e] text-white">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-accent text-white">
                 246
               </span>
             </button>
@@ -390,12 +390,12 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
               onClick={() => setActiveSubTab('widgets')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 activeSubTab === 'widgets'
-                  ? 'bg-[#0f243c] text-cyan-300 border border-cyan-800/80 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-bulk text-accent border border-accent/30 shadow-sm'
+                  : 'text-muted hover:text-ink'
               }`}
             >
               <span>Widgets</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-700 text-slate-300">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-active text-ink/80">
                 6
               </span>
             </button>
@@ -416,15 +416,15 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                 return (
                   <div
                     key={resource.id}
-                    className="bg-[#090f1d] border border-[#18253d] rounded-xl p-4 transition-all shadow-sm"
+                    className="bg-app border border-line rounded-xl p-4 transition-all shadow-sm"
                   >
                     {/* Card Header */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-white tracking-wide">
+                        <h3 className="text-sm font-semibold text-ink tracking-wide">
                           {resource.name}
                         </h3>
-                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        <p className="text-[11px] text-muted font-mono mt-0.5">
                           {resource.namespace}
                         </p>
                       </div>
@@ -432,7 +432,7 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                       <button
                         type="button"
                         onClick={() => toggleCollapse(resource.id)}
-                        className="text-slate-400 hover:text-white p-1 rounded transition cursor-pointer"
+                        className="text-muted hover:text-ink p-1 rounded transition cursor-pointer"
                       >
                         {isCollapsed ? (
                           <ChevronDown className="w-4 h-4" />
@@ -444,13 +444,13 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
 
                     {/* Card Content (Permissions Grid) */}
                     {!isCollapsed && (
-                      <div className="mt-4 pt-3 border-t border-[#141e32] space-y-3">
+                      <div className="mt-4 pt-3 border-t border-line space-y-3">
                         {/* Select All Link for this resource */}
                         <div>
                           <button
                             type="button"
                             onClick={() => toggleResourceAll(resource.id)}
-                            className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition cursor-pointer"
+                            className="text-xs font-medium text-accent hover:text-accent transition cursor-pointer"
                           >
                             {isAllResourceChecked ? 'Deselect all' : 'Select all'}
                           </button>
@@ -468,13 +468,13 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                                   <label
                                     key={perm}
                                     onClick={() => togglePermission(key)}
-                                    className="flex items-center gap-2.5 text-xs text-slate-300 hover:text-white cursor-pointer select-none"
+                                    className="flex items-center gap-2.5 text-xs text-ink/80 hover:text-ink cursor-pointer select-none"
                                   >
                                     <div
                                       className={`w-4 h-4 rounded flex items-center justify-center transition border ${
                                         checked
-                                          ? 'bg-[#06b6d4] border-[#06b6d4] text-white shadow-sm'
-                                          : 'bg-[#070d18] border-[#253654] text-transparent hover:border-slate-500'
+                                          ? 'bg-accent border-accent text-white shadow-sm'
+                                          : 'bg-app border-line text-transparent hover:border-accent'
                                       }`}
                                     >
                                       <Check className="w-3 h-3 stroke-[3]" />
@@ -504,24 +504,24 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                 return (
                   <div
                     key={widget.id}
-                    className="bg-[#090f1d] border border-[#18253d] rounded-xl p-4 flex items-center justify-between shadow-sm"
+                    className="bg-app border border-line rounded-xl p-4 flex items-center justify-between shadow-sm"
                   >
                     <div>
-                      <h3 className="text-sm font-semibold text-white">{widget.name}</h3>
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                      <h3 className="text-sm font-semibold text-ink">{widget.name}</h3>
+                      <p className="text-[11px] text-muted font-mono mt-0.5">
                         {widget.namespace}
                       </p>
                     </div>
 
                     <label
                       onClick={() => togglePermission(key)}
-                      className="flex items-center gap-2 text-xs text-slate-300 hover:text-white cursor-pointer select-none"
+                      className="flex items-center gap-2 text-xs text-ink/80 hover:text-ink cursor-pointer select-none"
                     >
                       <div
                         className={`w-4 h-4 rounded flex items-center justify-center transition border ${
                           checked
-                            ? 'bg-[#06b6d4] border-[#06b6d4] text-white'
-                            : 'bg-[#070d18] border-[#253654] text-transparent'
+                            ? 'bg-accent border-accent text-white'
+                            : 'bg-app border-line text-transparent'
                         }`}
                       >
                         <Check className="w-3 h-3 stroke-[3]" />
@@ -541,7 +541,7 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
             type="button"
             disabled={isSaving}
             onClick={() => handleSave(false)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#09929e] hover:bg-[#08828d] text-white text-xs font-semibold shadow-lg transition cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-lg transition cursor-pointer disabled:opacity-50"
           >
             {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>{mode === 'edit' ? 'Save changes' : 'Create'}</span>
@@ -552,7 +552,7 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
               type="button"
               disabled={isSaving}
               onClick={() => handleSave(true)}
-              className="px-4 py-2.5 rounded-lg bg-[#111c30] hover:bg-[#16243d] border border-[#213150] text-slate-200 text-xs font-medium transition cursor-pointer disabled:opacity-50"
+              className="px-4 py-2.5 rounded-lg bg-hover hover:bg-line border border-line text-ink text-xs font-medium transition cursor-pointer disabled:opacity-50"
             >
               Create & create another
             </button>
@@ -562,7 +562,7 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
             type="button"
             disabled={isSaving}
             onClick={() => setMode('list')}
-            className="px-4 py-2.5 rounded-lg bg-[#0e1627] hover:bg-[#131e34] border border-[#1f2c45] text-slate-400 hover:text-slate-200 text-xs font-medium transition cursor-pointer"
+            className="px-4 py-2.5 rounded-lg bg-elevated hover:bg-line border border-line text-muted hover:text-ink text-xs font-medium transition cursor-pointer"
           >
             Cancel
           </button>
@@ -579,13 +579,13 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
       {/* Header & New Role Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-slate-400 mb-1">Roles</div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Roles</h1>
+          <div className="text-xs text-muted mb-1">Roles</div>
+          <h1 className="text-2xl font-bold text-ink tracking-tight">Roles</h1>
         </div>
 
         <button
           onClick={openCreateForm}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#09929e] hover:bg-[#08828d] text-white text-xs font-semibold shadow-md transition cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow-md transition cursor-pointer self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>New role</span>
@@ -593,11 +593,11 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-[#0b1222] border border-[#19263e] rounded-xl shadow-xl overflow-hidden">
+      <div className="bg-surface border border-line rounded-xl shadow-xl overflow-hidden">
         {/* Search Bar & Controls */}
-        <div className="p-4 border-b border-[#18243a] flex items-center justify-between gap-4">
+        <div className="p-4 border-b border-line flex items-center justify-between gap-4">
           <div className="relative w-full max-w-sm">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
@@ -606,18 +606,18 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                 setCurrentPage(1);
               }}
               placeholder="Search roles..."
-              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-[#080d19] border border-[#1f2d47] text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition"
+              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-app border border-line text-ink text-xs placeholder:text-subtle focus:outline-none focus:border-accent transition"
             />
           </div>
         </div>
 
         {/* Roles Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#090f1d] border-b border-[#18243a] text-slate-400 uppercase tracking-wider text-[11px] font-semibold">
+          <table className="w-full text-left text-xs text-ink/80">
+            <thead className="bg-app border-b border-line text-muted uppercase tracking-wider text-[11px] font-semibold">
               <tr>
                 <th className="py-3 px-4 w-10 text-center">
-                  <ShieldCheck className="w-4 h-4 text-cyan-400 mx-auto" />
+                  <ShieldCheck className="w-4 h-4 text-accent mx-auto" />
                 </th>
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-4">Guard name</th>
@@ -626,17 +626,17 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#152136]">
+            <tbody className="divide-y divide-line">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-cyan-400 mb-2" />
+                  <td colSpan={6} className="py-12 text-center text-muted">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-accent mb-2" />
                     <span>Loading roles from database...</span>
                   </td>
                 </tr>
               ) : paginatedRoles.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-muted">
                     No roles found. Click &quot;New role&quot; to create one.
                   </td>
                 </tr>
@@ -655,28 +655,28 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                   return (
                     <tr
                       key={id}
-                      className="hover:bg-[#0f172a]/60 transition-colors group"
+                      className="hover:bg-elevated/60 transition-colors group"
                     >
                       <td className="py-3.5 px-4 text-center">
-                        <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-accent inline-block" />
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-white">
+                      <td className="py-3.5 px-4 font-semibold text-ink">
                         {role.name}
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-400">
+                      <td className="py-3.5 px-4 font-mono text-muted">
                         {role.guard_name || 'web'}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#0e2136] text-cyan-400 border border-cyan-800/60">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-bulk text-accent border border-accent/30">
                           {role.permissions_count ?? (role.permissions?.length || 246)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400">{dateStr}</td>
+                      <td className="py-3.5 px-4 text-muted">{dateStr}</td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditForm(role)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-[#16233a] transition cursor-pointer"
+                            className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-line transition cursor-pointer"
                             title="Edit Role"
                           >
                             <Pencil className="w-4 h-4" />
@@ -684,11 +684,11 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
                           <button
                             disabled={isCurrentDeleting}
                             onClick={() => handleDeleteRole(id, role.name)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-[#16233a] transition cursor-pointer disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-line transition cursor-pointer disabled:opacity-50"
                             title="Delete Role"
                           >
                             {isCurrentDeleting ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                              <Loader2 className="w-4 h-4 animate-spin text-danger" />
                             ) : (
                               <Trash2 className="w-4 h-4" />
                             )}
@@ -703,55 +703,15 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
           </table>
         </div>
 
-        {/* Footer Pagination */}
-        <div className="p-4 border-t border-[#18243a] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div>
-            Showing {filteredRoles.length === 0 ? 0 : (currentPage - 1) * perPage + 1} to{' '}
-            {Math.min(currentPage * perPage, filteredRoles.length)} of{' '}
-            {filteredRoles.length} {filteredRoles.length === 1 ? 'result' : 'results'}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span>Per page</span>
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="bg-[#080d19] border border-[#1f2d47] text-white rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="px-2 py-1 rounded bg-[#0e1627] border border-[#1f2c45] text-slate-300 disabled:opacity-40"
-                >
-                  Prev
-                </button>
-                <span className="px-2 text-white font-medium">
-                  {currentPage} / {totalPages}
-                </span>
-                <button
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="px-2 py-1 rounded bg-[#0e1627] border border-[#1f2c45] text-slate-300 disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Footer */}
+        <TablePagination
+          total={filteredRoles.length}
+          page={currentPage}
+          perPage={perPage}
+          onPageChange={setCurrentPage}
+          onPerPageChange={setPerPage}
+          perPageOptions={[5, 10, 25, 50]}
+        />
       </div>
     </div>
   );
