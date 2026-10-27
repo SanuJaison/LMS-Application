@@ -164,11 +164,11 @@ export default function Sidebar({
                 onClick={() => handleNav('employees')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'employees'
-                    ? 'bg-[#15233e] text-[#38bdf8] font-medium'
+                    ? 'bg-[#15233e] text-white font-medium'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <Users className="w-4 h-4 text-[#38bdf8]" />
+                <Users className="w-4 h-4" />
                 <span>Employees</span>
               </button>
               <button
