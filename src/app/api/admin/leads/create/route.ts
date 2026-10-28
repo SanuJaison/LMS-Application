@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { Lead } from '@/models/lead';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { assignLegacyIds, resolveEmployeeAssignment } from '@/lib/mobileLead';
@@ -20,6 +21,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
 
     // Employees must use /api/leads/create, which assigns them automatically
@@ -105,7 +109,10 @@ export async function POST(req: Request) {
  * GET /api/admin/leads/create
  * Field guide for the admin-side creation endpoint.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = requireAdmin(req);
+  if (denied) return denied;
+
   return NextResponse.json({
     success: true,
     message:

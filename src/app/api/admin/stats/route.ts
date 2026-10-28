@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { Attendance } from '@/models/attendence';
@@ -9,6 +10,9 @@ import { Attendance } from '@/models/attendence';
  */
 export async function GET(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const { searchParams } = new URL(req.url);
     const zone = searchParams.get('zone');

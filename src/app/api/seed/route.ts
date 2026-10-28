@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import {
   User,
   Zone,
@@ -28,8 +29,11 @@ import {
  * GET /api/seed
  * Seed MongoDB with starter data for Kerala LMS & CRM
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
 
     // 1. Admin User

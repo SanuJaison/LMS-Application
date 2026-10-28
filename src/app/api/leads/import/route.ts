@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { assignLegacyIds } from '@/lib/mobileLead';
@@ -26,18 +27,27 @@ export const maxDuration = 60;
 
 const FIELD_ALIASES: Record<string, string[]> = {
   name: ['name', 'fullname', 'studentname', 'leadname', 'customername', 'student'],
-  phone: ['phone', 'phonenumber', 'contact', 'contactnumber', 'mobile', 'mobilenumber', 'whatsapp', 'whatsappnumber'],
+  // `whatsapp` is matched before `phone` so a dedicated WhatsApp column is not
+  // swallowed by the phone column. `phone` falls back to it when missing.
+  whatsapp: ['whatsappnumber', 'whatsapp', 'whatsnumber', 'watsapp', 'watsappnumber'],
+  phone: ['phone', 'phonenumber', 'contact', 'contactnumber', 'mobile', 'mobilenumber'],
   email: ['email', 'emailaddress', 'mail', 'emailid'],
-  address: ['address', 'place', 'location', 'fulladdress'],
+  // `place` is matched before `address` for the same reason.
+  place: ['place', 'area', 'locality'],
+  address: ['address', 'location', 'fulladdress'],
   district: ['district', 'districtname'],
   source: ['source', 'leadsource', 'sourceoflead'],
   assigned: ['assigned', 'assignedto', 'assignedemployee', 'employee', 'employeeid', 'bde', 'staff', 'counselor'],
   course: ['course', 'interestedcourse', 'coursename'],
+  interested_topic: ['interestedtopic', 'topic'],
   notes: ['notes', 'remarks', 'remark', 'comment', 'comments'],
   status: ['status', 'leadstatus', 'admissionstatus'],
   qualification: ['qualification'],
   college: ['college', 'collegename', 'institute', 'institutename'],
+  current_year: ['currentyear', 'yearofstudy', 'studyyear', 'academicyear'],
   age: ['age'],
+  student_interest: ['studentinterest', 'interestlevel', 'interest'],
+  next_followup_date: ['nextfollowupdate', 'followupdate', 'nextfollowup'],
 };
 
 function normalizeKey(value: string): string {
@@ -183,6 +193,9 @@ async function readCsvFromRequest(req: Request): Promise<{ csv: string; rows: an
 
 export async function POST(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
 
     const input = await readCsvFromRequest(req);
@@ -288,7 +301,10 @@ export async function POST(req: Request) {
     records.forEach((record, index) => {
       const rowNumber = index + 2; // +1 header, +1 for 1-based
       const name = (record.name || '').trim();
-      const phone = (record.phone || '').trim();
+      const phone = (record.phone || '').trim() || (record.whatsapp || '').trim();
+      const whatsapp = (record.whatsapp || '').trim() || phone;
+      const address = (record.address || '').trim() || (record.place || '').trim();
+      const place = (record.place || '').trim() || address;
 
       if (!name) {
         errors.push({ row: rowNumber, message: 'Missing student name' });
@@ -322,23 +338,25 @@ export async function POST(req: Request) {
         name,
         contact_number: phone,
         phone,
-        whats_number: phone,
-        whatsapp_number: phone,
+        whats_number: whatsapp,
+        whatsapp_number: whatsapp,
         email: (record.email || '').trim(),
-        address: (record.address || '').trim(),
-        place: (record.address || '').trim(),
+        address,
+        place,
         district: (record.district || 'Ernakulam').trim() || 'Ernakulam',
+        interested_topic: (record.interested_topic || '').trim(),
         interested_course: (record.course || '').trim(),
         course: (record.course || '').trim(),
         qualification: (record.qualification || '').trim(),
         college_name: (record.college || '').trim(),
+        current_year: (record.current_year || '').trim(),
         age: (record.age || '').trim(),
         employee: employeeName,
         employee_id: employeeId,
         lead_source: source,
         source,
-        student_interest: 'Medium',
-        next_followup_date: '',
+        student_interest: (record.student_interest || 'Medium').trim() || 'Medium',
+        next_followup_date: (record.next_followup_date || '').trim(),
         remarks: (record.notes || '').trim(),
         notes: (record.notes || '').trim(),
         admission_status: status,

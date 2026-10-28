@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -145,6 +146,9 @@ function cleanData(tab: string, body: any) {
 // 1. GET: Fetch all records for a tab
 export async function GET(req: Request, { params }: { params: { tab: string } }) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const Model = models[params.tab];
 
@@ -178,6 +182,9 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
 // 2. POST: Create a new record
 export async function POST(req: Request, { params }: { params: { tab: string } }) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const Model = models[params.tab];
 
@@ -211,6 +218,9 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
 // 3. PUT: Update an existing record
 export async function PUT(req: Request, { params }: { params: { tab: string } }) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const Model = models[params.tab];
 
@@ -241,6 +251,9 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
 // 4. DELETE: Delete record(s) by ID
 export async function DELETE(req: Request, { params }: { params: { tab: string } }) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const Model = models[params.tab];
 

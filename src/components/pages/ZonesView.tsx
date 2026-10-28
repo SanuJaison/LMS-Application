@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Zone } from '@/types';
+import { authHeaders } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 
 interface ZonesViewProps {
@@ -51,7 +52,7 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
   const fetchZonesData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/zones');
+      const res = await fetch('/api/admin/zones', { headers: authHeaders() });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setZones(json.data);
@@ -167,7 +168,7 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
 
       const res = await fetch('/api/admin/zones', {
         method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -198,6 +199,7 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
     try {
       const res = await fetch(`/api/admin/zones?id=${zoneId}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
       const json = await res.json();
       if (json.success) {
@@ -221,7 +223,7 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
     try {
       const res = await fetch('/api/admin/zones', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ ids: selectedIds }),
       });
       const json = await res.json();

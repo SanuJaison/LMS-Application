@@ -408,10 +408,13 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
   // Download Example CSV
   const handleDownloadExampleCSV = () => {
+    // Every column below is understood by /api/leads/import. Column order does
+    // not matter and unknown columns are ignored.
     const csvContent =
-      'Name,Phone,Email,Address,District,Source,Assigned Employee,Course,Notes\n' +
-      'Suresh Kumar,9847123456,suresh@gmail.com,Edappally Kochi,Ernakulam,Cold Call,BDE001,Fullstack Development,Interested in weekend batch\n' +
-      'Anjali Mohan,9847234567,anjali@gmail.com,Mavoor Kozhikode,Kozhikode,Website,ASM001,Data Science with AI,Call after 5 PM\n';
+      'Name,Phone,WhatsApp Number,Email,Address,Place,District,Age,Qualification,College,Current Year,Interested Topic,Course,Source,Status,Assigned Employee,Student Interest,Next Follow-up Date,Notes\n' +
+      'Suresh Kumar,9847123456,9847123456,suresh@gmail.com,"Edappally, Kochi",Edappally,Ernakulam,23,B.Tech Computer Science,Model Engineering College,Final Year,"MERN Stack & Next.js",Full-Stack Web Development,Cold Call,New,BDE001,High,2026-11-02,Interested in weekend batch\n' +
+      'Anjali Mohan,9847234567,9847234567,anjali@gmail.com,"Mavoor, Kozhikode",Mavoor,Kozhikode,25,B.Sc Computer Science,Farook College,Passed Out,Data Analytics,Data Science & Machine Learning,Website,Follow Up,ASM001,Medium,2026-11-05,Call after 5 PM\n' +
+      'Rahul Menon,9847345678,9847345678,rahul@gmail.com,"Vyttila, Kochi",Vyttila,Ernakulam,22,B.Com,St Alberts College,Final Year,Digital Marketing,Digital Marketing Pro,Reference,Admitted,BDE002,High,2026-11-10,Fee paid - admission confirmed\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { TaskTemplate } from '@/models/taskTemplate';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Employee } from '@/models/employee';
@@ -12,6 +13,9 @@ function formatPeriodDate(date: Date = new Date()): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
 
     // 1. Fetch all active templates

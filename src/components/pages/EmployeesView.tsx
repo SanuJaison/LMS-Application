@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Employee } from '../../types';
+import { authHeaders } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 
 interface EmployeesViewProps {
@@ -108,7 +109,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/employees');
+      const res = await fetch('/api/admin/employees', { headers: authHeaders() });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setEmployees(json.data);
@@ -125,8 +126,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   const fetchOptions = async () => {
     try {
       const [desigRes, teamRes] = await Promise.all([
-        fetch('/api/admin/designations'),
-        fetch('/api/admin/teams'),
+        fetch('/api/admin/designations', { headers: authHeaders() }),
+        fetch('/api/admin/teams', { headers: authHeaders() }),
       ]);
 
       const desigJson = await desigRes.json();
@@ -358,7 +359,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
       const res = await fetch('/api/admin/employees', {
         method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -389,6 +390,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     try {
       const res = await fetch(`/api/admin/employees?id=${empId}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
       const json = await res.json();
       if (json.success) {
@@ -412,7 +414,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     try {
       const res = await fetch('/api/admin/employees', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ ids: selectedIds }),
       });
       const json = await res.json();

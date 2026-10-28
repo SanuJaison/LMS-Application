@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
@@ -246,6 +247,9 @@ export async function POST(req: Request) {
  */
 export async function PUT(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
 
@@ -326,6 +330,9 @@ export async function PUT(req: Request) {
  */
 export async function DELETE(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const { searchParams } = new URL(req.url);
     const idFromQuery = searchParams.get('id') || searchParams.get('lead_id');

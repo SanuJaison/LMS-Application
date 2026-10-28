@@ -210,10 +210,12 @@ export async function POST(req: Request) {
     // Look for user in database
     let user = await User.findOne({ email: cleanEmail });
 
-    // Seed default admin if user doesn't exist and credentials match default admin
+    // Bootstrap the very first admin account only. Previously any unknown
+    // email containing "admin" was auto-created as an admin, which let anyone
+    // mint an admin account. Now this only runs on an empty users collection.
     if (!user) {
       const totalUsers = await User.countDocuments();
-      if (totalUsers === 0 || cleanEmail.includes('admin')) {
+      if (totalUsers === 0) {
         const hashedPassword = await hashPassword(password);
         user = await User.create({
           name: 'Admin User',

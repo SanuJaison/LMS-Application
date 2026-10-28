@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { EmployeeTask } from '@/models/employeeTask';
 
 // 1. GET: Fetch employee tasks from database
 export async function GET(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const search = req.nextUrl.searchParams.get('search');
     const query = search
@@ -29,6 +33,9 @@ export async function GET(req: NextRequest) {
 // 2. POST: Create employee task in database
 export async function POST(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
 
@@ -75,6 +82,9 @@ export async function POST(req: NextRequest) {
 // 3. PUT: Update employee task in database
 export async function PUT(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
     const id = body.id || body._id;
@@ -116,6 +126,9 @@ export async function PUT(req: NextRequest) {
 // 4. DELETE: Delete employee task from database
 export async function DELETE(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const searchParams = req.nextUrl.searchParams;
     let id = searchParams.get('id');

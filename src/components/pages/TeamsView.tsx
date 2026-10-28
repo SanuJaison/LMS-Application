@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import TablePagination from '@/components/ui/TablePagination';
+import { authHeaders } from '../../services/api';
 
 interface Team {
   _id?: string;
@@ -85,7 +86,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/teams');
+      const res = await fetch('/api/admin/teams', { headers: authHeaders() });
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         setTeams(json.data);
@@ -211,7 +212,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
       const res = await fetch('/api/admin/teams', {
         method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
 
@@ -242,6 +243,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
     try {
       const res = await fetch(`/api/admin/teams?id=${teamId}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
       const json = await res.json();
       if (json.success) {
@@ -265,7 +267,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
     try {
       const res = await fetch('/api/admin/teams', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ ids: selectedIds }),
       });
       const json = await res.json();

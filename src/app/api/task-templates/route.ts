@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/adminAuth';
 import { TaskTemplate } from '@/models/taskTemplate';
 
 // 1. GET: Fetch task templates from database
 export async function GET(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const search = req.nextUrl.searchParams.get('search');
     const query = search
@@ -29,6 +33,9 @@ export async function GET(req: NextRequest) {
 // 2. POST: Create task template in database
 export async function POST(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
 
@@ -71,6 +78,9 @@ export async function POST(req: NextRequest) {
 // 3. PUT: Update task template in database
 export async function PUT(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
     const id = body.id || body._id;
@@ -108,6 +118,9 @@ export async function PUT(req: NextRequest) {
 // 4. DELETE: Delete task template from database
 export async function DELETE(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const searchParams = req.nextUrl.searchParams;
     let id = searchParams.get('id');
