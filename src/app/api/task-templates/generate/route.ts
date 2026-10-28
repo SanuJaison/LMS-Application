@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { todayKey } from '@/lib/employeeAuth';
 import { TaskTemplate } from '@/models/taskTemplate';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Employee } from '@/models/employee';
 
-// Helper to format date like "Aug 19, 2026"
-function formatPeriodDate(date: Date = new Date()): string {
+// Helper to format the period date like "Aug 19, 2026" in IST
+function formatPeriodDate(): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const [year, month, day] = todayKey().split('-').map(Number);
+  return `${months[month - 1]} ${day}, ${year}`;
 }
 
 export async function POST(req: NextRequest) {

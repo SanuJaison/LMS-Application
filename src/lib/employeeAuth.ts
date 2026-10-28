@@ -49,13 +49,30 @@ export function nameRegex(name?: string) {
   return { $regex: `^${escapeRegex(value)}$`, $options: 'i' };
 }
 
-export function todayKey(): string {
-  return new Date().toISOString().split('T')[0];
+/**
+ * Attendance days and times are recorded in India Standard Time (UTC+5:30),
+ * not the server clock. Vercel functions run in UTC, so without this offset a
+ * 9:30 AM IST check-in would be stored as 04:00 AM and the date would roll
+ * over at 5:30 AM IST.
+ */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function toIst(date: Date): Date {
+  return new Date(date.getTime() + IST_OFFSET_MS);
+}
+
+export function todayKey(date: Date = new Date()): string {
+  const shifted = toIst(date);
+  const year = shifted.getUTCFullYear();
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function formatTime(date: Date = new Date()): string {
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
+  const shifted = toIst(date);
+  let hours = shifted.getUTCHours();
+  const minutes = shifted.getUTCMinutes();
   const suffix = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12 || 12;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${suffix}`;
