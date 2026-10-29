@@ -1,0 +1,132 @@
+{
+  "info": {
+    "name": "KIDE LMS - Attendance (employee check-in / check-out)",
+    "description": "Employee attendance endpoints. Set {{employeeToken}} first (mint it with scripts/mint-employee-token.mjs), then run the requests in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://lms-application-pi.vercel.app" },
+    { "key": "employeeToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "attendanceId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Employee state (GET /api/home)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/home", "host": ["{{baseUrl}}"], "path": ["api", "home"] }
+      }
+    },
+    {
+      "name": "2. Today + history (GET /api/attendance)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+        "url": { "raw": "{{baseUrl}}/api/attendance", "host": ["{{baseUrl}}"], "path": ["api", "attendance"] }
+      }
+    },
+    {
+      "name": "3. Check in (POST /api/attendance/check-in)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/attendance/check-in",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "attendance", "check-in"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.data && body.data._id) pm.collectionVariables.set('attendanceId', body.data._id);",
+              "pm.test('status is 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+              "pm.test('data is present', () => pm.expect(body.data).to.be.an('object'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Check out (POST /api/attendance/check-out)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/attendance/check-out",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "attendance", "check-out"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('status is 200 or 400', () => pm.expect([200, 400]).to.include(pm.response.code));",
+              "if (pm.response.code === 200 && body.data) {",
+              "  pm.test('status is OFFLINE', () => pm.expect(body.data.status).to.eql('OFFLINE'));",
+              "  pm.test('check_out is set', () => pm.expect(body.data.check_out).to.be.a('string').and.not.empty);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Admin login (POST /api/login)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@kide.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.token) pm.collectionVariables.set('adminToken', body.token);",
+              "pm.test('admin token saved', () => pm.expect(body.token).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin view of attendance (GET /api/admin/attendance)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/attendance",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "admin", "attendance"]
+        }
+      }
+    },
+    {
+      "name": "7. Reset today's row (DELETE /api/admin/attendance?id=...)",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/attendance?id={{attendanceId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "admin", "attendance"],
+          "query": [{ "key": "id", "value": "{{attendanceId}}" }]
+        }
+      }
+    }
+  ]
+}
