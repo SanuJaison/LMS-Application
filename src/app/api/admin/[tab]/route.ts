@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -143,6 +144,43 @@ function cleanData(tab: string, body: any) {
   return data;
 }
 
+// Human-readable labels used by the Activities audit trail.
+const ACTIVITY_LABELS: Record<string, { noun: string; subject: string }> = {
+  leads: { noun: 'lead', subject: 'Lead' },
+  employees: { noun: 'employee', subject: 'Employee' },
+  attendance: { noun: 'attendance record', subject: 'Attendance' },
+  attendanceRecords: { noun: 'attendance record', subject: 'Attendance' },
+  zones: { noun: 'zone', subject: 'Zone' },
+  districts: { noun: 'district', subject: 'District' },
+  courses: { noun: 'course', subject: 'Course' },
+  designations: { noun: 'designation', subject: 'Designation' },
+  teams: { noun: 'team', subject: 'Team' },
+  tasks: { noun: 'task', subject: 'Task' },
+  taskTemplates: { noun: 'task template', subject: 'Task' },
+  'task-templates': { noun: 'task template', subject: 'Task' },
+  employeeTasks: { noun: 'employee task', subject: 'Task' },
+  'employee-tasks': { noun: 'employee task', subject: 'Task' },
+  wallets: { noun: 'wallet', subject: 'Wallet' },
+  walletWithdrawRequests: { noun: 'withdrawal request', subject: 'Wallet' },
+  'wallet-withdraw-requests': { noun: 'withdrawal request', subject: 'Wallet' },
+  walletWithdrawRequest: { noun: 'withdrawal request', subject: 'Wallet' },
+  leaves: { noun: 'leave', subject: 'Leave' },
+  roles: { noun: 'role', subject: 'Role' },
+  settings: { noun: 'setting', subject: 'Setting' },
+};
+
+function activityLabel(tab: string) {
+  return ACTIVITY_LABELS[tab] || { noun: 'record', subject: 'General' };
+}
+
+/** Best available human name for a saved document. */
+function recordName(doc: any): string {
+  if (!doc) return '';
+  return String(
+    doc.name || doc.title || doc.employee || doc.lead_id || doc.description || ''
+  ).trim();
+}
+
 // 1. GET: Fetch all records for a tab
 export async function GET(req: Request, { params }: { params: { tab: string } }) {
   try {
@@ -197,6 +235,16 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
 
     const created = await Model.create(payload);
 
+    if (params.tab !== 'activities') {
+      const { noun, subject } = activityLabel(params.tab);
+      const name = recordName(created as any);
+      await logActivity({
+        description: `Created ${noun}${name ? ` "${name}"` : ''}`,
+        subjectType: subject,
+        causer: causerFromRequest(req),
+      });
+    }
+
     if (params.tab === 'leads') {
       return NextResponse.json(
         {
@@ -242,6 +290,16 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
       return NextResponse.json({ success: false, message: 'Record not found' }, { status: 404 });
     }
 
+    if (params.tab !== 'activities') {
+      const { noun, subject } = activityLabel(params.tab);
+      const name = recordName(updated as any);
+      await logActivity({
+        description: `Updated ${noun}${name ? ` "${name}"` : ''}`,
+        subjectType: subject,
+        causer: causerFromRequest(req),
+      });
+    }
+
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
@@ -280,7 +338,26 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
       return NextResponse.json({ success: false, message: 'Record ID(s) required' }, { status: 400 });
     }
 
+    // Capture the names before deleting so the audit trail stays readable.
+    const doomed = await Model.find({ _id: { $in: idsToDelete } })
+      .select('name title employee lead_id description')
+      .lean();
+
     await Model.deleteMany({ _id: { $in: idsToDelete } });
+
+    if (params.tab !== 'activities' && doomed.length > 0) {
+      const { noun, subject } = activityLabel(params.tab);
+      const name = doomed.length === 1 ? recordName(doomed[0]) : '';
+      await logActivity({
+        description:
+          doomed.length === 1
+            ? `Deleted ${noun}${name ? ` "${name}"` : ''}`
+            : `Deleted ${doomed.length} ${noun}s`,
+        subjectType: subject,
+        causer: causerFromRequest(req),
+      });
+    }
+
     return NextResponse.json({ success: true, message: 'Deleted successfully' });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });

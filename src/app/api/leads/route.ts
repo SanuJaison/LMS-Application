@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
@@ -227,6 +228,12 @@ export async function POST(req: Request) {
 
     const created = await Lead.create(payload);
 
+    await logActivity({
+      description: `Created lead "${created.name}" (${created.lead_id})`,
+      subjectType: 'Lead',
+      causer: causerFromRequest(req),
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -313,6 +320,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
     }
 
+    await logActivity({
+      description: `Updated lead "${updated.name}" (${updated.lead_id})`,
+      subjectType: 'Lead',
+      causer: causerFromRequest(req),
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Lead updated successfully',
@@ -357,9 +370,26 @@ export async function DELETE(req: Request) {
     }
 
     // Delete by _id or lead_id
+    const doomed = await Lead.find({
+      $or: [{ _id: { $in: idsToDelete } }, { lead_id: { $in: idsToDelete } }],
+    })
+      .select('name lead_id')
+      .lean();
+
     await Lead.deleteMany({
       $or: [{ _id: { $in: idsToDelete } }, { lead_id: { $in: idsToDelete } }],
     });
+
+    if (doomed.length > 0) {
+      const single = doomed.length === 1 ? (doomed[0] as any) : null;
+      await logActivity({
+        description: single
+          ? `Deleted lead "${single.name}" (${single.lead_id})`
+          : `Deleted ${doomed.length} leads`,
+        subjectType: 'Lead',
+        causer: causerFromRequest(req),
+      });
+    }
 
     return NextResponse.json({
       success: true,

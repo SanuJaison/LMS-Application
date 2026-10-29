@@ -57,6 +57,11 @@ const AttendanceSchema = new Schema<IAttendance>(
   }
 );
 
+// One attendance row per employee per day. The check-in endpoint catches
+// duplicate-key errors so a double tap / concurrent request cannot create a
+// second row for the same person.
+AttendanceSchema.index({ name: 1, date: 1 }, { unique: true });
+
 // Prevent model recompilation during Next.js hot-reloads
 export const Attendance =
   mongoose.models.Attendance || mongoose.model<IAttendance>('Attendance', AttendanceSchema);

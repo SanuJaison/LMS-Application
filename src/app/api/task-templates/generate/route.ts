@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { todayKey } from '@/lib/employeeAuth';
 import { TaskTemplate } from '@/models/taskTemplate';
 import { EmployeeTask } from '@/models/employeeTask';
@@ -99,6 +100,14 @@ export async function POST(req: NextRequest) {
 
         generatedCount++;
       }
+    }
+
+    if (generatedCount > 0) {
+      await logActivity({
+        description: `Generated ${generatedCount} employee task${generatedCount === 1 ? '' : 's'}`,
+        subjectType: 'Task',
+        causer: causerFromRequest(req),
+      });
     }
 
     return NextResponse.json({

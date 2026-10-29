@@ -24,7 +24,7 @@ import {
 import TablePagination from '@/components/ui/TablePagination';
 
 export default function DashboardView() {
-  const [selectedZone, setSelectedZone] = useState<string>('Central Zone');
+  const [selectedZone, setSelectedZone] = useState<string>('All Zones');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [zonesList, setZonesList] = useState<Zone[]>([]);
   const [districtsList, setDistrictsList] = useState<District[]>([]);
@@ -45,6 +45,11 @@ export default function DashboardView() {
     fetchDashboardStats(selectedZone, selectedDistrict).then((data) => {
       setStatsData(data);
     });
+  }, [selectedZone, selectedDistrict]);
+
+  // A filter change produces a different row set; always start at page 1.
+  useEffect(() => {
+    setAttendancePage(1);
   }, [selectedZone, selectedDistrict]);
 
   // Filtered live attendance

@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
+import { logActivity } from '@/lib/activityLog';
 import {
   formatTime,
   getEmployee,
@@ -52,6 +53,12 @@ export async function POST(req: Request) {
     }
 
     await record.save();
+
+    await logActivity({
+      description: `Checked out at ${now}`,
+      subjectType: 'Attendance',
+      causer: employee.name,
+    });
 
     return ok(record, 'Checked out successfully');
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { assignLegacyIds } from '@/lib/mobileLead';
@@ -382,6 +383,12 @@ export async function POST(req: Request) {
     await assignLegacyIds(docs);
 
     const inserted = await Lead.insertMany(docs, { ordered: false });
+
+    await logActivity({
+      description: `Imported ${inserted.length} lead${inserted.length === 1 ? '' : 's'} from CSV`,
+      subjectType: 'Lead',
+      causer: causerFromRequest(req),
+    });
 
     return NextResponse.json({
       success: true,

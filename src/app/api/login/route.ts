@@ -5,6 +5,7 @@ import { Employee } from '@/models/employee';
 import { Designation } from '@/models';
 import { signToken } from '@/lib/jwt';
 import { checkPassword, hashPassword } from '@/lib/password';
+import { logActivity } from '@/lib/activityLog';
 
 /**
  * Escape a string so it can be used safely inside a RegExp.
@@ -253,6 +254,12 @@ export async function POST(req: Request) {
     });
 
     const laravelUser = await buildLaravelUser(user);
+
+    await logActivity({
+      description: 'Signed in to the admin panel',
+      subjectType: 'Auth',
+      causer: user.name || user.email,
+    });
 
     return NextResponse.json({
       success: true,

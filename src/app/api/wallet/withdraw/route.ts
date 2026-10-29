@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/db';
 import { Wallet, WalletWithdrawRequest } from '@/models';
+import { logActivity } from '@/lib/activityLog';
 import { getEmployee, nameRegex, ok } from '@/lib/employeeAuth';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
       description: String(body.description || body.notes || ''),
       notes: String(body.upi_id || ''),
       status: 'Pending',
+    });
+
+    await logActivity({
+      description: `Requested a withdrawal of ₹${amount}`,
+      subjectType: 'Wallet',
+      causer: employee.name,
     });
 
     return ok(

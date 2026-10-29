@@ -21,6 +21,7 @@ import InstitutesView from '@/components/pages/InstitutesView';
 import LeavesView from '@/components/pages/LeavesView';
 import WalletWithdrawRequestsView from '@/components/pages/WalletWithdrawRequestsView';
 import RolesView from '@/components/pages/RolesView';
+import ActivitiesView from '@/components/pages/ActivitiesView';
 import GenericResourceView from '@/components/pages/GenericResourceView';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -271,6 +272,8 @@ export default function KeralaCRMApp() {
             <WalletWithdrawRequestsView showToast={showToast} />
           ) : activeTab === 'roles' ? (
             <RolesView showToast={showToast} onRolesUpdated={setRolesCount} />
+          ) : activeTab === 'activities' ? (
+            <ActivitiesView />
           ) : (
             <GenericResourceView activeTab={activeTab} showToast={showToast} />
           )}

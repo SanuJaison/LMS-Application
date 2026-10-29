@@ -1,13 +1,61 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
+import { todayKey } from '@/lib/employeeAuth';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { Attendance } from '@/models/attendence';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/stats - Live Dynamic Dashboard Analytics (Strictly from MongoDB Atlas)
+ *
+ * Filters:
+ *   ?zone=      employee zone; leads are matched through their assigned employee
+ *   ?district=  employee/lead district
+ *
+ * Every number is recomputed for the selected slice of the business.
  */
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** IST calendar parts for a stored timestamp. */
+function istParts(value: any): { year: number; month: number; day: number } | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const shifted = new Date(date.getTime() + IST_OFFSET_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
+  };
+}
+
+function istDateKey(value: any): string {
+  const parts = istParts(value);
+  return parts ? `${parts.year}-${pad(parts.month + 1)}-${pad(parts.day)}` : '';
+}
+
+function istMonthKey(value: any): string {
+  const parts = istParts(value);
+  return parts ? `${parts.year}-${pad(parts.month + 1)}` : '';
+}
+
+function normalizeName(value: any): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isWon(lead: any): boolean {
+  const st = String(lead.status || lead.admission_status || '').toLowerCase();
+  return st.includes('admit') || st.includes('won') || lead.status === 4 || lead.status === 5;
+}
+
 export async function GET(req: Request) {
   try {
     const denied = requireAdmin(req);
@@ -15,38 +63,63 @@ export async function GET(req: Request) {
 
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const zone = searchParams.get('zone');
-    const district = searchParams.get('district');
 
-    // 1. Build Filter Queries
-    const leadQuery: Record<string, any> = {};
+    const rawZone = searchParams.get('zone');
+    const rawDistrict = searchParams.get('district');
+    const zone = rawZone && rawZone !== 'All Zones' ? rawZone : '';
+    const district = rawDistrict && rawDistrict !== 'All Districts' ? rawDistrict : '';
+    const filterActive = Boolean(zone || district);
+
+    // 1. Employees inside the selected zone/district slice
     const empQuery: Record<string, any> = {};
+    if (district) empQuery.district = district;
+    if (zone) empQuery.zone = zone;
 
-    if (district && district !== 'All Districts') {
-      leadQuery.district = district;
-      empQuery.district = district;
-    }
-    if (zone && zone !== 'All Zones') {
-      empQuery.zone = zone;
-    }
+    const employees: any[] = await Employee.find(empQuery)
+      .select('name employee_id designation district zone')
+      .lean();
 
-    // 2. Query MongoDB Collections
-    const [totalLeads, totalEmployees, allLeads, attendanceRecords] = await Promise.all([
+    const totalEmployees = employees.length;
+
+    const employeeNames: string[] = [];
+    const employeeIds: string[] = [];
+    const employeeByName = new Map<string, any>();
+
+    employees.forEach((emp) => {
+      if (emp.name) {
+        employeeNames.push(emp.name);
+        employeeByName.set(normalizeName(emp.name), emp);
+      }
+      if (emp.employee_id) employeeIds.push(String(emp.employee_id));
+    });
+
+    const allowedNames = new Set<string>(employeeNames.map(normalizeName));
+
+    // 2. Leads for the slice. Leads only carry `district` and the assigned
+    //    employee, so a zone filter is resolved through the employee list.
+    const leadConditions: Record<string, any>[] = [];
+    if (district) leadConditions.push({ district });
+    if (zone) {
+      leadConditions.push({
+        $or: [{ employee: { $in: employeeNames } }, { employee_id: { $in: employeeIds } }],
+      });
+    }
+    const leadQuery: Record<string, any> = leadConditions.length
+      ? { $and: leadConditions }
+      : {};
+
+    const [totalLeads, allLeads] = await Promise.all([
       Lead.countDocuments(leadQuery),
-      Employee.countDocuments(empQuery),
       Lead.find(leadQuery).lean(),
-      Attendance.find().sort({ createdAt: -1 }).limit(20).lean(),
     ]);
 
-    // 3. Calculate New Leads Generated Today
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const newLeadsToday = allLeads.filter((l: any) => {
-      const cd = new Date(l.createdAt || l.updatedAt || 0);
-      return cd >= todayStart;
-    }).length;
+    // 3. New leads generated today (IST calendar day)
+    const today = todayKey();
+    const newLeadsToday = (allLeads as any[]).filter(
+      (l) => istDateKey(l.createdAt || l.updatedAt) === today
+    ).length;
 
-    // 4. Calculate Leads by Status (Real MongoDB Counts)
+    // 4. Leads by status
     let newCount = 0;
     let contactedCount = 0;
     let interestedCount = 0;
@@ -54,7 +127,7 @@ export async function GET(req: Request) {
     let wonCount = 0;
     let lostCount = 0;
 
-    allLeads.forEach((l: any) => {
+    (allLeads as any[]).forEach((l: any) => {
       const st = String(l.status || l.admission_status || '').toLowerCase();
       if (st.includes('admit') || st.includes('won') || l.status === 4 || l.status === 5) {
         wonCount++;
@@ -75,87 +148,99 @@ export async function GET(req: Request) {
     const statusData = [newCount, contactedCount, interestedCount, followUpCount, wonCount, lostCount];
     const statusColors = ['#09929e', '#8b5cf6', '#f59e0b', '#38bdf8', '#10b981', '#f43f5e'];
 
-    // 5. Calculate Real Lead Generation Trend (Last 6 Months)
-    const now = new Date();
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // 5. Lead generation trend for the last 6 IST months
+    const nowParts = istParts(new Date())!;
     const trendMonths: string[] = [];
     const trendData: number[] = [];
     const trendWonData: number[] = [];
+    const trendKeys: string[] = [];
 
     for (let i = 5; i >= 0; i--) {
-      const targetMonthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const startOfMonth = new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), 1);
-      const endOfMonth = new Date(targetMonthDate.getFullYear(), targetMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
-
-      trendMonths.push(monthNames[targetMonthDate.getMonth()]);
-
-      const monthlyLeads = allLeads.filter((l: any) => {
-        const cd = new Date(l.createdAt || l.updatedAt || 0);
-        return cd >= startOfMonth && cd <= endOfMonth;
-      });
-
-      trendData.push(monthlyLeads.length);
-
-      const wonInMonth = monthlyLeads.filter((l: any) => {
-        const st = String(l.status || l.admission_status || '').toLowerCase();
-        return st.includes('admit') || st.includes('won') || l.status === 4 || l.status === 5;
-      }).length;
-
-      trendWonData.push(wonInMonth);
+      const bucket = new Date(Date.UTC(nowParts.year, nowParts.month - i, 1));
+      const key = `${bucket.getUTCFullYear()}-${pad(bucket.getUTCMonth() + 1)}`;
+      trendKeys.push(key);
+      trendMonths.push(MONTH_NAMES[bucket.getUTCMonth()]);
     }
 
-    // 6. Calculate Real Leads by District (Sorted Descending)
+    trendKeys.forEach((key) => {
+      const monthlyLeads = (allLeads as any[]).filter(
+        (l) => istMonthKey(l.createdAt || l.updatedAt) === key
+      );
+      trendData.push(monthlyLeads.length);
+      trendWonData.push(monthlyLeads.filter(isWon).length);
+    });
+
+    // 6. Leads by district - every district that has leads, highest first
     const districtTally: Record<string, number> = {};
-    allLeads.forEach((l: any) => {
-      const d = l.district || 'Unassigned';
+    (allLeads as any[]).forEach((l: any) => {
+      const d = String(l.district || '').trim() || 'Unassigned';
       districtTally[d] = (districtTally[d] || 0) + 1;
     });
 
-    const sortedDistricts = Object.entries(districtTally)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
+    const sortedDistricts = Object.entries(districtTally).sort((a, b) => b[1] - a[1]);
 
-    const districtLabels = sortedDistricts.map(([name]) => name);
-    const districtData = sortedDistricts.map(([, count]) => count);
+    // 7. Live attendance: today only, one row per employee (latest record wins)
+    const todayAttendance: any[] = await Attendance.find({ date: today })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // 7. Calculate Active Field Force
-    const onlineAttendance = attendanceRecords.filter((a: any) => a.status === 'ONLINE').length;
+    const seenEmployees = new Set<string>();
+    const dedupedAttendance: any[] = [];
+
+    (todayAttendance as any[]).forEach((record: any) => {
+      const key = normalizeName(record.name);
+      if (!key || seenEmployees.has(key)) return;
+      seenEmployees.add(key);
+
+      // Attendance has no zone/district columns; join through the employee name.
+      if (filterActive && !allowedNames.has(key)) return;
+
+      dedupedAttendance.push(record);
+    });
+
+    const onlineAttendance = dedupedAttendance.filter((a: any) => a.status === 'ONLINE').length;
     const activeFieldForce = `${onlineAttendance} / ${totalEmployees} Active`;
 
-    // 8. Formulate Response with Zero Dumb/Hardcoded Data
-    const data = {
-      totalLeads,
-      newLeadsToday,
-      activeFieldForce,
-      totalEmployees,
-      leadsByStatus: {
-        labels: statusLabels,
-        data: statusData,
-        colors: statusColors,
-      },
-      leadGenerationTrend: {
-        months: trendMonths,
-        data: trendData,
-        wonData: trendWonData,
-      },
-      leadsByDistrict: {
-        labels: districtLabels.length > 0 ? districtLabels : ['Ernakulam'],
-        data: districtData.length > 0 ? districtData : [0],
-      },
-      liveAttendance: attendanceRecords.map((a: any) => ({
+    const liveAttendance = dedupedAttendance.map((a: any) => {
+      const employee = employeeByName.get(normalizeName(a.name));
+      return {
         id: a._id.toString(),
         name: a.name || 'Field Staff',
-        designation: a.designation || 'Field Executive',
-        district: a.district || 'Ernakulam',
-        date: a.date || new Date().toISOString().split('T')[0],
-        check_in: a.check_in || '09:00 AM',
-        check_out: a.check_out || '06:00 PM',
-        hours_worked: a.hours_worked || 8,
-        status: a.status || 'ONLINE',
-      })),
-    };
+        designation: a.designation || employee?.designation || 'Field Executive',
+        district: a.district || employee?.district || 'Ernakulam',
+        date: a.date || today,
+        check_in: a.check_in || '',
+        check_out: a.check_out || '',
+        hours_worked: a.hours_worked || 0,
+        status: a.status || 'OFFLINE',
+      };
+    });
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({
+      success: true,
+      data: {
+        totalLeads,
+        newLeadsToday,
+        activeFieldForce,
+        totalEmployees,
+        leadsByStatus: {
+          labels: statusLabels,
+          data: statusData,
+          colors: statusColors,
+        },
+        leadGenerationTrend: {
+          months: trendMonths,
+          data: trendData,
+          wonData: trendWonData,
+        },
+        leadsByDistrict: {
+          labels: sortedDistricts.map(([name]) => name),
+          data: sortedDistricts.map(([, count]) => count),
+        },
+        liveAttendance,
+        attendancePreview: liveAttendance,
+      },
+    });
   } catch (error: any) {
     console.error('Error fetching dynamic dashboard stats:', error);
     return NextResponse.json(
