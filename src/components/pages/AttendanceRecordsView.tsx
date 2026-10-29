@@ -135,6 +135,31 @@ export default function AttendanceRecordsView({ showToast }: AttendanceRecordsVi
     );
   }, [viewEmployee, attendanceLogs]);
 
+  // Real values only - never invent a time or hour count that was not recorded.
+  const formatLogTime = (log: any) => {
+    if (!log.check_in && !log.check_out) return '—';
+    return `${log.check_in || '—'} - ${log.check_out || '—'}`;
+  };
+
+  const formatLogHours = (log: any) => {
+    if (log.check_in && !log.check_out) return 'still checked in';
+    if (!log.check_out) return '—';
+    const hours = Number(log.hours_worked);
+    return `${Number.isFinite(hours) ? hours : 0} hrs logged`;
+  };
+
+  // Attendance is loaded once on mount, so refetch when the modal opens.
+  // Otherwise a checkout that just happened stays hidden behind stale data.
+  const openEmployeeLogs = async (item: AttendanceSummaryItem) => {
+    setViewEmployee(item);
+    try {
+      const logsRes = await fetchResourceList('attendance');
+      if (Array.isArray(logsRes)) setAttendanceLogs(logsRes);
+    } catch (err) {
+      console.error('Failed to refresh attendance logs:', err);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Breadcrumb & Heading matching Screenshot 2 */}
@@ -231,7 +256,7 @@ export default function AttendanceRecordsView({ showToast }: AttendanceRecordsVi
                     <td className="py-3.5 px-6 text-ink">{item.totalLogs}</td>
                     <td className="py-3.5 px-6 text-right">
                       <button
-                        onClick={() => setViewEmployee(item)}
+                        onClick={() => openEmployeeLogs(item)}
                         className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
                       >
                         <Eye className="w-4 h-4 text-muted" />
@@ -289,14 +314,14 @@ export default function AttendanceRecordsView({ showToast }: AttendanceRecordsVi
                       className="p-3 bg-field border border-line rounded-xl flex items-center justify-between text-xs"
                     >
                       <div>
-                        <span className="font-semibold text-ink block mb-0.5">{log.date || 'Today'}</span>
+                        <span className="font-semibold text-ink block mb-0.5">{log.date || '—'}</span>
                         <span className="text-muted">
-                          {log.district || 'Ernakulam'} • {log.hours_worked || 8} hrs logged
+                          {log.district || '—'} • {formatLogHours(log)}
                         </span>
                       </div>
                       <div className="text-right">
                         <span className="text-ink/80 font-mono block">
-                          {log.check_in || '09:00 AM'} - {log.check_out || '06:00 PM'}
+                          {formatLogTime(log)}
                         </span>
                         <span
                           className={`inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-semibold ${
@@ -305,7 +330,7 @@ export default function AttendanceRecordsView({ showToast }: AttendanceRecordsVi
                               : 'bg-active text-muted border border-line'
                           }`}
                         >
-                          {log.status || 'ONLINE'}
+                          {log.status || '—'}
                         </span>
                       </div>
                     </div>
