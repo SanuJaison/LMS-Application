@@ -146,13 +146,23 @@ export default function TaskTemplatesView({ showToast, onNavigateToTasks }: Task
     );
   };
 
-  // Trigger automated task generation ("Generate Tasks Now")
-  const handleGenerateTasks = async () => {
+  // Trigger automated task generation (Bulk to all or specific selected templates)
+  const handleGenerateTasks = async (overrideIds?: string[]) => {
     try {
       setIsGenerating(true);
-      const res = await generateTasksNow();
+      const targetIds =
+        overrideIds && overrideIds.length > 0
+          ? overrideIds
+          : selectedIds.length > 0
+            ? selectedIds
+            : undefined;
+
+      const res = await generateTasksNow(targetIds);
       if (res.success) {
         showToast?.('success', res.message || 'Tasks generated successfully!');
+        if (targetIds && targetIds.length > 0) {
+          setSelectedIds([]);
+        }
       } else {
         showToast?.('danger', res.message || 'Failed to generate tasks');
       }
@@ -287,13 +297,23 @@ export default function TaskTemplatesView({ showToast, onNavigateToTasks }: Task
         <div className="flex flex-wrap items-center gap-3">
           {/* Generate Tasks Now (Emerald Green Button) */}
           <button
-            onClick={handleGenerateTasks}
+            onClick={() => handleGenerateTasks()}
             disabled={isGenerating}
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Generate today's tasks for all matching active employees"
+            title={
+              selectedIds.length > 0
+                ? `Generate tasks for ${selectedIds.length} selected template(s)`
+                : "Generate today's tasks for all matching active employees"
+            }
           >
             <RotateCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-            <span>{isGenerating ? 'Generating…' : 'Generate Tasks Now'}</span>
+            <span>
+              {isGenerating
+                ? 'Generating…'
+                : selectedIds.length > 0
+                  ? `Generate Tasks (${selectedIds.length} Selected)`
+                  : 'Generate Tasks Now'}
+            </span>
           </button>
 
           {/* New task template (Cyan Button) */}
@@ -332,6 +352,14 @@ export default function TaskTemplatesView({ showToast, onNavigateToTasks }: Task
               <strong className="text-ink">{selectedIds.length}</strong> template(s) selected
             </span>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleGenerateTasks(selectedIds)}
+                disabled={isGenerating}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                <span>Generate for Selected ({selectedIds.length})</span>
+              </button>
               <button
                 onClick={() => setSelectedIds([])}
                 className="text-ink/80 hover:text-ink underline text-xs"
@@ -440,6 +468,15 @@ export default function TaskTemplatesView({ showToast, onNavigateToTasks }: Task
                       </td>
                       <td className="py-3.5 px-6 text-right">
                         <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => handleGenerateTasks([id])}
+                            disabled={isGenerating}
+                            className="inline-flex items-center gap-1 text-[13px] text-emerald-400 hover:text-emerald-300 transition cursor-pointer disabled:opacity-50"
+                            title={`Generate today's tasks for "${item.title}"`}
+                          >
+                            <RotateCw className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Generate</span>
+                          </button>
                           <button
                             onClick={() => setViewModalItem(item)}
                             className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"

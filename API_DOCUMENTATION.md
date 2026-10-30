@@ -433,14 +433,22 @@ Read-only log tracking system actions:
 ### 4. Automated Task Generation
 
 #### `POST /api/task-templates/generate`
-Manually triggers task generation for all active templates for today.
+Triggers automated task generation for today. Supports both **Bulk Generation** (all templates to all matching employees) and **Targeted Generation** (single or multiple selected templates).
+
+- **Payload (Optional for targeted generation)**:
+```json
+{
+  "template_ids": ["6ad5f43a168eeb02f725aff5"]
+}
+```
+*(Omit the payload or send `{}` for bulk generation across all active templates)*
 
 - **Response `200 OK`**:
 ```json
 {
   "success": true,
-  "generatedCount": 14,
-  "message": "Tasks generated successfully"
+  "generatedCount": 1,
+  "message": "Generated 1 task(s) for \"Daily Lead Generation\"!"
 }
 ```
 

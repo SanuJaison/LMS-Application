@@ -255,11 +255,17 @@ export async function deleteResourceItem(tab: string, ids: string | string[]): P
 /**
  * Trigger automated task generation for all active templates in MongoDB Atlas
  */
-export async function generateTasksNow(): Promise<{ success: boolean; generatedCount?: number; message?: string }> {
+export async function generateTasksNow(
+  templateIds?: string[]
+): Promise<{ success: boolean; generatedCount?: number; message?: string }> {
   try {
     const res = await fetch('/api/task-templates/generate', {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body:
+        templateIds && templateIds.length > 0
+          ? JSON.stringify({ template_ids: templateIds })
+          : undefined,
     });
     return await res.json();
   } catch (error) {
