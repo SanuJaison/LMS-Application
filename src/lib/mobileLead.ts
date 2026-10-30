@@ -263,6 +263,7 @@ export async function serializeLeadsForMobile(docs: any[]): Promise<any[]> {
 
     return {
       id: leadNumericId,
+      lead_id: doc.lead_id || (doc.legacy_id ? `LD-${doc.legacy_id}` : `LD-${leadNumericId}`),
       name: doc.name || '',
       phone: doc.phone || doc.contact_number || '',
       email: doc.email || '',

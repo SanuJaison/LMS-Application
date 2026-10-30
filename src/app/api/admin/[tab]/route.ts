@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
 import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { teamNamesFromTeams } from '@/lib/hierarchy';
+import { getNextStudentId } from '@/lib/studentId';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -372,6 +373,22 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
 
     const body = await req.json();
     const payload = cleanData(params.tab, body);
+
+    if (params.tab === 'leads') {
+      const assignedEmp = String(payload.employee || payload.assigned_to || '').trim();
+      if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
+        return NextResponse.json(
+          { success: false, message: 'Validation failed: Assigned employee is required.' },
+          { status: 400 }
+        );
+      }
+      if (!payload.student_id) {
+        payload.student_id = await getNextStudentId();
+      }
+      if (!payload.lead_id) {
+        payload.lead_id = `LD-${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+    }
 
     if (params.tab === 'teams') {
       const conflict = await teamDistrictConflict(payload.districts || []);

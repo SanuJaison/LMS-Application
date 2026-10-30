@@ -6,6 +6,7 @@ import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { escapeRegex } from '@/lib/employeeAuth';
+import { getNextStudentId } from '@/lib/studentId';
 import {
   assignLegacyIds,
   findLeadByAnyId,
@@ -167,17 +168,46 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check optional Authorization header
+    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
+    let creatorRole = 'guest';
+    let creatorId = '';
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        creatorRole = decoded.role || 'admin';
+        creatorId = decoded.id || '';
+      }
+    }
+
+    let assignedEmp = String(body.employee || body.assigned_to || '').trim();
+    let assignedEmpId = String(body.employee_id || '').trim();
+
+    if (creatorRole === 'employee' && creatorId) {
+      const me = await Employee.findById(creatorId).lean();
+      if (me) {
+        assignedEmp = me.name || assignedEmp;
+        assignedEmpId = me.employee_id || assignedEmpId;
+      }
+    } else {
+      if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
+        return NextResponse.json(
+          { success: false, message: 'Validation failed: Assigned employee is required.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Auto-generate unique Lead ID if not provided
     const leadId = body.lead_id || `LD-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Auto-generate Student ID if status is Admitted
-    const admissionStatus = body.admission_status || body.status || 'New';
-    const isAdmitted =
-      admissionStatus === 'Admitted' || admissionStatus === 'Won' || body.status === 4;
-    let studentId = body.student_id || '';
-    if (isAdmitted && !studentId) {
-      studentId = `STU-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Auto-generate sequential student_id if not provided
+    let studentId = body.student_id ? String(body.student_id).trim() : '';
+    if (!studentId) {
+      studentId = await getNextStudentId();
     }
+    const admissionStatus = body.admission_status || body.status || 'New';
 
     const payload = {
       lead_id: leadId,
@@ -195,8 +225,8 @@ export async function POST(req: Request) {
       interested_topic: (body.interested_topic || '').trim(),
       interested_course: (body.interested_course || body.course || '').trim(),
       course: (body.course || body.interested_course || '').trim(),
-      employee: (body.employee || 'Aslam').trim(),
-      employee_id: (body.employee_id || '').trim(),
+      employee: assignedEmp,
+      employee_id: assignedEmpId,
       email: (body.email || '').trim(),
       address: (body.address || '').trim(),
 

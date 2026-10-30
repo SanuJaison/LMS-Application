@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { Employee } from '@/models/employee';
@@ -9,6 +9,7 @@ import {
   serializeLeadsForMobile,
 } from '@/lib/mobileLead';
 import { normalizeLeadPayload } from '@/lib/leadPayload';
+import { getNextStudentId } from '@/lib/studentId';
 
 /**
  * 1. POST /api/leads/create
@@ -73,19 +74,27 @@ export async function POST(req: Request) {
     // Normalize payload
     const payload = normalizeLeadPayload(body);
 
-    // If an authenticated user is known and no employee was specified, associate them
-    if (creatorName && (!body.employee || body.employee === 'Aslam')) {
-      payload.employee = creatorName;
-    }
-
-    // A lead created by an employee always belongs to that employee, and we
-    // also record their employee ID so it shows up in their app.
+    // If created by an employee (e.g. from the mobile app), the lead is automatically
+    // assigned to that employee without requiring them to enter an assigned employee.
     if (creatorRole === 'employee' && creatorId) {
       const me: any = await Employee.findById(creatorId).lean();
       if (me) {
         payload.employee = me.name || payload.employee;
         payload.employee_id = me.employee_id || '';
       }
+    } else {
+      // If created by an admin or portal user, assigned employee is strictly required
+      const assignedEmp = String(body.employee || body.assigned_to || payload.employee || '').trim();
+      if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Validation failed: Assigned employee is required.',
+          },
+          { status: 400 }
+        );
+      }
+      payload.employee = assignedEmp;
     }
 
     // Make sure the assigned employee always carries both the name and the ID
@@ -95,6 +104,16 @@ export async function POST(req: Request) {
     });
     payload.employee = assignment.employee || payload.employee;
     payload.employee_id = assignment.employee_id;
+
+    // Generate custom sequential student_id (STU-001, STU-002...) if not supplied
+    if (!payload.student_id || !String(payload.student_id).trim()) {
+      payload.student_id = await getNextStudentId();
+    }
+
+    // Ensure unique lead_id
+    if (!payload.lead_id) {
+      payload.lead_id = `LD-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
 
     // Save lead in MongoDB
     await assignLegacyIds([payload as any]);

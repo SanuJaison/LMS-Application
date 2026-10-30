@@ -28,6 +28,9 @@ import TablePagination from '@/components/ui/TablePagination';
 export interface LeadItem {
   _id?: string;
   id?: string;
+  lead_id?: string;
+  student_id?: string;
+  legacy_id?: number;
   name: string;
   phone?: string;
   whats_number?: string;
@@ -197,7 +200,9 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           l.course?.toLowerCase().includes(q) ||
           l.source?.toLowerCase().includes(q) ||
           String(l.status)?.toLowerCase().includes(q) ||
-          l.employee?.toLowerCase().includes(q)
+          l.employee?.toLowerCase().includes(q) ||
+          l.student_id?.toLowerCase().includes(q) ||
+          l.lead_id?.toLowerCase().includes(q)
       );
     }
 
@@ -1039,7 +1044,14 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
                           onChange={() => toggleSelectRow(id)}
                         />
                       </td>
-                      <td className="py-3.5 px-5 font-normal text-ink">{item.name || '—'}</td>
+                      <td className="py-3.5 px-5 font-normal text-ink">
+                        <div>{item.name || '—'}</div>
+                        {item.student_id && (
+                          <div className="text-[11px] font-mono text-emerald-400 font-medium">
+                            {item.student_id}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3.5 px-5 text-ink/80">{item.phone || '—'}</td>
                       <td className="py-3.5 px-5 text-ink/80">{item.email || '—'}</td>
                       <td className="py-3.5 px-5 text-ink/80">{item.district || '—'}</td>
@@ -1206,6 +1218,18 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
             <div className="p-6 space-y-3 text-[13px]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Lead ID</span>
+                  <span className="text-primary font-mono font-medium">
+                    {viewingLead.lead_id || (viewingLead.legacy_id ? `LD-${viewingLead.legacy_id}` : '—')}
+                  </span>
+                </div>
+                <div className="bg-field p-3 rounded-lg border border-line">
+                  <span className="text-muted block mb-0.5">Student ID</span>
+                  <span className="text-emerald-400 font-mono font-medium">
+                    {viewingLead.student_id || '—'}
+                  </span>
+                </div>
                 <div className="bg-field p-3 rounded-lg border border-line">
                   <span className="text-muted block mb-0.5">Phone</span>
                   <span className="text-ink font-medium">{viewingLead.phone || '—'}</span>

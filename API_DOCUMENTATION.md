@@ -41,7 +41,8 @@ This document covers all API endpoints available in the backend:
     - [Attendance History](#34-attendance-history)
   - [4. Leads & Pipeline](#4-leads--pipeline)
     - [List Leads](#41-list-leads)
-    - [Create Lead](#42-create-lead)
+    - [Get Next Student ID (Autofill)](#42-get-next-student-id-autofill)
+    - [Create Lead](#43-create-lead)
     - [Bulk Import Leads](#43-bulk-import-leads)
     - [Record Follow-Up](#44-record-follow-up)
     - [Close / Convert Lead](#45-close--convert-lead)
@@ -801,8 +802,29 @@ Lists leads scoped to the authenticated employee (or team if manager).
 
 ---
 
-### 4.2 Create Lead
-#### `POST /api/leads/create`
+### 4.2 Get Next Student ID (Autofill)
+#### `GET /api/leads/next-student-id`
+Returns the next sequential custom Student ID (`STU-001`, `STU-002`, `STU-003`...). The mobile app can use this endpoint to autofill the Student ID field before submission. If omitted during creation, the backend will also automatically assign the next sequential Student ID.
+
+- **Response `200 OK`**:
+```json
+{
+  "success": true,
+  "student_id": "STU-001",
+  "data": {
+    "student_id": "STU-001"
+  }
+}
+```
+
+---
+
+### 4.3 Create Lead
+#### `POST /api/leads/create` (or `POST /api/leads`)
+
+- **Creation Rules**:
+  - **From Mobile App (Employee Token)**: The `employee` / `assigned_to` field is **NOT required**. The backend automatically assigns the lead to the authenticated employee who created it (both `employee` and `employee_id` are saved so Admin sees who created it). The `student_id` is automatically generated sequentially (`STU-001`, `STU-002`...) if not passed.
+  - **From Admin Panel**: The Assigned Employee field is strictly **required** (returns `400` if missing). Sequential `student_id` is automatically generated and visible in Admin Lead View.
 
 - **Request Body**:
 ```json
