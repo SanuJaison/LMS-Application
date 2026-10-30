@@ -2,7 +2,7 @@ import { Attendance } from '@/models/attendence';
 import { Employee } from '@/models/employee';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Lead } from '@/models/lead';
-import { Leave } from '@/models';
+import { Leave, Team } from '@/models';
 import {
   escapeRegex,
   nameRegex,
@@ -42,6 +42,108 @@ export function hierarchyRole(employee: any): HierarchyRole {
 
 export function isManagerRole(employee: any): boolean {
   return MANAGER_ROLES.includes(hierarchyRole(employee));
+}
+
+async function teamLedBy(name: string): Promise<string> {
+  const lead = String(name || '').trim();
+  if (!lead) return '';
+  const team: any = await Team.findOne({
+    team_lead: { $regex: `^${escapeRegex(lead)}$`, $options: 'i' },
+  }).lean();
+  return team?.name || '';
+}
+
+/**
+ * Resolve an employee's team from the Teams collection instead of the employee
+ * record:
+ *   - ASM   -> the team they lead
+ *   - BDE   -> the team led by the first ASM up their reporting chain
+ *   - SM/MD -> no team (top level)
+ * Falls back to the stored `team` only when no team assignment is found.
+ */
+export async function resolveTeamForEmployee(employee: any): Promise<string> {
+  if (!employee) return '';
+
+  const role = hierarchyRole(employee);
+  if (role === 'SM' || role === 'MD') return '';
+
+  if (role === 'ASM') {
+    return (await teamLedBy(employee.name)) || String(employee.team || '');
+  }
+
+  let managerId = String(employee.reports_to || '').trim();
+  const seen = new Set<string>();
+
+  while (managerId && !seen.has(managerId)) {
+    seen.add(managerId);
+    const manager: any = await Employee.findOne({
+      employee_id: { $regex: `^${escapeRegex(managerId)}$`, $options: 'i' },
+    }).lean();
+    if (!manager) break;
+
+    const managerRole = hierarchyRole(manager);
+    if (managerRole === 'ASM') {
+      return (await teamLedBy(manager.name)) || String(employee.team || '');
+    }
+    if (managerRole === 'SM' || managerRole === 'MD') break;
+
+    managerId = String(manager.reports_to || '').trim();
+  }
+
+  return String(employee.team || '');
+}
+
+/**
+ * Same team resolution for a list of employees, without extra queries.
+ * Returns a map of EMPLOYEE_ID -> team name.
+ */
+export function teamNamesFromTeams(
+  employees: any[],
+  teams: any[]
+): Map<string, string> {
+  const leadToTeam = new Map<string, string>();
+  for (const team of teams) {
+    const lead = String(team.team_lead || '').trim().toLowerCase();
+    if (lead) leadToTeam.set(lead, team.name || '');
+  }
+
+  const byId = new Map<string, any>();
+  for (const emp of employees) {
+    const id = String(emp.employee_id || '').trim().toUpperCase();
+    if (id) byId.set(id, emp);
+  }
+
+  const cache = new Map<string, string>();
+  const resolve = (emp: any, depth = 0): string => {
+    if (!emp || depth > 10) return '';
+    const id = String(emp.employee_id || '').trim().toUpperCase();
+    if (id && cache.has(id)) return cache.get(id)!;
+
+    const role = hierarchyRole(emp);
+    let team = '';
+
+    if (role === 'ASM') {
+      team = leadToTeam.get(String(emp.name || '').trim().toLowerCase()) || '';
+    } else if (role !== 'SM' && role !== 'MD') {
+      const managerId = String(emp.reports_to || '').trim().toUpperCase();
+      const manager = managerId ? byId.get(managerId) : null;
+      if (manager) team = resolve(manager, depth + 1);
+    }
+
+    if (!team && role !== 'SM' && role !== 'MD') {
+      team = String(emp.team || '');
+    }
+
+    if (id) cache.set(id, team);
+    return team;
+  };
+
+  const out = new Map<string, string>();
+  for (const emp of employees) {
+    const id = String(emp.employee_id || '').trim().toUpperCase();
+    out.set(id, resolve(emp));
+  }
+  return out;
 }
 
 /**
@@ -125,7 +227,12 @@ function leadQueryFor(member: any) {
   return conditions.length ? { $or: conditions } : { employee: '__none__' };
 }
 
-async function buildMember(member: any, today: string, startOfToday: Date) {
+async function buildMember(
+  member: any,
+  today: string,
+  startOfToday: Date,
+  teamMap?: Map<string, string>
+) {
   const memberName = nameRegex(member?.name);
   const leaveQuery = memberName ? { employee: memberName } : { employee: '__none__' };
   const attendanceQuery = memberName
@@ -144,6 +251,11 @@ async function buildMember(member: any, today: string, startOfToday: Date) {
   const leaveList = leaves as any[];
   const attendanceDoc = attendance as any;
 
+  const memberKey = String(member.employee_id || '').trim().toUpperCase();
+  const resolvedTeam = teamMap?.has(memberKey)
+    ? teamMap.get(memberKey) || ''
+    : member.team || '';
+
   return {
     id: numericId(member._id),
     employee_id: member.employee_id || '',
@@ -151,7 +263,7 @@ async function buildMember(member: any, today: string, startOfToday: Date) {
     email: member.email || '',
     contact_number: member.contact_number || '',
     designation_name: member.designation || null,
-    team: member.team || '',
+    team: resolvedTeam,
     zone: member.zone || '',
     district: member.district || '',
     reports_to: member.reports_to || null,
@@ -221,8 +333,11 @@ export async function buildTeamOverview(
   const today = todayKey();
   const startOfToday = new Date(`${today}T00:00:00.000Z`);
 
+  const teams = (await Team.find({}, { name: 1, team_lead: 1 }).lean()) as any[];
+  const teamMap = teamNamesFromTeams([manager, ...members], teams);
+
   const detailed = await Promise.all(
-    members.map((member) => buildMember(member, today, startOfToday))
+    members.map((member) => buildMember(member, today, startOfToday, teamMap))
   );
 
   const totals = detailed.reduce(

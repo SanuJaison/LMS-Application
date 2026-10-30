@@ -1,4 +1,5 @@
 import { getEmployee, ok, serializeEmployee } from '@/lib/employeeAuth';
+import { resolveTeamForEmployee } from '@/lib/hierarchy';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +14,12 @@ export async function GET(req: Request) {
     return ok(null, 'Unauthenticated');
   }
 
+  const team = await resolveTeamForEmployee(employee);
+
   return ok(
     {
       ...serializeEmployee(employee),
+      team,
       designation: employee.designation || '',
       contact_number: employee.contact_number || '',
       status: employee.status || 'active',

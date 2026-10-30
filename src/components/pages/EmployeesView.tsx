@@ -42,14 +42,6 @@ interface DesignationOption {
   prefix?: string;
 }
 
-interface TeamOption {
-  id?: string;
-  _id?: string;
-  name: string;
-  district?: string;
-  zone?: string;
-}
-
 export default function EmployeesView({ showToast }: EmployeesViewProps) {
   // Data state
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -83,7 +75,6 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
   // Dropdown options loaded from the database
   const [designations, setDesignations] = useState<DesignationOption[]>([]);
-  const [teams, setTeams] = useState<TeamOption[]>([]);
 
   // Form fields
   const [formData, setFormData] = useState({
@@ -95,7 +86,6 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     designation: 'Business Development Executive',
     zone: 'Central Zone',
     district: 'Ernakulam',
-    team: '',
     reports_to: '',
     status: 'active',
     bank_name: '',
@@ -122,25 +112,16 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     }
   };
 
-  // Fetch designation & team options for the dropdowns
+  // Fetch designation options for the dropdown
   const fetchOptions = async () => {
     try {
-      const [desigRes, teamRes] = await Promise.all([
-        fetch('/api/admin/designations', { headers: authHeaders() }),
-        fetch('/api/admin/teams', { headers: authHeaders() }),
-      ]);
-
+      const desigRes = await fetch('/api/admin/designations', { headers: authHeaders() });
       const desigJson = await desigRes.json();
       if (desigJson.success && Array.isArray(desigJson.data)) {
         setDesignations(desigJson.data);
       }
-
-      const teamJson = await teamRes.json();
-      if (teamJson.success && Array.isArray(teamJson.data)) {
-        setTeams(teamJson.data);
-      }
     } catch (err) {
-      console.error('Failed to load designations/teams:', err);
+      console.error('Failed to load designations:', err);
     }
   };
 
@@ -173,6 +154,41 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     if (!reportsTo) return '—';
     const manager = employees.find((emp) => emp.employee_id === reportsTo);
     return manager ? `${manager.name} (${manager.employee_id})` : reportsTo;
+  };
+
+  const isSMDesignation = (designationName?: string): boolean => {
+    if (!designationName) return false;
+    const prefix = designationPrefix(designationName);
+    const lower = designationName.toLowerCase();
+    if (lower.includes('area sales manager')) return false;
+    return prefix === 'SM' || lower.includes('sales manager') || lower.includes('state manager');
+  };
+
+  const isASMDesignation = (designationName?: string): boolean => {
+    if (!designationName) return false;
+    const prefix = designationPrefix(designationName);
+    const lower = designationName.toLowerCase();
+    return prefix === 'ASM' || lower.includes('area sales manager');
+  };
+
+  const isBDEDesignation = (designationName?: string): boolean => {
+    if (!designationName) return false;
+    const prefix = designationPrefix(designationName);
+    const lower = designationName.toLowerCase();
+    return prefix === 'BDE' || lower.includes('business development');
+  };
+
+  const isTopLevelDesignation = (designationName?: string): boolean => {
+    if (!designationName) return false;
+    const prefix = designationPrefix(designationName);
+    const lower = designationName.toLowerCase();
+    if (lower.includes('area sales manager')) return false;
+    return (
+      ['SM', 'MD'].includes(prefix) ||
+      lower.includes('sales manager') ||
+      lower.includes('state manager') ||
+      lower.includes('managing director')
+    );
   };
 
   // Build the next custom employee ID, e.g. BDE001, BDE002, ASM001
@@ -274,7 +290,6 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       designation: defaultDesignation,
       zone: 'Central Zone',
       district: 'Ernakulam',
-      team: '',
       reports_to: '',
       status: 'active',
       bank_name: '',
@@ -298,7 +313,6 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       designation: emp.designation || '',
       zone: emp.zone || 'Central Zone',
       district: emp.district || 'Ernakulam',
-      team: emp.team || 'Team Kakkanad',
       reports_to: emp.reports_to || '',
       status: emp.status || 'active',
       bank_name: (emp as any).bank_name || '',
@@ -332,6 +346,9 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     try {
       setSaving(true);
 
+      // SM/MD are top level: no district, zone or manager.
+      const isTopLevel = isTopLevelDesignation(formData.designation);
+
       const payload: Record<string, any> = {
         ...(isEdit && { id: empId }),
         name: formData.name.trim(),
@@ -340,10 +357,9 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           formData.employee_id.trim() || buildEmployeeId(formData.designation, empId),
         contact_number: formData.contact_number.trim(),
         designation: formData.designation.trim(),
-        zone: formData.zone.trim(),
-        district: formData.district.trim(),
-        team: formData.team.trim(),
-        reports_to: formData.reports_to.trim(),
+        zone: isTopLevel ? '' : formData.zone.trim(),
+        district: isTopLevel ? '' : formData.district.trim(),
+        reports_to: isTopLevel ? '' : formData.reports_to.trim(),
         status: formData.status.toLowerCase(),
         bank_name: formData.bank_name.trim(),
         account_holder_name: formData.account_holder_name.trim(),
@@ -430,6 +446,46 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       showToast?.('danger', 'Failed to delete selected employees');
     }
   };
+
+  // SM/MD are top level: no district, zone or manager fields.
+  const isTopLevel = isTopLevelDesignation(formData.designation);
+  const isCurrentASM = isASMDesignation(formData.designation);
+  const isCurrentBDE = isBDEDesignation(formData.designation);
+
+  const availableManagers = useMemo(() => {
+    const currentEmpKey = editingEmployee?.id || (editingEmployee as any)?._id;
+    const currentEmpId = formData.employee_id;
+
+    return employees.filter((emp) => {
+      const empKey = emp.id || (emp as any)._id;
+      if (empKey === currentEmpKey) return false;
+      if (currentEmpId && emp.employee_id === currentEmpId) return false;
+
+      if (isCurrentASM) {
+        // ASM can ONLY report to SM! Under NO circumstances show other ASMs or BDEs.
+        return isSMDesignation(emp.designation);
+      }
+
+      if (isCurrentBDE) {
+        // BDE reports to ASM
+        return isASMDesignation(emp.designation);
+      }
+
+      return !isBDEDesignation(emp.designation);
+    });
+  }, [employees, formData.designation, formData.employee_id, editingEmployee]);
+
+  // Keep formData.reports_to strictly valid for the chosen role
+  useEffect(() => {
+    if (isTopLevel && formData.reports_to) {
+      setFormData((prev) => ({ ...prev, reports_to: '' }));
+    } else if (isCurrentASM && formData.reports_to) {
+      const isValidSM = availableManagers.some((m) => m.employee_id === formData.reports_to);
+      if (!isValidSM) {
+        setFormData((prev) => ({ ...prev, reports_to: '' }));
+      }
+    }
+  }, [isTopLevel, isCurrentASM, availableManagers, formData.reports_to]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -768,7 +824,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
               </div>
               <div className="bg-field p-3 rounded-lg border border-line">
                 <span className="text-muted block mb-0.5">Team</span>
-                <span className="text-ink font-medium">{viewingEmployee.team || 'Team Kakkanad'}</span>
+                <span className="text-ink font-medium">{viewingEmployee.team || '—'}</span>
               </div>
               <div className="bg-field p-3 rounded-lg border border-line">
                 <span className="text-muted block mb-0.5">Reports To</span>
@@ -914,12 +970,39 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     onChange={(e) => {
                       const value = e.target.value;
                       const currentKey = editingEmployee?.id || (editingEmployee as any)?._id;
+                      const nextIsTop = isTopLevelDesignation(value);
+                      const nextIsASM = isASMDesignation(value);
+                      const nextIsBDE = isBDEDesignation(value);
+
+                      let nextReportsTo = formData.reports_to;
+                      if (nextIsTop) {
+                        nextReportsTo = '';
+                      } else if (nextIsASM) {
+                        const currentMgr = employees.find((emp) => emp.employee_id === formData.reports_to);
+                        const isCurrentMgrSM = currentMgr && isSMDesignation(currentMgr.designation);
+                        if (!isCurrentMgrSM) {
+                          const sm = employees.find((emp) => isSMDesignation(emp.designation));
+                          nextReportsTo = sm ? sm.employee_id : '';
+                        }
+                      } else if (nextIsBDE) {
+                        const currentMgr = employees.find((emp) => emp.employee_id === formData.reports_to);
+                        const isCurrentMgrASM = currentMgr && isASMDesignation(currentMgr.designation);
+                        if (!isCurrentMgrASM) {
+                          const asm = employees.find((emp) => isASMDesignation(emp.designation));
+                          nextReportsTo = asm ? asm.employee_id : '';
+                        }
+                      }
+
                       setFormData((prev) => ({
                         ...prev,
                         designation: value,
                         employee_id: editingEmployee
                           ? prev.employee_id
                           : buildEmployeeId(value, currentKey),
+                        reports_to: nextReportsTo,
+                        ...(nextIsTop
+                          ? { zone: '', district: '', reports_to: '' }
+                          : {}),
                       }));
                     }}
                     className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
@@ -939,24 +1022,6 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-ink/80 font-semibold mb-1">Team</label>
-                  <select
-                    value={formData.team}
-                    onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    <option value="">No team</option>
-                    {formData.team && !teams.some((t) => t.name === formData.team) && (
-                      <option value={formData.team}>{formData.team}</option>
-                    )}
-                    {teams.map((t) => (
-                      <option key={t.id || t._id || t.name} value={t.name}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-ink/80 font-semibold mb-1">Status</label>
                   <select
                     value={formData.status.toLowerCase()}
@@ -969,26 +1034,29 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-ink/80 font-semibold mb-1">Reports To</label>
-                <select
-                  value={formData.reports_to}
-                  onChange={(e) => setFormData({ ...formData, reports_to: e.target.value })}
-                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                >
-                  <option value="">No manager (top level)</option>
-                  {formData.reports_to &&
-                    !employees.some((emp) => emp.employee_id === formData.reports_to) && (
-                      <option value={formData.reports_to}>{formData.reports_to}</option>
+              {!isTopLevel && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-ink/80 font-semibold">
+                      Reports To {isCurrentASM && <span className="text-accent font-normal">(Sales Manager only)</span>}
+                    </label>
+                    {isCurrentASM && availableManagers.length === 0 && (
+                      <span className="text-[10px] text-amber-500 font-medium">Create SM first</span>
                     )}
-                  {employees
-                    .filter((emp) => {
-                      const empKey = emp.id || (emp as any)._id;
-                      const editingKey =
-                        editingEmployee?.id || (editingEmployee as any)?._id;
-                      return empKey !== editingKey && emp.employee_id !== formData.employee_id;
-                    })
-                    .map((emp) => (
+                  </div>
+                  <select
+                    value={formData.reports_to}
+                    onChange={(e) => setFormData({ ...formData, reports_to: e.target.value })}
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                  >
+                    <option value="">
+                      {isCurrentASM
+                        ? availableManagers.length === 0
+                          ? 'No Sales Manager found — create SM first'
+                          : 'Select Sales Manager (SM)'
+                        : 'No manager (top level)'}
+                    </option>
+                    {availableManagers.map((emp) => (
                       <option
                         key={emp.id || (emp as any)._id || emp.employee_id}
                         value={emp.employee_id}
@@ -996,39 +1064,51 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                         {emp.name} ({emp.employee_id}) — {emp.designation}
                       </option>
                     ))}
-                </select>
-                <span className="block mt-1 text-[10px] text-subtle">
-                  Used by the mobile team hierarchy: a BDE reports to a BDM, and a BDM
-                  reports to an ASM.
-                </span>
-              </div>
+                  </select>
+                  {isCurrentASM && availableManagers.length === 0 ? (
+                    <span className="block mt-1 text-[10px] text-amber-500 font-medium">
+                      ⚠️ No Sales Manager (SM) found. ASMs can only report to the Sales Manager. Please create the Sales Manager first, or assign the manager later.
+                    </span>
+                  ) : (
+                    <span className="block mt-1 text-[10px] text-subtle">
+                      {isCurrentASM
+                        ? 'Area Sales Managers (ASM) report directly to the Sales Manager (SM).'
+                        : isCurrentBDE
+                        ? 'Business Development Executives (BDE) report to their Area Sales Manager (ASM).'
+                        : 'Used by the hierarchy: BDEs report to an ASM, and ASMs report to the SM.'}
+                    </span>
+                  )}
+                </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1">Zone</label>
-                  <select
-                    value={formData.zone}
-                    onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    {ZONE_OPTIONS.map((z) => (
-                      <option key={z} value={z}>{z}</option>
-                    ))}
-                  </select>
+              {!isTopLevel && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-ink/80 font-semibold mb-1">Zone</label>
+                    <select
+                      value={formData.zone}
+                      onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
+                      className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                    >
+                      {ZONE_OPTIONS.map((z) => (
+                        <option key={z} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-ink/80 font-semibold mb-1">District</label>
+                    <select
+                      value={formData.district}
+                      onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                      className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                    >
+                      {DISTRICT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1">District</label>
-                  <select
-                    value={formData.district}
-                    onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    {DISTRICT_OPTIONS.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
               {/* Payment Details */}
               <div className="pt-1">

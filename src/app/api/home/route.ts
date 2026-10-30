@@ -10,7 +10,7 @@ import {
   serializeEmployee,
   todayKey,
 } from '@/lib/employeeAuth';
-import { buildTeamOverview, emptyTeam } from '@/lib/hierarchy';
+import { buildTeamOverview, emptyTeam, resolveTeamForEmployee } from '@/lib/hierarchy';
 import type { TeamScope } from '@/lib/hierarchy';
 
 export const dynamic = 'force-dynamic';
@@ -85,10 +85,11 @@ export async function GET(req: Request) {
     const taskList = tasks as any[];
     const leaveList = leaves as any[];
     const leadList = leads as any[];
+    const resolvedTeam = await resolveTeamForEmployee(employee);
 
     return ok(
       {
-        employee: serializeEmployee(employee),
+        employee: { ...serializeEmployee(employee), team: resolvedTeam },
         attendance: {
           date: today,
           status: attendance?.status || 'OFFLINE',

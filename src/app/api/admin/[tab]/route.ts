@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
 import { causerFromRequest, logActivity } from '@/lib/activityLog';
+import { teamNamesFromTeams } from '@/lib/hierarchy';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -314,7 +315,18 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
         ? { createdAt: 1 }
         : { createdAt: -1 };
     const docs = await Model.find().sort(sortOrder).lean();
-    const data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));
+    let data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));
+
+    // The employee `team` is derived from the Teams assignment (team lead),
+    // not stored on the employee record.
+    if (params.tab === 'employees') {
+      const teams = (await Team.find({}, { name: 1, team_lead: 1 }).lean()) as any[];
+      const teamMap = teamNamesFromTeams(docs as any[], teams);
+      data = data.map((row: any) => ({
+        ...row,
+        team: teamMap.get(String(row.employee_id || '').trim().toUpperCase()) || '',
+      }));
+    }
 
     return NextResponse.json({ success: true, data });
   } catch (error: any) {

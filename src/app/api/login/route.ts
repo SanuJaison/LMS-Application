@@ -6,6 +6,7 @@ import { Designation } from '@/models';
 import { signToken } from '@/lib/jwt';
 import { checkPassword, hashPassword } from '@/lib/password';
 import { logActivity } from '@/lib/activityLog';
+import { resolveTeamForEmployee } from '@/lib/hierarchy';
 
 /**
  * Escape a string so it can be used safely inside a RegExp.
@@ -158,6 +159,7 @@ export async function POST(req: Request) {
 
         const requirePasswordChange = Boolean(employee.require_password_change);
         const laravelUser = await buildLaravelUser(employee, employee.designation);
+        const resolvedTeam = await resolveTeamForEmployee(employee);
 
         return NextResponse.json({
           success: true,
@@ -170,7 +172,7 @@ export async function POST(req: Request) {
             email: employee.email || '',
             employee_id: employee.employee_id,
             designation: employee.designation || '',
-            team: employee.team || '',
+            team: resolvedTeam,
             zone: employee.zone || '',
             district: employee.district || '',
             role: 'employee',
