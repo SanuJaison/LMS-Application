@@ -95,7 +95,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     designation: 'Business Development Executive',
     zone: 'Central Zone',
     district: 'Ernakulam',
-    team: 'Team Kakkanad',
+    team: '',
     reports_to: '',
     status: 'active',
     bank_name: '',
@@ -274,7 +274,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       designation: defaultDesignation,
       zone: 'Central Zone',
       district: 'Ernakulam',
-      team: teams[0]?.name || 'Team Kakkanad',
+      team: '',
       reports_to: '',
       status: 'active',
       bank_name: '',
@@ -945,6 +945,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     onChange={(e) => setFormData({ ...formData, team: e.target.value })}
                     className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
                   >
+                    <option value="">No team</option>
                     {formData.team && !teams.some((t) => t.name === formData.team) && (
                       <option value={formData.team}>{formData.team}</option>
                     )}
