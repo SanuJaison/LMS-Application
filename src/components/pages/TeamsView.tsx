@@ -19,6 +19,7 @@ interface Team {
   _id?: string;
   id?: string;
   name: string;
+  districts?: string[];
   district?: string;
   zone?: string;
   team_lead?: string;
@@ -50,6 +51,14 @@ const DISTRICT_OPTIONS = [
 
 const ZONE_OPTIONS = ['Central Zone', 'North Zone', 'South Zone'];
 
+/** Districts for a team: prefer `districts`, fall back to the legacy single `district`. */
+function teamDistricts(team: Team): string[] {
+  if (Array.isArray(team.districts) && team.districts.length > 0) {
+    return team.districts.map((d) => String(d || '').trim()).filter(Boolean);
+  }
+  return team.district ? [team.district] : [];
+}
+
 export default function TeamsView({ showToast }: TeamsViewProps) {
   // Data state
   const [teams, setTeams] = useState<Team[]>([]);
@@ -74,13 +83,50 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
 
+  // District picker options (from the Districts master, falling back to the built-in list)
+  const [districtOptions, setDistrictOptions] = useState<string[]>(DISTRICT_OPTIONS);
+
   // Form state
   const [formData, setFormData] = useState({
-    district: 'Ernakulam',
+    districts: ['', ''] as string[],
+    isOffice: false,
     name: '',
     zone: 'Central Zone',
     team_lead: '',
   });
+
+  // A district may belong to only one team. Returns the owning team's name, or null.
+  const districtOwner = (district: string, excludeId?: string): string | null => {
+    if (!district) return null;
+    const key = district.trim().toLowerCase();
+    for (const team of teams) {
+      const id = team.id || team._id;
+      if (excludeId && id === excludeId) continue;
+      if (teamDistricts(team).some((d) => d.trim().toLowerCase() === key)) {
+        return team.name;
+      }
+    }
+    return null;
+  };
+
+  // Include any district already saved on this team even if it is missing from the master list.
+  const districtPickerOptions = useMemo(() => {
+    const extra = formData.districts.map((d) => d.trim()).filter(Boolean);
+    return Array.from(new Set([...districtOptions, ...extra]));
+  }, [districtOptions, formData.districts]);
+
+  const fetchDistrictOptions = async () => {
+    try {
+      const res = await fetch('/api/admin/districts', { headers: authHeaders() });
+      const json = await res.json();
+      const names = (Array.isArray(json.data) ? json.data : [])
+        .map((d: any) => String(d.name || '').trim())
+        .filter(Boolean);
+      if (names.length > 0) setDistrictOptions(names.sort());
+    } catch {
+      // Keep the built-in list if the master list cannot be loaded.
+    }
+  };
 
   // Fetch teams from backend
   const fetchTeams = async () => {
@@ -101,6 +147,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
   useEffect(() => {
     fetchTeams();
+    fetchDistrictOptions();
   }, []);
 
   // Filter & Sort
@@ -112,15 +159,23 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       result = result.filter(
         (t) =>
           t.name?.toLowerCase().includes(q) ||
-          t.district?.toLowerCase().includes(q) ||
+          teamDistricts(t).join(' ').toLowerCase().includes(q) ||
           t.zone?.toLowerCase().includes(q)
       );
     }
 
     if (sortField) {
       result.sort((a, b) => {
-        const valA = String(a[sortField] || '').toLowerCase();
-        const valB = String(b[sortField] || '').toLowerCase();
+        const valA = (
+          sortField === 'district'
+            ? teamDistricts(a).join(', ')
+            : String(a[sortField] || '')
+        ).toLowerCase();
+        const valB = (
+          sortField === 'district'
+            ? teamDistricts(b).join(', ')
+            : String(b[sortField] || '')
+        ).toLowerCase();
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
@@ -169,7 +224,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   const openNewModal = () => {
     setEditingTeam(null);
     setFormData({
-      district: 'Ernakulam',
+      districts: ['', ''],
+      isOffice: false,
       name: '',
       zone: 'Central Zone',
       team_lead: '',
@@ -179,9 +235,11 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
   // Open modal for editing team
   const openEditModal = (team: Team) => {
+    const existing = teamDistricts(team);
     setEditingTeam(team);
     setFormData({
-      district: team.district || 'Ernakulam',
+      districts: [existing[0] || '', existing[1] || ''],
+      isOffice: existing.length === 0,
       name: team.name || '',
       zone: team.zone || 'Central Zone',
       team_lead: team.team_lead || '',
@@ -197,6 +255,24 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       return;
     }
 
+    const chosenDistricts = formData.isOffice
+      ? []
+      : Array.from(new Set(formData.districts.map((d) => d.trim()).filter(Boolean)));
+
+    if (!formData.isOffice && chosenDistricts.length === 0) {
+      showToast?.('danger', 'Pick at least one district, or mark this as the office team');
+      return;
+    }
+
+    // The API enforces this too; checking here gives instant feedback.
+    for (const district of chosenDistricts) {
+      const owner = districtOwner(district, editingTeam?.id || editingTeam?._id);
+      if (owner) {
+        showToast?.('danger', `${district} is already assigned to "${owner}"`);
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       const isEdit = Boolean(editingTeam);
@@ -205,7 +281,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       const payload = {
         ...(isEdit && { id: teamId }),
         name: formData.name.trim(),
-        district: formData.district.trim(),
+        districts: chosenDistricts,
+        district: chosenDistricts[0] || '',
         zone: formData.zone.trim(),
         team_lead: formData.team_lead.trim(),
       };
@@ -347,7 +424,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                       }
                       className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
-                    <span>District</span>
+                    <span>Districts</span>
                   </label>
                   <label className="flex items-center gap-2 text-ink/80 hover:text-ink cursor-pointer select-none">
                     <input
@@ -421,7 +498,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                       className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
-                        <span>District</span>
+                        <span>Districts</span>
                         <ChevronDown
                           className={`w-3 h-3 text-subtle transition-transform ${
                             sortField === 'district' && sortOrder === 'desc'
@@ -468,7 +545,22 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                         </td>
                         {visibleColumns.district && (
                           <td className="py-3.5 px-4 text-ink/80">
-                            {team.district || 'Ernakulam'}
+                            {teamDistricts(team).length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {teamDistricts(team).map((d) => (
+                                  <span
+                                    key={d}
+                                    className="px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20 text-[11px] font-medium"
+                                  >
+                                    {d}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-active text-muted text-[11px] font-medium">
+                                Office
+                              </span>
+                            )}
                           </td>
                         )}
                         {visibleColumns.name && (
@@ -562,11 +654,24 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                     {viewModalTeam.name}
                   </div>
                 </div>
-                <div className="p-3 bg-field rounded-xl border border-line">
-                  <div className="text-muted text-[11px] mb-1">District</div>
-                  <div className="text-ink font-semibold text-sm">
-                    {viewModalTeam.district || 'Ernakulam'}
+                <div className="p-3 bg-field rounded-xl border border-line sm:col-span-2">
+                  <div className="text-muted text-[11px] mb-1">
+                    District{teamDistricts(viewModalTeam).length > 1 ? 's' : ''}
                   </div>
+                  {teamDistricts(viewModalTeam).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {teamDistricts(viewModalTeam).map((d) => (
+                        <span
+                          key={d}
+                          className="px-2 py-0.5 rounded-md bg-accent/10 text-accent border border-accent/20 text-xs font-semibold"
+                        >
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-ink font-semibold text-sm">Office team</div>
+                  )}
                 </div>
                 <div className="p-3 bg-field rounded-xl border border-line">
                   <div className="text-muted text-[11px] mb-1">Zone</div>
@@ -633,22 +738,69 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
             <form onSubmit={handleSaveTeam} className="p-5 space-y-4 text-xs">
               <div>
                 <label className="block text-ink/80 font-semibold mb-1">
-                  District <span className="text-danger">*</span>
+                  Districts <span className="text-muted font-normal">(max 2)</span>
                 </label>
-                <select
-                  value={formData.district}
-                  onChange={(e) =>
-                    setFormData({ ...formData, district: e.target.value })
-                  }
-                  required
-                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
-                >
-                  {DISTRICT_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+
+                <label className="flex items-center gap-2 text-ink/80 mb-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={formData.isOffice}
+                    onChange={(e) => {
+                      const isOffice = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        isOffice,
+                        districts: isOffice ? ['', ''] : formData.districts,
+                      });
+                    }}
+                    className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
+                  />
+                  <span>Office team (no district)</span>
+                </label>
+
+                {!formData.isOffice && (
+                  <div className="space-y-2">
+                    {[0, 1].map((slot) => {
+                      const value = formData.districts[slot] || '';
+                      const otherValue = formData.districts[slot === 0 ? 1 : 0] || '';
+                      const editingId = editingTeam?.id || editingTeam?._id;
+
+                      return (
+                        <select
+                          key={slot}
+                          value={value}
+                          onChange={(e) => {
+                            const next = [...formData.districts];
+                            next[slot] = e.target.value;
+                            setFormData({ ...formData, districts: next });
+                          }}
+                          className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
+                        >
+                          <option value="">
+                            {slot === 0 ? 'Select district…' : 'Second district (optional)'}
+                          </option>
+                          {districtPickerOptions.map((d) => {
+                            const owner = districtOwner(d, editingId);
+                            const takenByOtherSlot =
+                              Boolean(otherValue) &&
+                              otherValue.toLowerCase() === d.toLowerCase();
+                            const disabled = Boolean(owner) || takenByOtherSlot;
+
+                            return (
+                              <option key={d} value={d} disabled={disabled}>
+                                {d}
+                                {owner ? ` — taken by ${owner}` : ''}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      );
+                    })}
+                    <p className="text-[11px] text-muted">
+                      A district can belong to only one team.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -36,6 +36,13 @@ export async function GET() {
           id: t._id?.toString(),
           name: t.name,
           district: t.district || null,
+          // `districts` is the source of truth; `district` is kept for older clients.
+          districts:
+            Array.isArray(t.districts) && t.districts.length
+              ? t.districts
+              : t.district
+                ? [t.district]
+                : [],
           zone: t.zone || null,
         })),
       },

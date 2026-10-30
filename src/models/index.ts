@@ -43,7 +43,11 @@ export const Task = mongoose.models.Task || mongoose.model('Task', TaskSchema);
 const TeamSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
-    district: { type: String, default: 'Ernakulam', trim: true },
+    // A field team covers one or two districts. The office team covers none.
+    // A district may belong to only one team; the API enforces that.
+    districts: { type: [String], default: [] },
+    // First district, kept in sync for the mobile filters that still read `district`.
+    district: { type: String, default: '', trim: true },
     zone: { type: String, default: 'Central Zone' },
     team_lead: { type: String, default: '' },
     description: { type: String, default: '' },

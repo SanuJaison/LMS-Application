@@ -118,7 +118,21 @@ function cleanData(tab: string, body: any) {
   }
 
   if (tab === 'teams') {
-    if (!data.district) data.district = 'Ernakulam';
+    // A team covers 0 districts (office team) or 1-2 field districts.
+    // Only rebuild when the request actually carries district data, so a partial
+    // update (e.g. renaming a team) never clears its districts.
+    if ('districts' in data || 'district' in data) {
+      const raw = Array.isArray(data.districts)
+        ? data.districts
+        : data.district
+          ? [data.district]
+          : [];
+      const districts = Array.from(
+        new Set(raw.map((d: any) => String(d || '').trim()).filter(Boolean))
+      );
+      data.districts = districts.slice(0, 2);
+      data.district = data.districts[0] || '';
+    }
     if (!data.zone) data.zone = 'Central Zone';
   }
 
@@ -142,6 +156,47 @@ function cleanData(tab: string, body: any) {
   }
 
   return data;
+}
+
+/**
+ * A district can belong to only one team. Returns the conflicting team, or null.
+ * `ignoreId` lets a team keep the districts it already owns while being edited.
+ */
+async function teamDistrictConflict(
+  districts: string[],
+  ignoreId?: string
+): Promise<{ district: string; team: string } | null> {
+  if (!Array.isArray(districts) || districts.length === 0) return null;
+
+  const query =
+    ignoreId && /^[0-9a-fA-F]{24}$/.test(ignoreId) ? { _id: { $ne: ignoreId } } : {};
+  const others: any[] = await Team.find(query).lean();
+
+  for (const team of others) {
+    const taken = new Set(
+      [...(Array.isArray(team.districts) ? team.districts : []), team.district || '']
+        .map((d: any) => String(d || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    for (const district of districts) {
+      if (taken.has(String(district).trim().toLowerCase())) {
+        return { district: String(district).trim(), team: team.name || 'another team' };
+      }
+    }
+  }
+
+  return null;
+}
+
+function teamConflictResponse(conflict: { district: string; team: string }) {
+  return NextResponse.json(
+    {
+      success: false,
+      message: `${conflict.district} is already assigned to "${conflict.team}". A district can belong to only one team.`,
+    },
+    { status: 400 }
+  );
 }
 
 // Human-readable labels used by the Activities audit trail.
@@ -233,6 +288,11 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
     const body = await req.json();
     const payload = cleanData(params.tab, body);
 
+    if (params.tab === 'teams') {
+      const conflict = await teamDistrictConflict(payload.districts || []);
+      if (conflict) return teamConflictResponse(conflict);
+    }
+
     const created = await Model.create(payload);
 
     if (params.tab !== 'activities') {
@@ -284,6 +344,12 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
     }
 
     const payload = cleanData(params.tab, body);
+
+    if (params.tab === 'teams') {
+      const conflict = await teamDistrictConflict(payload.districts || [], String(id));
+      if (conflict) return teamConflictResponse(conflict);
+    }
+
     const updated = await Model.findByIdAndUpdate(id, payload, { new: true });
 
     if (!updated) {
