@@ -28,6 +28,15 @@ interface Team {
   createdAt?: string;
 }
 
+interface AsmEmployee {
+  _id?: string;
+  id?: string;
+  employee_id: string;
+  name: string;
+  designation?: string;
+  status?: string;
+}
+
 interface TeamsViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
 }
@@ -59,6 +68,13 @@ function teamDistricts(team: Team): string[] {
   return team.district ? [team.district] : [];
 }
 
+/** An employee is an ASM when the ID is ASM-prefixed or the designation says so. */
+function isAsmEmployee(employee: AsmEmployee): boolean {
+  const id = String(employee.employee_id || '').trim().toUpperCase();
+  const designation = String(employee.designation || '').trim().toLowerCase();
+  return id.startsWith('ASM') || designation.includes('area sales manager');
+}
+
 export default function TeamsView({ showToast }: TeamsViewProps) {
   // Data state
   const [teams, setTeams] = useState<Team[]>([]);
@@ -85,6 +101,9 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
   // District picker options (from the Districts master, falling back to the built-in list)
   const [districtOptions, setDistrictOptions] = useState<string[]>(DISTRICT_OPTIONS);
+
+  // Team leads must be ASMs, so only ASM employees are offered in the picker.
+  const [asmOptions, setAsmOptions] = useState<AsmEmployee[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -115,6 +134,20 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
     return Array.from(new Set([...districtOptions, ...extra]));
   }, [districtOptions, formData.districts]);
 
+  // An ASM leads at most one team. Returns the other team's name, or null.
+  const teamLeadOwner = (leadName: string, excludeId?: string): string | null => {
+    if (!leadName) return null;
+    const key = leadName.trim().toLowerCase();
+    for (const team of teams) {
+      const id = team.id || team._id;
+      if (excludeId && id === excludeId) continue;
+      if (String(team.team_lead || '').trim().toLowerCase() === key) {
+        return team.name;
+      }
+    }
+    return null;
+  };
+
   const fetchDistrictOptions = async () => {
     try {
       const res = await fetch('/api/admin/districts', { headers: authHeaders() });
@@ -125,6 +158,21 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       if (names.length > 0) setDistrictOptions(names.sort());
     } catch {
       // Keep the built-in list if the master list cannot be loaded.
+    }
+  };
+
+  const fetchAsmOptions = async () => {
+    try {
+      const res = await fetch('/api/admin/employees', { headers: authHeaders() });
+      const json = await res.json();
+      const asms = (Array.isArray(json.data) ? json.data : [])
+        .filter(isAsmEmployee)
+        .sort((a: AsmEmployee, b: AsmEmployee) =>
+          String(a.employee_id).localeCompare(String(b.employee_id))
+        );
+      setAsmOptions(asms);
+    } catch {
+      setAsmOptions([]);
     }
   };
 
@@ -148,6 +196,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   useEffect(() => {
     fetchTeams();
     fetchDistrictOptions();
+    fetchAsmOptions();
   }, []);
 
   // Filter & Sort
@@ -259,8 +308,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       ? []
       : Array.from(new Set(formData.districts.map((d) => d.trim()).filter(Boolean)));
 
-    if (!formData.isOffice && chosenDistricts.length === 0) {
-      showToast?.('danger', 'Pick at least one district, or mark this as the office team');
+    if (!formData.isOffice && chosenDistricts.length !== 2) {
+      showToast?.('danger', 'Pick exactly 2 districts, or mark this as the office team');
       return;
     }
 
@@ -269,6 +318,19 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       const owner = districtOwner(district, editingTeam?.id || editingTeam?._id);
       if (owner) {
         showToast?.('danger', `${district} is already assigned to "${owner}"`);
+        return;
+      }
+    }
+
+    if (!formData.isOffice) {
+      const lead = formData.team_lead.trim();
+      if (!lead) {
+        showToast?.('danger', 'Team lead is required for a team with districts');
+        return;
+      }
+      const leadOwner = teamLeadOwner(lead, editingTeam?.id || editingTeam?._id);
+      if (leadOwner) {
+        showToast?.('danger', `${lead} is already the team lead of "${leadOwner}"`);
         return;
       }
     }
@@ -283,8 +345,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
         name: formData.name.trim(),
         districts: chosenDistricts,
         district: chosenDistricts[0] || '',
+        team_lead: formData.isOffice ? '' : formData.team_lead.trim(),
         zone: formData.zone.trim(),
-        team_lead: formData.team_lead.trim(),
       };
 
       const res = await fetch('/api/admin/teams', {
@@ -738,7 +800,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
             <form onSubmit={handleSaveTeam} className="p-5 space-y-4 text-xs">
               <div>
                 <label className="block text-ink/80 font-semibold mb-1">
-                  Districts <span className="text-muted font-normal">(max 2)</span>
+                  Districts <span className="text-muted font-normal">(exactly 2)</span>
                 </label>
 
                 <label className="flex items-center gap-2 text-ink/80 mb-2 cursor-pointer select-none">
@@ -750,6 +812,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                       setFormData({
                         ...formData,
                         isOffice,
+                        team_lead: isOffice ? '' : formData.team_lead,
                         districts: isOffice ? ['', ''] : formData.districts,
                       });
                     }}
@@ -777,7 +840,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                           className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                         >
                           <option value="">
-                            {slot === 0 ? 'Select district…' : 'Second district (optional)'}
+                            {slot === 0 ? 'Select district…' : 'Select second district…'}
                           </option>
                           {districtPickerOptions.map((d) => {
                             const owner = districtOwner(d, editingId);
@@ -838,20 +901,47 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-ink/80 font-semibold mb-1">
-                  Team Lead
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rahul Nair"
-                  value={formData.team_lead}
-                  onChange={(e) =>
-                    setFormData({ ...formData, team_lead: e.target.value })
-                  }
-                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
-                />
-              </div>
+              {!formData.isOffice && (
+                <div>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Team Lead <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    value={formData.team_lead}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team_lead: e.target.value })
+                    }
+                    required
+                    className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
+                  >
+                    <option value="">Select an ASM…</option>
+                    {asmOptions.map((asm) => {
+                      const owner = teamLeadOwner(
+                        asm.name,
+                        editingTeam?.id || editingTeam?._id
+                      );
+                      return (
+                        <option
+                          key={asm.employee_id}
+                          value={asm.name}
+                          disabled={Boolean(owner)}
+                        >
+                          {asm.name} ({asm.employee_id})
+                          {owner ? ` — leads ${owner}` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {asmOptions.length === 0 && (
+                    <p className="text-[11px] text-danger mt-1">
+                      No ASM employees found. Add an Area Sales Manager employee first.
+                    </p>
+                  )}
+                  <p className="text-[11px] text-muted mt-1">
+                    Only Area Sales Managers can lead a team.
+                  </p>
+                </div>
+              )}
 
               <div className="pt-3 border-t border-line flex items-center justify-end gap-2.5">
                 <button

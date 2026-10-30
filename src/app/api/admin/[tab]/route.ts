@@ -199,6 +199,56 @@ function teamConflictResponse(conflict: { district: string; team: string }) {
   );
 }
 
+/** An employee is an ASM when the ID is ASM-prefixed or the designation says so. */
+function isAsmEmployee(employee: any): boolean {
+  const id = String(employee?.employee_id || '').trim().toUpperCase();
+  const designation = String(employee?.designation || '').trim().toLowerCase();
+  return id.startsWith('ASM') || designation.includes('area sales manager');
+}
+
+/**
+ * Field teams need exactly 2 districts and an ASM team lead; the office team
+ * (no districts) needs neither. Returns an error message, or null when valid.
+ */
+async function teamValidationProblem(
+  districts: string[],
+  teamLead: string,
+  ignoreId?: string
+): Promise<string | null> {
+  const list = Array.isArray(districts)
+    ? districts.map((d) => String(d || '').trim()).filter(Boolean)
+    : [];
+  const lead = String(teamLead || '').trim();
+
+  if (list.length === 0) return null; // office team
+
+  if (list.length !== 2) {
+    return 'A field team must have exactly 2 districts (or none for the office team).';
+  }
+
+  if (!lead) return 'Team lead is required for a field team.';
+
+  const employees: any[] = await Employee.find({})
+    .select('employee_id name designation')
+    .lean();
+  const match = employees.find(
+    (e) => String(e.name || '').trim().toLowerCase() === lead.toLowerCase()
+  );
+  if (!match || !isAsmEmployee(match)) {
+    return 'Team lead must be an Area Sales Manager (ASM).';
+  }
+
+  const query =
+    ignoreId && /^[0-9a-fA-F]{24}$/.test(ignoreId) ? { _id: { $ne: ignoreId } } : {};
+  const others: any[] = await Team.find(query).lean();
+  const owner = others.find(
+    (t) => String(t.team_lead || '').trim().toLowerCase() === lead.toLowerCase()
+  );
+  if (owner) return `${lead} is already the team lead of "${owner.name}".`;
+
+  return null;
+}
+
 // Human-readable labels used by the Activities audit trail.
 const ACTIVITY_LABELS: Record<string, { noun: string; subject: string }> = {
   leads: { noun: 'lead', subject: 'Lead' },
@@ -291,6 +341,14 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
     if (params.tab === 'teams') {
       const conflict = await teamDistrictConflict(payload.districts || []);
       if (conflict) return teamConflictResponse(conflict);
+
+      const problem = await teamValidationProblem(
+        payload.districts || [],
+        payload.team_lead || ''
+      );
+      if (problem) {
+        return NextResponse.json({ success: false, message: problem }, { status: 400 });
+      }
     }
 
     const created = await Model.create(payload);
@@ -346,8 +404,30 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
     const payload = cleanData(params.tab, body);
 
     if (params.tab === 'teams') {
-      const conflict = await teamDistrictConflict(payload.districts || [], String(id));
+      const existing: any = await Team.findById(id).lean();
+
+      const districts =
+        payload.districts !== undefined
+          ? payload.districts
+          : existing?.districts?.length
+            ? existing.districts
+            : existing?.district
+              ? [existing.district]
+              : [];
+      const teamLead =
+        payload.team_lead !== undefined ? payload.team_lead : existing?.team_lead || '';
+
+      const conflict = await teamDistrictConflict(districts || [], String(id));
       if (conflict) return teamConflictResponse(conflict);
+
+      const problem = await teamValidationProblem(
+        districts || [],
+        teamLead,
+        String(id)
+      );
+      if (problem) {
+        return NextResponse.json({ success: false, message: problem }, { status: 400 });
+      }
     }
 
     const updated = await Model.findByIdAndUpdate(id, payload, { new: true });
