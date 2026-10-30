@@ -134,7 +134,12 @@ function cleanData(tab: string, body: any) {
       data.districts = districts.slice(0, 2);
       data.district = data.districts[0] || '';
     }
-    if (!data.zone) data.zone = 'Central Zone';
+    if (data.is_office || (Array.isArray(data.districts) && data.districts.length === 0)) {
+      data.is_office = true;
+      data.zone = '';
+    } else {
+      if (!data.zone) data.zone = 'Central Zone';
+    }
   }
 
   if (tab === 'leaves') {
@@ -207,9 +212,16 @@ function isAsmEmployee(employee: any): boolean {
   return id.startsWith('ASM') || designation.includes('area sales manager');
 }
 
+function isSmEmployee(employee: any): boolean {
+  const id = String(employee?.employee_id || '').trim().toUpperCase();
+  const designation = String(employee?.designation || '').trim().toLowerCase();
+  if (designation.includes('area sales manager')) return false;
+  return id.startsWith('SM') || designation.includes('sales manager') || designation.includes('state manager');
+}
+
 /**
  * Field teams need exactly 2 districts and an ASM team lead; the office team
- * (no districts) needs neither. Returns an error message, or null when valid.
+ * (no districts) needs no district, no zone, and a Sales Manager (SM) as lead.
  */
 async function teamValidationProblem(
   districts: string[],
@@ -221,7 +233,21 @@ async function teamValidationProblem(
     : [];
   const lead = String(teamLead || '').trim();
 
-  if (list.length === 0) return null; // office team
+  const employees: any[] = await Employee.find({})
+    .select('employee_id name designation')
+    .lean();
+
+  if (list.length === 0) {
+    if (lead) {
+      const match = employees.find(
+        (e) => String(e.name || '').trim().toLowerCase() === lead.toLowerCase()
+      );
+      if (!match || !isSmEmployee(match)) {
+        return 'Office team lead must be a Sales Manager (SM).';
+      }
+    }
+    return null;
+  }
 
   if (list.length !== 2) {
     return 'A field team must have exactly 2 districts (or none for the office team).';
@@ -229,9 +255,6 @@ async function teamValidationProblem(
 
   if (!lead) return 'Team lead is required for a field team.';
 
-  const employees: any[] = await Employee.find({})
-    .select('employee_id name designation')
-    .lean();
   const match = employees.find(
     (e) => String(e.name || '').trim().toLowerCase() === lead.toLowerCase()
   );

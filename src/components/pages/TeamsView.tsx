@@ -75,6 +75,13 @@ function isAsmEmployee(employee: AsmEmployee): boolean {
   return id.startsWith('ASM') || designation.includes('area sales manager');
 }
 
+function isSmEmployee(employee: AsmEmployee): boolean {
+  const id = String(employee.employee_id || '').trim().toUpperCase();
+  const designation = String(employee.designation || '').trim().toLowerCase();
+  if (designation.includes('area sales manager')) return false;
+  return id.startsWith('SM') || designation.includes('sales manager') || designation.includes('state manager');
+}
+
 export default function TeamsView({ showToast }: TeamsViewProps) {
   // Data state
   const [teams, setTeams] = useState<Team[]>([]);
@@ -102,8 +109,9 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   // District picker options (from the Districts master, falling back to the built-in list)
   const [districtOptions, setDistrictOptions] = useState<string[]>(DISTRICT_OPTIONS);
 
-  // Team leads must be ASMs, so only ASM employees are offered in the picker.
+  // Team leads must be ASMs for field teams, or SMs for the office team.
   const [asmOptions, setAsmOptions] = useState<AsmEmployee[]>([]);
+  const [smOptions, setSmOptions] = useState<AsmEmployee[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -165,14 +173,22 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
     try {
       const res = await fetch('/api/admin/employees', { headers: authHeaders() });
       const json = await res.json();
-      const asms = (Array.isArray(json.data) ? json.data : [])
+      const all = Array.isArray(json.data) ? json.data : [];
+      const asms = all
         .filter(isAsmEmployee)
         .sort((a: AsmEmployee, b: AsmEmployee) =>
           String(a.employee_id).localeCompare(String(b.employee_id))
         );
+      const sms = all
+        .filter(isSmEmployee)
+        .sort((a: AsmEmployee, b: AsmEmployee) =>
+          String(a.employee_id).localeCompare(String(b.employee_id))
+        );
       setAsmOptions(asms);
+      setSmOptions(sms);
     } catch {
       setAsmOptions([]);
+      setSmOptions([]);
     }
   };
 
@@ -322,12 +338,18 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       }
     }
 
+    const lead = formData.team_lead.trim();
+    if (!lead) {
+      showToast?.(
+        'danger',
+        formData.isOffice
+          ? 'Team lead (Sales Manager) is required for the office team'
+          : 'Team lead is required for a team with districts'
+      );
+      return;
+    }
+
     if (!formData.isOffice) {
-      const lead = formData.team_lead.trim();
-      if (!lead) {
-        showToast?.('danger', 'Team lead is required for a team with districts');
-        return;
-      }
       const leadOwner = teamLeadOwner(lead, editingTeam?.id || editingTeam?._id);
       if (leadOwner) {
         showToast?.('danger', `${lead} is already the team lead of "${leadOwner}"`);
@@ -345,8 +367,9 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
         name: formData.name.trim(),
         districts: chosenDistricts,
         district: chosenDistricts[0] || '',
-        team_lead: formData.isOffice ? '' : formData.team_lead.trim(),
-        zone: formData.zone.trim(),
+        team_lead: lead,
+        zone: formData.isOffice ? '' : formData.zone.trim(),
+        is_office: formData.isOffice,
       };
 
       const res = await fetch('/api/admin/teams', {
@@ -882,66 +905,74 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-ink/80 font-semibold mb-1">
-                  Zone
-                </label>
-                <select
-                  value={formData.zone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, zone: e.target.value })
-                  }
-                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
-                >
-                  {ZONE_OPTIONS.map((z) => (
-                    <option key={z} value={z}>
-                      {z}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {!formData.isOffice && (
                 <div>
                   <label className="block text-ink/80 font-semibold mb-1">
-                    Team Lead <span className="text-danger">*</span>
+                    Zone
                   </label>
                   <select
-                    value={formData.team_lead}
+                    value={formData.zone}
                     onChange={(e) =>
-                      setFormData({ ...formData, team_lead: e.target.value })
+                      setFormData({ ...formData, zone: e.target.value })
                     }
-                    required
                     className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                   >
-                    <option value="">Select an ASM…</option>
-                    {asmOptions.map((asm) => {
-                      const owner = teamLeadOwner(
-                        asm.name,
-                        editingTeam?.id || editingTeam?._id
-                      );
-                      return (
-                        <option
-                          key={asm.employee_id}
-                          value={asm.name}
-                          disabled={Boolean(owner)}
-                        >
-                          {asm.name} ({asm.employee_id})
-                          {owner ? ` — leads ${owner}` : ''}
-                        </option>
-                      );
-                    })}
+                    {ZONE_OPTIONS.map((z) => (
+                      <option key={z} value={z}>
+                        {z}
+                      </option>
+                    ))}
                   </select>
-                  {asmOptions.length === 0 && (
-                    <p className="text-[11px] text-danger mt-1">
-                      No ASM employees found. Add an Area Sales Manager employee first.
-                    </p>
-                  )}
-                  <p className="text-[11px] text-muted mt-1">
-                    Only Area Sales Managers can lead a team.
-                  </p>
                 </div>
               )}
+
+              <div>
+                <label className="block text-ink/80 font-semibold mb-1">
+                  {formData.isOffice ? 'Team Lead (Sales Manager) *' : 'Team Lead (Area Sales Manager) *'}
+                </label>
+                <select
+                  value={formData.team_lead}
+                  onChange={(e) =>
+                    setFormData({ ...formData, team_lead: e.target.value })
+                  }
+                  required
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
+                >
+                  <option value="">
+                    {formData.isOffice ? 'Select a Sales Manager…' : 'Select an ASM…'}
+                  </option>
+                  {(formData.isOffice ? smOptions : asmOptions).map((emp) => {
+                    const owner = formData.isOffice
+                      ? null
+                      : teamLeadOwner(
+                          emp.name,
+                          editingTeam?.id || editingTeam?._id
+                        );
+                    return (
+                      <option
+                        key={emp.employee_id}
+                        value={emp.name}
+                        disabled={Boolean(owner)}
+                      >
+                        {emp.name} ({emp.employee_id})
+                        {owner ? ` — leads ${owner}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                {(formData.isOffice ? smOptions : asmOptions).length === 0 && (
+                  <p className="text-[11px] text-danger mt-1">
+                    {formData.isOffice
+                      ? 'No Sales Manager found. Create a Sales Manager employee first.'
+                      : 'No ASM employees found. Add an Area Sales Manager employee first.'}
+                  </p>
+                )}
+                <p className="text-[11px] text-muted mt-1">
+                  {formData.isOffice
+                    ? 'The office team operates directly under the Sales Manager (SM).'
+                    : 'Only Area Sales Managers can lead a field team.'}
+                </p>
+              </div>
 
               <div className="pt-3 border-t border-line flex items-center justify-end gap-2.5">
                 <button

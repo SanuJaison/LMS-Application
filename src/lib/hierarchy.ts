@@ -65,10 +65,15 @@ export async function resolveTeamForEmployee(employee: any): Promise<string> {
   if (!employee) return '';
 
   const role = hierarchyRole(employee);
-  if (role === 'SM' || role === 'MD') return '';
+  if (role === 'MD') return '';
 
-  if (role === 'ASM') {
-    return (await teamLedBy(employee.name)) || String(employee.team || '');
+  const directlyLed =
+    (await teamLedBy(employee.name)) ||
+    (await teamLedBy(employee.employee_id));
+  if (directlyLed) return directlyLed;
+
+  if (role === 'SM' || role === 'ASM') {
+    return String(employee.team || '');
   }
 
   let managerId = String(employee.reports_to || '').trim();
@@ -104,7 +109,14 @@ export function teamNamesFromTeams(
   const leadToTeam = new Map<string, string>();
   for (const team of teams) {
     const lead = String(team.team_lead || '').trim().toLowerCase();
-    if (lead) leadToTeam.set(lead, team.name || '');
+    if (lead) {
+      leadToTeam.set(lead, team.name || '');
+      const match = lead.match(/^(.*?)\s*\((.*?)\)$/);
+      if (match) {
+        leadToTeam.set(match[1].trim().toLowerCase(), team.name || '');
+        leadToTeam.set(match[2].trim().toLowerCase(), team.name || '');
+      }
+    }
   }
 
   const byId = new Map<string, any>();
@@ -120,18 +132,24 @@ export function teamNamesFromTeams(
     if (id && cache.has(id)) return cache.get(id)!;
 
     const role = hierarchyRole(emp);
+    const empName = String(emp.name || '').trim().toLowerCase();
+    const empId = String(emp.employee_id || '').trim().toLowerCase();
+    const directlyLed = leadToTeam.get(empName) || leadToTeam.get(empId) || '';
+
     let team = '';
 
-    if (role === 'ASM') {
-      team = leadToTeam.get(String(emp.name || '').trim().toLowerCase()) || '';
-    } else if (role !== 'SM' && role !== 'MD') {
+    if (directlyLed) {
+      team = directlyLed;
+    } else if (role === 'ASM' || role === 'SM') {
+      team = String(emp.team || '');
+    } else if (role !== 'MD') {
       const managerId = String(emp.reports_to || '').trim().toUpperCase();
       const manager = managerId ? byId.get(managerId) : null;
       if (manager) team = resolve(manager, depth + 1);
     }
 
-    if (!team && role !== 'SM' && role !== 'MD') {
-      team = String(emp.team || '');
+    if (!team && role !== 'MD') {
+      team = directlyLed || String(emp.team || '');
     }
 
     if (id) cache.set(id, team);

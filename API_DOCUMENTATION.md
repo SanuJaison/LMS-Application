@@ -204,7 +204,7 @@ Updates an existing record (must include `id` or `_id`).
 - **Hierarchy Rules**:
   - **Sales Manager (SM)**: Top-level executive. `zone`, `district`, `reports_to`, and `team` are stripped/empty.
   - **Area Sales Manager (ASM)**: Reports **only** to the Sales Manager (`SM`). Team is automatically derived from the field team they lead.
-  - **Business Development Executive (BDE)**: Reports to an Area Sales Manager (`ASM`). Team is derived from that ASM.
+  - **Business Development Executive (BDE)**: Reports **only** to an Area Sales Manager (`ASM`). When an ASM is selected in `reports_to`, the BDE's team and zone are automatically derived from that ASM's assigned team. The `district` field is restricted to choose between the **two districts** covered by that team.
 
 - **Request Body Example (Create ASM)**:
 ```json
@@ -246,7 +246,7 @@ Updates an existing record (must include `id` or `_id`).
 
 - **Rules**:
   - **Field Team**: Must cover **exactly 2 districts**, and must have an **Area Sales Manager (ASM)** as `team_lead`. Each district can only belong to one team.
-  - **Office Team**: Marked with `is_office: true`. Has no districts and no team lead requirement.
+  - **Office Team**: Marked with `is_office: true`. Operates without districts or zone, and reports directly under a **Sales Manager (SM)** as its `team_lead`.
 
 - **Request Body Example (Field Team)**:
 ```json
@@ -264,9 +264,8 @@ Updates an existing record (must include `id` or `_id`).
 ```json
 {
   "name": "Office Team",
-  "zone": "Central Zone",
   "districts": [],
-  "team_lead": "",
+  "team_lead": "Kiran Kumar",
   "is_office": true,
   "description": "Headquarters Support Team"
 }
