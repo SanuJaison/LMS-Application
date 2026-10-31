@@ -1,72 +1,81 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { getEmployee, nameRegex, ok, todayKey } from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { todayKey } from '@/lib/employeeAuth';
 
 /**
  * GET /api/attendance/status
- * Whether the employee has checked in / out today.
+ * Returns today's attendance status for the calling employee.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    const base = {
-      date: todayKey(),
-      status: 'OFFLINE',
-      check_in: null as string | null,
-      check_out: null as string | null,
-      hours_worked: 0,
-      checked_in: false,
-      checked_out: false,
-    };
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+
+    let employee: any = null;
+    if (decoded?.role === 'employee' && decoded.id) {
+      employee = await Employee.findById(decoded.id).lean();
+    }
 
     if (!employee) {
-      return ok(base, 'Unauthenticated');
+      const { searchParams } = new URL(req.url);
+      const email = searchParams.get('email');
+      const empId = searchParams.get('employee_id');
+
+      if (email || empId) {
+        employee = await Employee.findOne({
+          $or: [
+            ...(email ? [{ email: email.toLowerCase() }] : []),
+            ...(empId ? [{ employee_id: empId }] : []),
+          ],
+        }).lean();
+      } else {
+        employee = await Employee.findOne({ status: 'active' }).lean();
+      }
     }
 
-    const nameFilter = nameRegex(employee.name);
-    if (!nameFilter) {
-      return ok(base, 'No attendance found');
-    }
+    const employeeName = employee?.name || 'Employee';
+    const employeeId = employee?.employee_id || '';
+    const today = todayKey();
 
     const record: any = await Attendance.findOne({
-      name: nameFilter,
-      date: todayKey(),
+      $or: [
+        { employee_id: employeeId, date: today },
+        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+      ],
     }).lean();
 
-    if (!record) {
-      return ok(base, 'Not checked in');
-    }
+    const isCheckedIn = Boolean(record && record.check_in && !record.check_out);
+    const isCheckedOut = Boolean(record && record.check_out);
 
-    return ok(
-      {
-        id: record._id?.toString(),
-        date: record.date,
-        status: record.status || 'OFFLINE',
-        check_in: record.check_in || null,
-        check_out: record.check_out || null,
-        hours_worked: record.hours_worked || 0,
-        checked_in: Boolean(record.check_in),
-        checked_out: Boolean(record.check_out),
-      },
-      'Attendance status fetched successfully'
-    );
+    const payload = {
+      date: today,
+      check_in: record?.check_in || null,
+      check_out: record?.check_out || null,
+      status: isCheckedIn ? 'ONLINE' : isCheckedOut ? 'OFFLINE' : 'NOT_STARTED',
+      shift_status: isCheckedIn ? 'ONLINE' : isCheckedOut ? 'COMPLETED' : 'NOT_STARTED',
+      is_checked_in: isCheckedIn,
+      checked_in: isCheckedIn,
+      checked_out: isCheckedOut,
+      hours_worked: record?.hours_worked ?? 0,
+      latitude: record?.latitude ?? null,
+      longitude: record?.longitude ?? null,
+    };
+
+    return NextResponse.json({
+      success: true,
+      message: 'Attendance status loaded',
+      data: payload,
+    });
   } catch (error: any) {
     console.error('GET /api/attendance/status error:', error);
-    return ok(
-      {
-        date: todayKey(),
-        status: 'OFFLINE',
-        check_in: null,
-        check_out: null,
-        hours_worked: 0,
-        checked_in: false,
-        checked_out: false,
-      },
-      'Attendance status unavailable'
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch attendance status' },
+      { status: 500 }
     );
   }
 }

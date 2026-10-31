@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { requireAdmin } from '@/lib/adminAuth';
 import {
   User,
   Zone,
@@ -29,11 +28,8 @@ import {
  * GET /api/seed
  * Seed MongoDB with starter data for Kerala LMS & CRM
  */
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const denied = requireAdmin(req);
-    if (denied) return denied;
-
     await connectDB();
 
     // 1. Admin User
@@ -83,35 +79,15 @@ export async function GET(req: Request) {
     if (leadCount === 0) {
       await Lead.insertMany(
         mockLeads.map((l) => ({
-          lead_id: l.lead_id || `LD-${Math.floor(1000 + Math.random() * 9000)}`,
           name: l.name,
-          contact_number: l.contact_number || l.phone,
-          phone: l.phone || l.contact_number,
-          whats_number: l.whats_number || l.phone,
-          whatsapp_number: l.whatsapp_number || l.phone,
+          phone: l.phone,
+          email: l.email,
+          course: l.course,
           district: l.district,
-          place: l.place || '',
-          age: l.age || '',
-          qualification: l.qualification || '',
-          college_name: l.college_name || '',
-          current_year: l.current_year || '',
-          interested_topic: l.interested_topic || '',
-          interested_course: l.interested_course || l.course,
-          course: l.course || l.interested_course,
           employee: l.employee,
-          email: l.email || '',
-          lead_source: l.lead_source || l.source || 'Campus Drive',
-          source: l.source || l.lead_source || 'Campus Drive',
-          student_interest: l.student_interest || 'Medium',
-          next_followup_date: l.next_followup_date || '',
-          remarks: l.remarks || l.notes || '',
-          notes: l.notes || l.remarks || '',
-          admission_status: l.admission_status || (l.status === 4 ? 'Admitted' : 'New'),
-          status: l.status || 'New',
-          presentation: l.presentation || 'Not Scheduled',
-          student_id: l.student_id || '',
-          proof_url: l.proof_url || '',
-          followups: l.followups || [],
+          status: l.status,
+          source: l.source,
+          notes: l.notes,
         }))
       );
     }

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KIDE Sales Manager (SM) Mobile App Flow</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Custom scrollbar for mobile frame */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen p-4 sm:p-8 flex flex-col items-center justify-center">
+
+  <!-- Header Info -->
+  <div class="max-w-4xl w-full text-center mb-6">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-2">
+      Role: Sales Manager (SM) • Mobile App Workflow
+    </div>
+    <h1 class="text-2xl sm:text-3xl font-bold text-white">SM Mobile Application Prototype</h1>
+    <p class="text-slate-400 text-sm mt-1">Simulates the end-to-end SM mobile flow: Statewide Overview, Team Allocation, ASM Creation, and Forwarded Approvals.</p>
+  </div>
+
+  <!-- Interactive Controls Bar -->
+  <div class="max-w-md w-full flex items-center justify-between bg-slate-900/80 border border-slate-800 p-2 rounded-2xl mb-5 text-xs">
+    <span class="text-slate-400 pl-2">Select Active Mobile Tab:</span>
+    <div class="flex gap-1">
+      <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-1.5 rounded-xl font-medium transition bg-cyan-600 text-white shadow-sm">Home</button>
+      <button onclick="switchTab('teams')" id="btn-teams" class="px-3 py-1.5 rounded-xl font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">Teams (8)</button>
+      <button onclick="switchTab('create_asm')" id="btn-create_asm" class="px-3 py-1.5 rounded-xl font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">+ Add ASM</button>
+      <button onclick="switchTab('approvals')" id="btn-approvals" class="px-3 py-1.5 rounded-xl font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">Approvals</button>
+    </div>
+  </div>
+
+  <!-- Mobile Phone Mockup Device -->
+  <div class="w-full max-w-[390px] h-[780px] bg-slate-900 border-4 border-slate-700/80 rounded-[48px] shadow-2xl overflow-hidden flex flex-col relative ring-1 ring-white/10">
+
+    <!-- Status Bar -->
+    <div class="h-10 bg-slate-900 flex items-center justify-between px-6 pt-2 shrink-0 select-none">
+      <span class="text-xs font-semibold text-slate-300">09:41</span>
+      <div class="w-20 h-4 bg-black rounded-full flex items-center justify-center">
+        <div class="w-2.5 h-2.5 rounded-full bg-slate-800 mr-2"></div>
+      </div>
+      <div class="flex items-center gap-1.5 text-xs text-slate-300">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"/></svg>
+        <span class="text-[11px] font-bold">5G</span>
+        <div class="w-4 h-2 border border-slate-300 rounded-sm p-0.5"><div class="h-full bg-emerald-400 rounded-2xs w-full"></div></div>
+      </div>
+    </div>
+
+    <!-- Top App Bar -->
+    <div class="bg-slate-900/90 backdrop-blur-md px-5 py-3 border-b border-slate-800/80 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-md">
+          SM
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white leading-tight">Sanu (SM001)</h2>
+          <span class="text-[11px] text-cyan-400 font-medium">Sales Manager • Statewide</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 relative">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Mobile Body Content -->
+    <div id="screen-container" class="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 bg-slate-950">
+
+      <!-- ================= TAB 1: SM DASHBOARD ================= -->
+      <div id="tab-dashboard" class="space-y-4">
+        <!-- Monthly Statewide Performance Card -->
+        <div class="p-4 rounded-2xl bg-gradient-to-br from-cyan-950/60 via-slate-900 to-indigo-950/40 border border-cyan-800/30 shadow-lg relative overflow-hidden">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-[11px] font-semibold text-cyan-300 tracking-wider uppercase">Statewide Monthly Target</p>
+              <h3 class="text-2xl font-black text-white mt-1">128 <span class="text-xs text-slate-400 font-normal">/ 200 Closed</span></h3>
+            </div>
+            <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">64% Achieved</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-800 h-2 rounded-full mt-3 overflow-hidden">
+            <div class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full rounded-full" style="width: 64%"></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-center">
+            <div>
+              <p class="text-[10px] text-slate-400 uppercase">Total Leads</p>
+              <p class="text-sm font-bold text-white mt-0.5">842</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-400 uppercase">Admissions</p>
+              <p class="text-sm font-bold text-emerald-400 mt-0.5">128</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-slate-400 uppercase">Incentive Pool</p>
+              <p class="text-sm font-bold text-cyan-400 mt-0.5">₹1.28 L</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Action: Create ASM -->
+        <button onclick="switchTab('create_asm')" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-md transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+          Provision New Area Sales Manager (ASM)
+        </button>
+
+        <!-- 7 Regional Teams Progress Header -->
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-bold text-slate-200 tracking-wider uppercase">Regional Teams Overview (7 + 1)</h4>
+          <span class="text-[11px] text-cyan-400 font-medium">1 Active • 7 Available</span>
+        </div>
+
+        <!-- Team Preview Mini Cards -->
+        <div class="space-y-2">
+          <!-- TVM Team Card (Active) -->
+          <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                TVM
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-white">TVM Team</p>
+                <p class="text-[10px] text-slate-400">Thiruvananthapuram, Kollam</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold">Assigned</span>
+              <p class="text-[10px] text-slate-400 mt-0.5">ASM: Bipin J.</p>
+            </div>
+          </div>
+
+          <!-- PTM Team Card (Unallocated) -->
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800/60 border-dashed flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">
+                PTM
+              </div>
+              <div>
+                <p class="text-xs font-medium text-slate-300">PTM Team</p>
+                <p class="text-[10px] text-slate-500">Pathanamthitta, Alappuzha</p>
+              </div>
+            </div>
+            <button onclick="prefillTeam('PTM')" class="text-[10px] px-2.5 py-1 rounded-md bg-cyan-600/20 text-cyan-400 font-semibold hover:bg-cyan-600 hover:text-white transition">
+              + Assign ASM
+            </button>
+          </div>
+
+          <!-- EKM Team Card (Unallocated) -->
+          <div class="p-3 rounded-xl bg-slate-900/50 border border-slate-800/60 border-dashed flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">
+                EKM
+              </div>
+              <div>
+                <p class="text-xs font-medium text-slate-300">EKM Team</p>
+                <p class="text-[10px] text-slate-500">Ernakulam, Thrissur</p>
+              </div>
+            </div>
+            <button onclick="prefillTeam('EKM')" class="text-[10px] px-2.5 py-1 rounded-md bg-cyan-600/20 text-cyan-400 font-semibold hover:bg-cyan-600 hover:text-white transition">
+              + Assign ASM
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending Workflow Forwarding Notice -->
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></div>
+            <p class="text-xs text-amber-300 font-medium">3 Requests forwarded by ASMs</p>
+          </div>
+          <button onclick="switchTab('approvals')" class="text-[11px] text-amber-400 font-bold underline">Review</button>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: TEAMS & DISTRICT ALLOCATION ================= -->
+      <div id="tab-teams" class="space-y-3 hidden">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white">Regional Teams Matrix</h3>
+            <p class="text-[11px] text-slate-400">Fixed 2 Districts per ASM rule</p>
+          </div>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">8 Teams</span>
+        </div>
+
+        <!-- All 8 Teams Accordion/Cards -->
+        <div class="space-y-2 text-xs">
+          <!-- 1. TVM -->
+          <div class="p-3 bg-slate-900 border border-emerald-500/30 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">TVM</span>
+                <span class="font-bold text-white">TVM Team</span>
+              </div>
+              <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">Active (ASM: Bipin)</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px]">Thiruvananthapuram</span>
+              <span class="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px]">Kollam</span>
+            </div>
+            <div class="text-[10px] text-slate-400 flex justify-between pt-1 border-t border-slate-800">
+              <span>BDEs: 4</span>
+              <span>Admissions: 28</span>
+            </div>
+          </div>
+
+          <!-- 2. PTM -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">PTM</span>
+                <span class="font-medium text-white">PTM Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Pathanamthitta</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Alappuzha</span>
+            </div>
+          </div>
+
+          <!-- 3. KTM -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">KTM</span>
+                <span class="font-medium text-white">KTM Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Kottayam</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Idukki</span>
+            </div>
+          </div>
+
+          <!-- 4. EKM -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">EKM</span>
+                <span class="font-medium text-white">EKM Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Ernakulam</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Thrissur</span>
+            </div>
+          </div>
+
+          <!-- 5. PKD -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">PKD</span>
+                <span class="font-medium text-white">PKD Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Palakkad</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Malappuram</span>
+            </div>
+          </div>
+
+          <!-- 6. CLT -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">CLT</span>
+                <span class="font-medium text-white">CLT Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Kozhikode</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Wayanad</span>
+            </div>
+          </div>
+
+          <!-- 7. KZE -->
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">KZE</span>
+                <span class="font-medium text-white">KZE Team</span>
+              </div>
+              <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Unallocated</span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Kannur</span>
+              <span class="px-2 py-0.5 bg-slate-800/70 text-slate-400 rounded text-[10px]">Kasaragod</span>
+            </div>
+          </div>
+
+          <!-- 8. Office Team -->
+          <div class="p-3 bg-slate-900 border border-indigo-500/30 rounded-xl space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-bold">OFFICE</span>
+                <span class="font-medium text-white">Office Team</span>
+              </div>
+              <span class="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-medium">Direct under SM</span>
+            </div>
+            <p class="text-[10px] text-slate-400">Tele-callers & Central Head Office admissions.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 3: CREATE ASM FORM ================= -->
+      <div id="tab-create_asm" class="space-y-4 hidden">
+        <div>
+          <h3 class="text-sm font-bold text-white">Provision Area Sales Manager</h3>
+          <p class="text-[11px] text-slate-400">Allocates 1 of 7 teams and locks 2 districts</p>
+        </div>
+
+        <form id="asm-form" onsubmit="handleCreateASM(event)" class="space-y-3 text-xs">
+          <div>
+            <label class="block text-[11px] font-medium text-slate-300 mb-1">Full Name</label>
+            <input type="text" id="asm_name" placeholder="e.g. Rahul Narayanan" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-300 mb-1">Email Address</label>
+            <input type="email" id="asm_email" placeholder="rahul.asm@kide.com" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-300 mb-1">Contact Phone</label>
+            <input type="tel" id="asm_phone" placeholder="+91 98470 11223" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-300 mb-1">Temporary Password</label>
+            <input type="password" id="asm_pass" value="password123" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-medium text-slate-300 mb-1">Select Regional Team</label>
+            <select id="asm_team_select" onchange="updateDistrictPreview()" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-cyan-500">
+              <option value="" disabled selected>-- Select an unallocated team --</option>
+              <option value="PTM">PTM Team (Pathanamthitta, Alappuzha)</option>
+              <option value="KTM">KTM Team (Kottayam, Idukki)</option>
+              <option value="EKM">EKM Team (Ernakulam, Thrissur)</option>
+              <option value="PKD">PKD Team (Palakkad, Malappuram)</option>
+              <option value="CLT">CLT Team (Kozhikode, Wayanad)</option>
+              <option value="KZE">KZE Team (Kannur, Kasaragod)</option>
+              <option value="OFFICE">Office Team (Tele-callers)</option>
+            </select>
+          </div>
+
+          <!-- District Auto-Lock Notice Box -->
+          <div id="district-lock-box" class="p-3 bg-cyan-950/40 border border-cyan-800/40 rounded-xl space-y-1">
+            <p class="text-[10px] text-cyan-300 font-bold uppercase">Locked District Allocation</p>
+            <p id="district-preview-text" class="text-xs text-white">Select a team above to view assigned districts.</p>
+          </div>
+
+          <button type="submit" class="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl mt-2 shadow-lg transition">
+            Create Area Sales Manager
+          </button>
+        </form>
+      </div>
+
+      <!-- ================= TAB 4: FORWARDED APPROVALS ================= -->
+      <div id="tab-approvals" class="space-y-3 hidden">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white">Forwarded Requests</h3>
+            <p class="text-[11px] text-slate-400">Review and route to Accounts</p>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold">2 Pending</span>
+        </div>
+
+        <!-- Request Card 1: Incentive Withdrawal -->
+        <div class="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-2.5">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Incentive Withdrawal</span>
+              <h4 class="text-sm font-bold text-white mt-1">₹4,000</h4>
+              <p class="text-[10px] text-slate-400">BDE: Siddharth V • EKM Team</p>
+            </div>
+            <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Forwarded by ASM</span>
+          </div>
+
+          <p class="text-[11px] text-slate-300 bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+            "ASM Anoop: Verified 4 admissions closed for Flutter batch. Recommended for payment."
+          </p>
+
+          <div class="flex gap-2 pt-1">
+            <button onclick="alert('Request forwarded to Accounts department for final disbursement!')" class="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg text-xs transition">
+              Forward to Accounts
+            </button>
+            <button onclick="alert('Request sent back with remarks.')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-lg text-xs font-medium">
+              Reject
+            </button>
+          </div>
+        </div>
+
+        <!-- Request Card 2: Minimum Salary -->
+        <div class="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl space-y-2.5">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] font-bold">Monthly Salary Request</span>
+              <h4 class="text-sm font-bold text-white mt-1">₹5,000</h4>
+              <p class="text-[10px] text-slate-400">BDE: Rahul K • TVM Team (October)</p>
+            </div>
+            <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded font-medium">Forwarded by ASM</span>
+          </div>
+
+          <p class="text-[11px] text-slate-300 bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+            "ASM Bipin: 26 active attendance days verified. Monthly leads target reached."
+          </p>
+
+          <div class="flex gap-2 pt-1">
+            <button onclick="alert('Salary request forwarded to Accounts department for sanction!')" class="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg text-xs transition">
+              Forward to Accounts
+            </button>
+            <button onclick="alert('Request sent back with remarks.')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-rose-400 rounded-lg text-xs font-medium">
+              Reject
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="h-16 bg-slate-900/95 border-t border-slate-800/80 flex items-center justify-around px-2 shrink-0 select-none">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-1 text-cyan-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span class="text-[10px] font-semibold">Home</span>
+      </button>
+
+      <button onclick="switchTab('teams')" id="nav-teams" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span class="text-[10px] font-medium">Teams</span>
+      </button>
+
+      <button onclick="switchTab('create_asm')" id="nav-create_asm" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300">
+        <div class="w-8 h-8 rounded-full bg-cyan-600 text-white flex items-center justify-center shadow-lg -mt-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </div>
+        <span class="text-[10px] font-medium">Add ASM</span>
+      </button>
+
+      <button onclick="switchTab('approvals')" id="nav-approvals" class="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300 relative">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="text-[10px] font-medium">Approvals</span>
+        <span class="absolute top-0 right-3 w-2 h-2 bg-amber-400 rounded-full"></span>
+      </button>
+    </div>
+
+    <!-- Home Indicator -->
+    <div class="h-4 bg-slate-900 flex justify-center items-center shrink-0">
+      <div class="w-28 h-1 bg-slate-700 rounded-full"></div>
+    </div>
+  </div>
+
+  <script>
+    const teamDistricts = {
+      'TVM': 'Thiruvananthapuram, Kollam',
+      'PTM': 'Pathanamthitta, Alappuzha',
+      'KTM': 'Kottayam, Idukki',
+      'EKM': 'Ernakulam, Thrissur',
+      'PKD': 'Palakkad, Malappuram',
+      'CLT': 'Kozhikode, Wayanad',
+      'KZE': 'Kannur, Kasaragod',
+      'OFFICE': 'Statewide / Head Office (Tele-callers)'
+    };
+
+    function updateDistrictPreview() {
+      const select = document.getElementById('asm_team_select');
+      const preview = document.getElementById('district-preview-text');
+      const val = select.value;
+      if (teamDistricts[val]) {
+        preview.innerHTML = `<strong>${val} Team:</strong> ${teamDistricts[val]}`;
+      } else {
+        preview.textContent = 'Select a team above to view assigned districts.';
+      }
+    }
+
+    function prefillTeam(teamCode) {
+      switchTab('create_asm');
+      const select = document.getElementById('asm_team_select');
+      select.value = teamCode;
+      updateDistrictPreview();
+    }
+
+    function switchTab(tabId) {
+      const tabs = ['dashboard', 'teams', 'create_asm', 'approvals'];
+      tabs.forEach(t => {
+        document.getElementById('tab-' + t).classList.add('hidden');
+        const btn = document.getElementById('btn-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if (btn) {
+          btn.className = 'px-3 py-1.5 rounded-xl font-medium transition text-slate-400 hover:text-white hover:bg-slate-800';
+        }
+        if (nav) {
+          nav.className = 'flex flex-col items-center gap-1 text-slate-500 hover:text-slate-300';
+        }
+      });
+
+      // Activate selected
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+      const activeBtn = document.getElementById('btn-' + tabId);
+      const activeNav = document.getElementById('nav-' + tabId);
+      if (activeBtn) {
+        activeBtn.className = 'px-3 py-1.5 rounded-xl font-medium transition bg-cyan-600 text-white shadow-sm';
+      }
+      if (activeNav) {
+        activeNav.className = 'flex flex-col items-center gap-1 text-cyan-400 font-semibold';
+      }
+    }
+
+    function handleCreateASM(e) {
+      e.preventDefault();
+      const name = document.getElementById('asm_name').value;
+      const team = document.getElementById('asm_team_select').value;
+      alert(`Success! Area Sales Manager "${name}" provisioned for ${team} Team with assigned districts: ${teamDistricts[team]}.\n\nAPI called: POST /api/sm/create-asm`);
+      switchTab('teams');
+    }
+  </script>
+</body>
+</html>

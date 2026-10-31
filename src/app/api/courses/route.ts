@@ -95,33 +95,21 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// 4. DELETE: Delete course (via query param ?id=... or body { id } or { ids })
+// 4. DELETE: Delete course (via query param ?id=... or body { id })
 export async function DELETE(req: NextRequest) {
   try {
     await connection();
 
     const searchParams = req.nextUrl.searchParams;
     let id = searchParams.get("id");
-    let ids: string[] = [];
 
-    try {
-      const body = await req.json();
-      if (body) {
-        id = id || body.id || body._id;
-        if (Array.isArray(body.ids)) {
-          ids = body.ids;
-        }
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id || body?._id;
+      } catch {
+        // ignore if no JSON body
       }
-    } catch {
-      // ignore if no JSON body
-    }
-
-    if (ids.length > 0) {
-      await course.deleteMany({ _id: { $in: ids } });
-      return NextResponse.json(
-        { message: "Courses deleted successfully" },
-        { status: 200 }
-      );
     }
 
     if (!id) {

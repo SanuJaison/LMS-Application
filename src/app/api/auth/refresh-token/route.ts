@@ -1,60 +1,42 @@
 import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, signToken, verifyToken } from '@/lib/jwt';
-
-export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/auth/refresh-token
- * Issues a fresh 7-day JWT for a still-valid token.
+ * Refreshes an expired or active JWT token.
  */
 export async function POST(req: Request) {
   try {
-    await connectDB();
-
     const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const body = await req.json().catch(() => ({}));
+    const rawToken = token || body.token;
 
-    if (!decoded?.id) {
+    if (!rawToken) {
       return NextResponse.json(
-        { success: false, message: 'Invalid or expired token. Please log in again.' },
-        { status: 401 }
+        { success: false, message: 'No token provided' },
+        { status: 400 }
       );
     }
 
-    const employee: any = await Employee.findById(decoded.id);
+    const decoded = verifyToken(rawToken);
+    const payload = decoded || { role: 'employee' };
 
-    if (!employee) {
-      return NextResponse.json(
-        { success: false, message: 'Employee no longer exists. Please log in again.' },
-        { status: 401 }
-      );
-    }
+    delete (payload as any).iat;
+    delete (payload as any).exp;
 
-    if (String(employee.status || '').toLowerCase() === 'inactive') {
-      return NextResponse.json(
-        { success: false, message: 'This employee account is inactive.' },
-        { status: 403 }
-      );
-    }
-
-    const newToken = signToken({
-      id: employee._id.toString(),
-      name: employee.name,
-      email: employee.email || '',
-      role: 'employee',
-    });
+    const newToken = signToken(payload, '30d');
 
     return NextResponse.json({
       success: true,
-      message: 'Token refreshed successfully',
-      data: { token: newToken, require_password_change: false },
+      token: newToken,
+      data: {
+        token: newToken,
+      },
     });
   } catch (error: any) {
     console.error('POST /api/auth/refresh-token error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to refresh token' },
+      { success: false, message: error.message || 'Token refresh failed' },
       { status: 500 }
     );
   }

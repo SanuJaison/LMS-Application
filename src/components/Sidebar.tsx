@@ -11,18 +11,18 @@ import {
   Users2,
   Globe,
   UserPlus,
-  Building2,
   CheckSquare,
   Layers,
   Clock,
   CalendarX,
   Wallet,
   CreditCard,
+  Building2,
+  Receipt,
   Settings as SettingsIcon,
   ShieldCheck,
   ChevronDown,
   ChevronUp,
-  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,9 +30,6 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   expandedGroups: Record<string, boolean>;
   toggleGroup: (groupKey: string) => void;
-  rolesCount?: number;
-  isOpenMobile?: boolean;
-  onCloseMobile?: () => void;
 }
 
 export default function Sidebar({
@@ -40,104 +37,64 @@ export default function Sidebar({
   onTabChange,
   expandedGroups,
   toggleGroup,
-  rolesCount = 1,
-  isOpenMobile = false,
-  onCloseMobile,
 }: SidebarProps) {
-  const handleNav = (tab: string) => {
-    onTabChange(tab);
-    if (onCloseMobile) {
-      onCloseMobile();
-    }
-  };
-
   return (
-    <>
-      {/* Mobile Drawer Backdrop Overlay */}
-      {isOpenMobile && (
-        <div
-          onClick={onCloseMobile}
-          className="fixed inset-0 bg-black/45 dark:bg-black/70 backdrop-blur-sm z-40 lg:hidden transition-opacity"
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar (Responsive drawer on mobile/tablet, static sidebar on desktop) */}
-      <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] bg-side border-r border-line flex flex-col overflow-y-auto select-none text-[13px] transition-transform duration-300 ease-in-out ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full'
-        } lg:static lg:w-64 lg:z-auto lg:translate-x-0 shrink-0`}
-      >
-        {/* Mobile Header with Close Button */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3.5 border-b border-line bg-surface-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-ink tracking-wider uppercase">Navigation</span>
-            <span className="text-[10px] font-semibold text-accent bg-accent/15 px-2 py-0.5 rounded border border-accent/30">CRM</span>
-          </div>
-          <button
-            onClick={onCloseMobile}
-            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-active transition cursor-pointer"
-            aria-label="Close navigation menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-3 space-y-1">
+    <aside className="w-64 bg-[#0a101d] border-r border-[#1a253a] flex flex-col overflow-y-auto shrink-0 select-none text-[13px]">
+      <div className="p-3 space-y-1">
         {/* Top Standalone Links */}
-        <button
-          onClick={() => handleNav('dashboard')}
+        <button suppressHydrationWarning
+          onClick={() => onTabChange('dashboard')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'dashboard'
-              ? 'bg-active text-ink shadow-sm'
-              : 'text-muted hover:text-ink hover:bg-hover'
+              ? 'bg-[#1b263b] text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
           }`}
         >
-          <Home className="w-4 h-4 text-accent" />
+          <Home className="w-4 h-4 text-[#09929e]" />
           <span>Dashboard</span>
         </button>
 
-        <button
-          onClick={() => handleNav('activities')}
+        <button suppressHydrationWarning
+          onClick={() => onTabChange('activities')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'activities'
-              ? 'bg-active text-ink shadow-sm'
-              : 'text-muted hover:text-ink hover:bg-hover'
+              ? 'bg-[#1b263b] text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
           }`}
         >
-          <Activity className="w-4 h-4 text-muted" />
+          <Activity className="w-4 h-4 text-slate-400" />
           <span>Activities</span>
         </button>
 
-        <button
-          onClick={() => handleNav('designations')}
+        <button suppressHydrationWarning
+          onClick={() => onTabChange('designations')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'designations'
-              ? 'bg-active text-ink shadow-sm'
-              : 'text-muted hover:text-ink hover:bg-hover'
+              ? 'bg-[#1b263b] text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
           }`}
         >
-          <Briefcase className="w-4 h-4 text-muted" />
+          <Briefcase className="w-4 h-4 text-slate-400" />
           <span>Designations</span>
         </button>
 
-        <button
-          onClick={() => handleNav('courses')}
+        <button suppressHydrationWarning
+          onClick={() => onTabChange('courses')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'courses'
-              ? 'bg-active text-ink shadow-sm'
-              : 'text-muted hover:text-ink hover:bg-hover'
+              ? 'bg-[#1b263b] text-white shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
           }`}
         >
-          <GraduationCap className="w-4 h-4 text-muted" />
+          <GraduationCap className="w-4 h-4 text-slate-400" />
           <span>Courses</span>
         </button>
 
         {/* Group: Employee Hierarchy */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('employeeHierarchy')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Employee Hierarchy</span>
             {expandedGroups.employeeHierarchy ? (
@@ -148,46 +105,46 @@ export default function Sidebar({
           </button>
           {expandedGroups.employeeHierarchy && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('districts')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('districts')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'districts'
-                    ? 'bg-active text-ink font-medium'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#15233e] text-white font-medium'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <MapPin className="w-4 h-4" />
                 <span>Districts</span>
               </button>
-              <button
+              <button suppressHydrationWarning
                 id="nav-employees"
-                onClick={() => handleNav('employees')}
+                onClick={() => onTabChange('employees')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'employees'
-                    ? 'bg-active text-ink font-medium'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#15233e] text-[#38bdf8] font-medium'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-4 h-4 text-[#38bdf8]" />
                 <span>Employees</span>
               </button>
-              <button
-                onClick={() => handleNav('teams')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('teams')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'teams'
-                    ? 'bg-active text-ink font-medium'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#15233e] text-white font-medium'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <Users2 className="w-4 h-4" />
                 <span>Teams</span>
               </button>
-              <button
-                onClick={() => handleNav('zones')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('zones')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'zones'
-                    ? 'bg-active text-ink font-medium'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#15233e] text-white font-medium'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <Globe className="w-4 h-4" />
@@ -199,9 +156,9 @@ export default function Sidebar({
 
         {/* Group: Lead Management */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('leadManagement')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Lead Management</span>
             {expandedGroups.leadManagement ? (
@@ -212,12 +169,12 @@ export default function Sidebar({
           </button>
           {expandedGroups.leadManagement && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('leads')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('leads')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'leads'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <UserPlus className="w-4 h-4" />
@@ -227,41 +184,11 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Group: Institute Management */}
-        <div className="pt-2">
-          <button
-            onClick={() => toggleGroup('instituteManagement')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
-          >
-            <span>Institute Management</span>
-            {expandedGroups.instituteManagement ? (
-              <ChevronUp className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
-          {expandedGroups.instituteManagement && (
-            <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('institutes')}
-                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                  activeTab === 'institutes'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                <span>Institutes</span>
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* Group: Task Management */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('taskManagement')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Task Management</span>
             {expandedGroups.taskManagement ? (
@@ -272,23 +199,23 @@ export default function Sidebar({
           </button>
           {expandedGroups.taskManagement && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('employeeTasks')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('employeeTasks')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'employeeTasks'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <CheckSquare className="w-4 h-4" />
                 <span>Employee Tasks</span>
               </button>
-              <button
-                onClick={() => handleNav('taskTemplates')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('taskTemplates')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'taskTemplates'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <Layers className="w-4 h-4" />
@@ -300,9 +227,9 @@ export default function Sidebar({
 
         {/* Group: Field Activity */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('fieldActivity')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Field Activity</span>
             {expandedGroups.fieldActivity ? (
@@ -313,23 +240,23 @@ export default function Sidebar({
           </button>
           {expandedGroups.fieldActivity && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('attendanceRecords')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('attendanceRecords')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'attendanceRecords'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <Clock className="w-4 h-4" />
                 <span>Attendance Records</span>
               </button>
-              <button
-                onClick={() => handleNav('leaves')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('leaves')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'leaves'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <CalendarX className="w-4 h-4" />
@@ -341,9 +268,9 @@ export default function Sidebar({
 
         {/* Group: Finances */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('finances')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Finances</span>
             {expandedGroups.finances ? (
@@ -354,23 +281,45 @@ export default function Sidebar({
           </button>
           {expandedGroups.finances && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('wallets')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('accounts')}
+                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  activeTab === 'accounts'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <Building2 className="w-4 h-4 text-[#38bdf8]" />
+                <span>Accounts & Finance</span>
+              </button>
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('salaryRequests')}
+                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  activeTab === 'salaryRequests'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                }`}
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Salary Requests</span>
+              </button>
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('wallets')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'wallets'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <Wallet className="w-4 h-4" />
                 <span>Wallets</span>
               </button>
-              <button
-                onClick={() => handleNav('walletWithdrawRequests')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('walletWithdrawRequests')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'walletWithdrawRequests'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <CreditCard className="w-4 h-4" />
@@ -382,9 +331,9 @@ export default function Sidebar({
 
         {/* Group: System Settings */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('systemSettings')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>System Settings</span>
             {expandedGroups.systemSettings ? (
@@ -395,12 +344,12 @@ export default function Sidebar({
           </button>
           {expandedGroups.systemSettings && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('settings')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('settings')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'settings'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <SettingsIcon className="w-4 h-4" />
@@ -412,9 +361,9 @@ export default function Sidebar({
 
         {/* Group: Roles & Permissions */}
         <div className="pt-2">
-          <button
+          <button suppressHydrationWarning
             onClick={() => toggleGroup('rolesPermissions')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
           >
             <span>Roles & Permissions</span>
             {expandedGroups.rolesPermissions ? (
@@ -425,20 +374,20 @@ export default function Sidebar({
           </button>
           {expandedGroups.rolesPermissions && (
             <div className="space-y-0.5 mt-1 pl-2">
-              <button
-                onClick={() => handleNav('roles')}
+              <button suppressHydrationWarning
+                onClick={() => onTabChange('roles')}
                 className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'roles'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
+                    ? 'bg-[#1b263b] text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Roles</span>
                 </div>
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-bulk text-accent border border-accent/30">
-                  {rolesCount}
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#142338] text-cyan-400 border border-cyan-800/60">
+                  3
                 </span>
               </button>
             </div>
@@ -446,6 +395,5 @@ export default function Sidebar({
         </div>
       </div>
     </aside>
-  </>
-);
+  );
 }

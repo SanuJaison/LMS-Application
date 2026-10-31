@@ -1,2 +1,904 @@
-export { default } from './pages/TeamsView';
-export * from './pages/TeamsView';
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Search,
+  Eye,
+  Pencil,
+  Trash2,
+  Columns3,
+  ChevronDown,
+  X,
+  Plus,
+  Loader2,
+} from 'lucide-react';
+import { Team, Employee } from '../types';
+
+interface TeamsViewProps {
+  showToast?: (type: 'success' | 'danger', message: string) => void;
+}
+
+const DISTRICT_OPTIONS = [
+  'Ernakulam',
+  'Kozhikode',
+  'Wayanad',
+  'Thiruvananthapuram',
+  'Malappuram',
+  'Thrissur',
+  'Kannur',
+  'Kottayam',
+  'Palakkad',
+  'Kollam',
+  'Alappuzha',
+  'Idukki',
+  'Pathanamthitta',
+  'Kasaragod',
+];
+
+const ZONE_OPTIONS = ['Central Zone', 'North Zone', 'South Zone'];
+
+export default function TeamsView({ showToast }: TeamsViewProps) {
+  // Data state
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Table controls
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<'district' | 'name' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [visibleColumns, setVisibleColumns] = useState({
+    district: true,
+    name: true,
+  });
+  const [showColumnDropdown, setShowColumnDropdown] = useState<boolean>(false);
+  const [perPage, setPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Modals state
+  const [viewModalTeam, setViewModalTeam] = useState<Team | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    district: 'Ernakulam',
+    district2: '',
+    name: '',
+    zone: 'Central Zone',
+    team_lead: '',
+    is_office: false,
+  });
+
+  // Employees state for Team Lead dropdown (filtering ASMs)
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch('/api/admin/employees');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setEmployees(json.data);
+      }
+    } catch (e) {
+      console.error('Failed to load employees for team lead dropdown:', e);
+    }
+  };
+
+  const asmEmployees = useMemo(() => {
+    return employees.filter((emp) => {
+      const des = (emp.designation || '').toLowerCase();
+      const id = (emp.employee_id || '').toLowerCase();
+      return (
+        des.includes('area sales manager') ||
+        des.includes('asm') ||
+        id.startsWith('asm')
+      );
+    });
+  }, [employees]);
+
+  // Fetch teams from backend
+  const fetchTeams = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/teams');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setTeams(json.data);
+      }
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      showToast?.('danger', 'Failed to load teams');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeams();
+    fetchEmployees();
+  }, []);
+
+  // Filter & Sort
+  const filteredAndSortedTeams = useMemo(() => {
+    let result = [...teams];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.name?.toLowerCase().includes(q) ||
+          t.district?.toLowerCase().includes(q) ||
+          t.zone?.toLowerCase().includes(q)
+      );
+    }
+
+    if (sortField) {
+      result.sort((a, b) => {
+        const valA = String(a[sortField] || '').toLowerCase();
+        const valB = String(b[sortField] || '').toLowerCase();
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [teams, searchQuery, sortField, sortOrder]);
+
+  // Pagination slice
+  const paginatedTeams = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredAndSortedTeams.slice(start, start + perPage);
+  }, [filteredAndSortedTeams, currentPage, perPage]);
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.length === paginatedTeams.length && paginatedTeams.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(
+        paginatedTeams
+          .map((t) => t.id || t._id)
+          .filter(Boolean) as string[]
+      );
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Sort toggle handler
+  const handleSort = (field: 'district' | 'name') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Open modal for creating new team
+  const openNewModal = () => {
+    setEditingTeam(null);
+    setFormData({
+      district: 'Ernakulam',
+      district2: '',
+      name: '',
+      zone: 'Central Zone',
+      team_lead: '',
+      is_office: false,
+    });
+    fetchEmployees();
+    setEditModalOpen(true);
+  };
+
+  // Open modal for editing team
+  const openEditModal = (team: Team) => {
+    setEditingTeam(team);
+    const distParts = (team.district || '').split(',').map((s) => s.trim());
+    setFormData({
+      district: distParts[0] || 'Ernakulam',
+      district2: distParts[1] || '',
+      name: team.name || '',
+      zone: team.zone || 'Central Zone',
+      team_lead: team.team_lead || '',
+      is_office: Boolean(team.is_office || team.name?.toLowerCase().includes('office')),
+    });
+    fetchEmployees();
+    setEditModalOpen(true);
+  };
+
+  // Save (Create or Update)
+  const handleSaveTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      showToast?.('danger', 'Team name is required');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const isEdit = Boolean(editingTeam);
+      const teamId = editingTeam?.id || editingTeam?._id;
+
+      const districtValue = formData.is_office
+        ? ''
+        : formData.district2 && formData.district2 !== formData.district
+        ? `${formData.district}, ${formData.district2}`
+        : formData.district;
+
+      const payload = {
+        ...(isEdit && { id: teamId }),
+        name: formData.name.trim(),
+        district: districtValue,
+        districts: formData.is_office ? [] : [formData.district, formData.district2].filter(Boolean),
+        zone: formData.zone.trim(),
+        team_lead: formData.is_office ? '' : formData.team_lead.trim(),
+        is_office: Boolean(formData.is_office),
+      };
+
+      const res = await fetch('/api/admin/teams', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        showToast?.('success', `Team ${isEdit ? 'updated' : 'created'} successfully!`);
+        setEditModalOpen(false);
+        setEditingTeam(null);
+        fetchTeams();
+      } else {
+        showToast?.('danger', json.message || 'Failed to save team');
+      }
+    } catch (err) {
+      console.error('Save team error:', err);
+      showToast?.('danger', 'Failed to save team');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Single delete
+  const handleDeleteTeam = async (team: Team) => {
+    const teamId = team.id || team._id;
+    if (!teamId) return;
+
+    if (!confirm(`Are you sure you want to delete "${team.name}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/teams?id=${teamId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast?.('success', 'Team deleted successfully!');
+        setSelectedIds((prev) => prev.filter((id) => id !== teamId));
+        fetchTeams();
+      } else {
+        showToast?.('danger', json.message || 'Failed to delete team');
+      }
+    } catch (err) {
+      console.error('Delete team error:', err);
+      showToast?.('danger', 'Failed to delete team');
+    }
+  };
+
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} team(s)?`)) return;
+
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast?.('success', `${selectedIds.length} team(s) deleted successfully!`);
+        setSelectedIds([]);
+        fetchTeams();
+      } else {
+        showToast?.('danger', json.message || 'Failed to delete teams');
+      }
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showToast?.('danger', 'Failed to delete selected teams');
+    }
+  };
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Top Header: Breadcrumbs, Title & "New team" Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
+            <span>Teams</span>
+            <span className="text-slate-600">&gt;</span>
+            <span className="text-slate-300">List</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Teams</h1>
+        </div>
+
+        <button
+          onClick={openNewModal}
+          className="px-4 py-2 bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer"
+        >
+          New team
+        </button>
+      </div>
+
+      {/* Main Table Card */}
+      <div className="bg-[#0b1322] border border-[#1b253b] rounded-xl shadow-lg overflow-hidden">
+        {/* Top Bar: Search Input & Column Visibility Toggle Button */}
+        <div className="p-3.5 flex items-center justify-end gap-2 border-b border-[#1b253b]">
+          <div className="relative w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-3 py-1.5 bg-[#080d18] border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00a2b8]"
+            />
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+              className="p-2 border border-slate-700/80 rounded-lg bg-[#080d18] text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer"
+              title="Toggle columns"
+            >
+              <Columns3 className="w-3.5 h-3.5" />
+            </button>
+
+            {showColumnDropdown && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#0d1627] border border-[#223352] rounded-xl shadow-2xl p-3 z-30 text-xs">
+                <div className="font-semibold text-slate-300 mb-2 pb-1 border-b border-slate-800">
+                  Columns
+                </div>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.district}
+                      onChange={() =>
+                        setVisibleColumns((prev) => ({ ...prev, district: !prev.district }))
+                      }
+                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                    />
+                    <span>District</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.name}
+                      onChange={() =>
+                        setVisibleColumns((prev) => ({ ...prev, name: !prev.name }))
+                      }
+                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                    />
+                    <span>Name</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bulk Actions Notification Bar */}
+        {selectedIds.length > 0 && (
+          <div className="px-4 py-2.5 bg-[#132038] border-b border-[#203254] flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-white">
+              <span className="font-semibold">{selectedIds.length}</span>
+              <span className="text-slate-300">
+                team{selectedIds.length > 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds([])}
+                className="px-2.5 py-1 rounded bg-[#0b1322] border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+              >
+                Deselect all
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-200 border border-red-700/60 transition flex items-center gap-1.5 font-medium cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete selected</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Table Content */}
+        {loading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
+            <Loader2 className="w-6 h-6 text-[#00a2b8] animate-spin" />
+            <span className="text-xs">Loading teams...</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-[#1b253b] text-slate-300 font-semibold text-xs bg-[#0b1322]">
+                  <th className="py-3.5 px-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedIds.length === paginatedTeams.length &&
+                        paginatedTeams.length > 0
+                      }
+                      onChange={toggleSelectAll}
+                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                    />
+                  </th>
+                  {visibleColumns.district && (
+                    <th
+                      onClick={() => handleSort('district')}
+                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>District</span>
+                        <ChevronDown
+                          className={`w-3 h-3 text-slate-500 transition-transform ${
+                            sortField === 'district' && sortOrder === 'desc'
+                              ? 'rotate-180'
+                              : ''
+                          }`}
+                        />
+                      </div>
+                    </th>
+                  )}
+                  {visibleColumns.name && (
+                    <th
+                      onClick={() => handleSort('name')}
+                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span>Name</span>
+                        {sortField === 'name' && (
+                          <ChevronDown
+                            className={`w-3 h-3 text-slate-500 transition-transform ${
+                              sortOrder === 'desc' ? 'rotate-180' : ''
+                            }`}
+                          />
+                        )}
+                      </div>
+                    </th>
+                  )}
+                  <th className="py-3.5 px-4 text-right"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#172236]">
+                {paginatedTeams.length > 0 ? (
+                  paginatedTeams.map((team, idx) => {
+                    const id = team.id || team._id || String(idx);
+                    return (
+                      <tr key={id} className="hover:bg-[#131d2e]/60 transition">
+                        <td className="py-3.5 px-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(id)}
+                            onChange={() => toggleSelectOne(id)}
+                            className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                          />
+                        </td>
+                        {visibleColumns.district && (
+                          <td className="py-3.5 px-4 text-slate-300">
+                            {team.district || 'Ernakulam'}
+                          </td>
+                        )}
+                        {visibleColumns.name && (
+                          <td className="py-3.5 px-4 font-normal text-slate-200">
+                            {team.name}
+                          </td>
+                        )}
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-3.5 whitespace-nowrap">
+                            <button
+                              onClick={() => setViewModalTeam(team)}
+                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              title="View details"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <span>View</span>
+                            </button>
+                            <button
+                              onClick={() => openEditModal(team)}
+                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              title="Edit team"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTeam(team)}
+                              className="inline-flex items-center gap-1.5 text-[#f43f5e] hover:text-red-400 transition font-medium text-xs hover:underline cursor-pointer"
+                              title="Delete team"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-[#f43f5e]" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="py-12 text-center text-slate-500 text-xs"
+                    >
+                      No teams found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Table Footer: Result Count & Per Page */}
+        <div className="px-4 py-3 bg-[#0a101d] border-t border-[#1b253b] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+          <div>
+            Showing{' '}
+            <span className="font-semibold text-white">
+              {filteredAndSortedTeams.length === 0
+                ? 0
+                : (currentPage - 1) * perPage + 1}
+            </span>{' '}
+            to{' '}
+            <span className="font-semibold text-white">
+              {Math.min(currentPage * perPage, filteredAndSortedTeams.length)}
+            </span>{' '}
+            of{' '}
+            <span className="font-semibold text-white">
+              {filteredAndSortedTeams.length}
+            </span>{' '}
+            results
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span>Per page</span>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-[#080d18] border border-slate-700/80 rounded px-2.5 py-1 text-white text-xs outline-none focus:border-[#00a2b8]"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            {Math.ceil(filteredAndSortedTeams.length / perPage) > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentPage((p) =>
+                      Math.min(
+                        Math.ceil(filteredAndSortedTeams.length / perPage),
+                        p + 1
+                      )
+                    )
+                  }
+                  disabled={
+                    currentPage >=
+                    Math.ceil(filteredAndSortedTeams.length / perPage)
+                  }
+                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* VIEW MODAL */}
+      {viewModalTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                  <Eye className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Team Details</h3>
+                  <p className="text-[11px] text-slate-400">{viewModalTeam.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewModalTeam(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
+                  <div className="text-slate-400 text-[11px] mb-1">Team Name</div>
+                  <div className="text-white font-semibold text-sm">
+                    {viewModalTeam.name}
+                  </div>
+                </div>
+                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
+                  <div className="text-slate-400 text-[11px] mb-1">District</div>
+                  <div className="text-white font-semibold text-sm">
+                    {viewModalTeam.is_office ? (
+                      <span className="text-amber-400">Office team (no district)</span>
+                    ) : (
+                      viewModalTeam.district || '—'
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
+                  <div className="text-slate-400 text-[11px] mb-1">Zone</div>
+                  <div className="text-slate-200">
+                    {viewModalTeam.zone || 'Central Zone'}
+                  </div>
+                </div>
+                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
+                  <div className="text-slate-400 text-[11px] mb-1">Team Lead</div>
+                  <div className="text-slate-200">
+                    {viewModalTeam.is_office ? (
+                      <span className="text-slate-500 italic">None (Office team)</span>
+                    ) : (
+                      viewModalTeam.team_lead || 'Not assigned'
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-[#090d16] border-t border-[#223352] flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => {
+                  const target = viewModalTeam;
+                  setViewModalTeam(null);
+                  openEditModal(target);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-medium transition cursor-pointer"
+              >
+                Edit team
+              </button>
+              <button
+                onClick={() => setViewModalTeam(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT MODAL */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                  {editingTeam ? (
+                    <Pencil className="w-4 h-4" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                </div>
+                <h3 className="text-sm font-bold text-white">
+                  {editingTeam ? 'Edit Team' : 'New Team'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setEditModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTeam} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Team Name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={formData.is_office ? "Office Team" : "e.g. Team Ernakulam"}
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                />
+              </div>
+
+              {/* Office Team Checkbox */}
+              <div className="pt-1 pb-1">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_office}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        is_office: checked,
+                        name: checked && !formData.name ? 'Office Team' : formData.name,
+                        district: checked ? '' : (formData.district || 'Ernakulam'),
+                        district2: checked ? '' : formData.district2,
+                        team_lead: checked ? '' : formData.team_lead,
+                      });
+                    }}
+                    className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer w-4 h-4"
+                  />
+                  <span className="font-medium text-xs">Office team (no district)</span>
+                </label>
+                {formData.is_office && (
+                  <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                    Office teams operate without a district or field team lead.
+                  </p>
+                )}
+              </div>
+
+              {/* Districts (hidden if Office team) */}
+              {!formData.is_office && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      District 1 <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={formData.district}
+                      onChange={(e) =>
+                        setFormData({ ...formData, district: e.target.value })
+                      }
+                      required
+                      className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                    >
+                      {DISTRICT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      District 2 <span className="text-slate-500 font-normal">(Optional)</span>
+                    </label>
+                    <select
+                      value={formData.district2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, district2: e.target.value })
+                      }
+                      className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                    >
+                      <option value="">None (Single district)</option>
+                      {DISTRICT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Zone
+                </label>
+                <select
+                  value={formData.zone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, zone: e.target.value })
+                  }
+                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                >
+                  {ZONE_OPTIONS.map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Team Lead (disappears if Office team) */}
+              {!formData.is_office && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-slate-300 font-semibold">
+                      Team Lead (ASM)
+                    </label>
+                    {asmEmployees.length === 0 && (
+                      <span className="text-[10px] text-amber-400">
+                        No ASM employees found
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={formData.team_lead}
+                    onChange={(e) =>
+                      setFormData({ ...formData, team_lead: e.target.value })
+                    }
+                    className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                  >
+                    <option value="">Select Team Lead (Optional)</option>
+                    {asmEmployees.length === 0 ? (
+                      <option value="" disabled>
+                        No ASM employees found
+                      </option>
+                    ) : (
+                      asmEmployees.map((asm) => (
+                        <option
+                          key={asm.id || asm._id || asm.employee_id}
+                          value={`${asm.name} (${asm.employee_id})`}
+                        >
+                          {asm.name} ({asm.employee_id})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Select an Area Sales Manager (ASM). The ASM will automatically be assigned to this team.
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{editingTeam ? 'Save changes' : 'Create team'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

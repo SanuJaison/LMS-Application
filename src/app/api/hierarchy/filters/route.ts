@@ -1,55 +1,58 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Designation, District, Team, Zone } from '@/models';
-import { ok } from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Zone, District, Designation, Team } from '@/models';
+import { numericId } from '@/lib/employeeAuth';
 
 /**
  * GET /api/hierarchy/filters
- * Dropdown values for the mobile filters (zones, districts, designations, teams).
+ * Returns combined dropdown options bundle for mobile hierarchy navigation.
  */
 export async function GET() {
   try {
     await connectDB();
 
     const [zones, districts, designations, teams] = await Promise.all([
-      Zone.find().sort({ name: 1 }).lean(),
-      District.find().sort({ name: 1 }).lean(),
-      Designation.find().sort({ name: 1 }).lean(),
-      Team.find().sort({ name: 1 }).lean(),
+      Zone.find().lean(),
+      District.find().lean(),
+      Designation.find().lean(),
+      Team.find().lean(),
     ]);
 
-    return ok(
-      {
-        zones: (zones as any[]).map((z) => ({ id: z._id?.toString(), name: z.name })),
-        districts: (districts as any[]).map((d) => ({
-          id: d._id?.toString(),
-          name: d.name,
-          zone: d.zone || null,
-        })),
-        designations: (designations as any[]).map((d) => ({
-          id: d._id?.toString(),
-          name: d.name,
-          prefix: d.prefix || null,
-        })),
-        teams: (teams as any[]).map((t) => ({
-          id: t._id?.toString(),
-          name: t.name,
-          district: t.district || null,
-          // `districts` is the source of truth; `district` is kept for older clients.
-          districts:
-            Array.isArray(t.districts) && t.districts.length
-              ? t.districts
-              : t.district
-                ? [t.district]
-                : [],
-          zone: t.zone || null,
-        })),
-      },
-      'Hierarchy filters fetched successfully'
-    );
+    const data = {
+      zones: zones.map((z: any) => ({
+        id: numericId(z._id) || z._id.toString(),
+        name: z.name,
+      })),
+      districts: districts.map((d: any) => ({
+        id: numericId(d._id) || d._id.toString(),
+        name: d.name,
+        zone: d.zone,
+      })),
+      designations: designations.map((des: any) => ({
+        id: numericId(des._id) || des._id.toString(),
+        name: des.name,
+        prefix: des.prefix,
+      })),
+      teams: teams.map((t: any) => ({
+        id: numericId(t._id) || t._id.toString(),
+        name: t.name,
+        district: t.district || (Array.isArray(t.districts) ? t.districts[0] : null),
+        districts: t.districts || (t.district ? [t.district] : []),
+        zone: t.zone,
+        is_office: Boolean(t.is_office),
+      })),
+    };
+
+    return NextResponse.json({
+      success: true,
+      message: 'Hierarchy filters loaded',
+      data,
+    });
   } catch (error: any) {
     console.error('GET /api/hierarchy/filters error:', error);
-    return ok({ zones: [], districts: [], designations: [], teams: [] }, 'Filters unavailable');
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch hierarchy filters' },
+      { status: 500 }
+    );
   }
 }

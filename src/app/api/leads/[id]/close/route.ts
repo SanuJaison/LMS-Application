@@ -1,145 +1,219 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { getEmployee, ok, fail } from '@/lib/employeeAuth';
-import { findLeadByAnyId, serializeLeadsForMobile } from '@/lib/mobileLead';
-import { studentIdMismatchError } from '@/lib/leadValidation';
-
-export const dynamic = 'force-dynamic';
+import { Lead } from '@/models/lead';
+import { Employee } from '@/models/employee';
+import { Wallet } from '@/models';
+import { Incentive } from '@/models/incentive';
+import { findLeadByAnyId } from '@/lib/mobileLead';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
- * POST /api/leads/:id/close
+ * POST /api/leads/[id]/close
+ * Closes a lead as "Admitted / Won".
  *
- * Marks a lead as admitted / won. Accepts a MongoDB id, the numeric app id,
- * or the human readable lead_id.
- *
- * Body (the app's "close lead" form):
- *   student_id           "STU-1001"        (required unless already set by a follow-up)
- *   course               "Full-Stack Web Development"
- *   payment              25000             (amount) or "verified" / "pending"
- *   payment_amount       25000             (alternative to the amount above)
- *   payment_verification "Pending" | "Verified"
- *   remarks | notes      "Admission confirmed"
- *   lead_source          "Referral"        (optional)
- *
- * The Student ID must be the same one used during follow-up. If the lead
- * already has a different ID, the request is rejected with 400.
+ * Requirements:
+ * 1. Checks that the provided student_id matches the lead's student_id.
+ *    If student_id does not match, the lead CANNOT close.
+ * 2. Marks lead as Admitted / Closed.
+ * 3. Credits ₹1,000 incentive to the BDE's wallet.
+ * 4. Creates an individual Incentive record for this closed admission.
  */
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
+    const { id } = await params;
 
-    if (!employee) {
-      return ok(null, 'Unauthenticated', 401);
-    }
-
-    const lead: any = await findLeadByAnyId(params.id);
-
+    const lead: any = await findLeadByAnyId(id);
     if (!lead) {
-      return ok(null, 'Lead not found', 404);
+      return NextResponse.json(
+        { success: false, message: `Lead with ID ${id} not found.` },
+        { status: 404 }
+      );
     }
 
     const body = await req.json().catch(() => ({}));
 
-    // ---- student id ------------------------------------------------------
-    // Must match the ID recorded during follow-up. If the lead has no ID yet,
-    // the close request has to supply one.
-    const incomingStudentId = String(body.student_id || body.studentId || '').trim();
+    // Student ID Verification:
+    // "that student id is needed when follow up and closed if the student id is not same the lead should not close"
+    const providedStudentId = String(body.student_id || '').trim();
     const existingStudentId = String(lead.student_id || '').trim();
 
-    const mismatch = studentIdMismatchError(existingStudentId, incomingStudentId);
-    if (mismatch) {
-      return fail(mismatch, 400);
+    if (!providedStudentId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Validation failed: Student ID is required to close this lead as an admission.',
+        },
+        { status: 400 }
+      );
     }
 
-    const studentId = existingStudentId || incomingStudentId;
-    if (!studentId) {
-      return fail('Validation failed: student_id is required to close a lead.', 400);
+    if (
+      existingStudentId &&
+      providedStudentId.toUpperCase() !== existingStudentId.toUpperCase()
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Validation failed: Provided Student ID (${providedStudentId}) does not match the registered Student ID (${existingStudentId}) for this lead. Lead cannot be closed.`,
+        },
+        { status: 400 }
+      );
     }
 
-    // ---- course ----------------------------------------------------------
-    const course = String(
-      body.course || body.interested_course || lead.course || lead.interested_course || ''
-    ).trim();
+    // Determine closer
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+    let bdeEmployee: any = null;
 
-    // ---- payment ---------------------------------------------------------
-    const paymentVerification = normalizePaymentVerification(
-      body.payment_verification ||
-        body.payment_status ||
-        (typeof body.payment === 'string' ? body.payment : '') ||
-        lead.payment_verification ||
-        'Verified'
-    );
-    const paymentAmount = normalizePaymentAmount(body.payment_amount ?? body.payment);
+    if (lead.employee_id) {
+      bdeEmployee = await Employee.findOne({ employee_id: lead.employee_id }).lean();
+    }
+    if (!bdeEmployee && lead.employee && lead.employee !== 'Unassigned') {
+      bdeEmployee = await Employee.findOne({
+        name: new RegExp(`^${lead.employee.trim()}$`, 'i'),
+      }).lean();
+    }
+    if (!bdeEmployee && decoded?.role === 'employee' && decoded.id) {
+      bdeEmployee = await Employee.findById(decoded.id).lean();
+    }
 
-    const remarks = String(body.remarks || body.notes || 'Admission confirmed').trim();
-    const leadSource = String(body.lead_source || body.source || lead.lead_source || '').trim();
-    const today = new Date().toISOString().split('T')[0];
+    const bdeId = bdeEmployee?.employee_id || lead.employee_id || 'BDE-UNKNOWN';
+    const bdeName = bdeEmployee?.name || lead.employee || 'BDE';
+    const team = bdeEmployee?.team || lead.team || '';
+    const asmId = bdeEmployee?.reports_to || lead.asm_id || '';
 
-    // ---- close the lead --------------------------------------------------
-    lead.student_id = studentId;
-    lead.course = course;
-    lead.interested_course = course;
+    let asmName = lead.asm_name || '';
+    if (!asmName && asmId) {
+      const asmEmp: any = await Employee.findOne({ employee_id: asmId }).lean();
+      if (asmEmp) asmName = asmEmp.name;
+    }
+
+    const finalStudentId = existingStudentId || providedStudentId;
+    const course = body.course || lead.interested_course || lead.course || '';
+    const payment = Number(body.payment ?? body.payment_amount ?? 0);
+    const paymentVerification =
+      body.payment_verification || lead.payment_verification || 'Verified';
+    const remarks = String(body.remarks || body.notes || lead.remarks || '').trim();
+
+    // Check if incentive already generated for this admission
+    const existingIncentive = await Incentive.findOne({
+      lead_id: lead.lead_id || lead._id.toString(),
+    });
+
+    const isNewlyClosed =
+      lead.admission_status !== 'Admitted' &&
+      lead.admission_status !== 'Closed' &&
+      lead.status !== 4 &&
+      lead.status !== 5;
+
+    // Update lead document
+    lead.admission_status = 'Admitted';
+    lead.status = 4; // Admitted / Won
+    lead.student_id = finalStudentId;
+    if (course) lead.course = course;
+    if (course) lead.interested_course = course;
+    lead.payment_amount = payment;
     lead.payment_verification = paymentVerification;
-    if (paymentAmount !== null) lead.payment_amount = paymentAmount;
-    lead.admission_status = 'Admission';
-    lead.status = 'Admitted';
-    lead.next_followup_date = '';
-    if (leadSource) {
-      lead.lead_source = leadSource;
-      lead.source = leadSource;
-    }
-    if (remarks) {
-      lead.remarks = remarks;
-      lead.notes = remarks;
-    }
+    lead.admission_date = lead.admission_date || new Date();
+    lead.incentive_amount = 1000;
+    lead.incentive_status = 'Credited';
+    lead.bde_id = bdeId;
+    lead.bde_name = bdeName;
+    lead.asm_id = asmId;
+    lead.asm_name = asmName;
+    lead.team = team;
+    if (remarks) lead.remarks = remarks;
 
-    // Keep an audit entry so the close is visible in the follow-up history.
-    if (!Array.isArray(lead.followups)) lead.followups = [];
+    // Append to followups history
+    if (!Array.isArray(lead.followups)) {
+      lead.followups = [];
+    }
     lead.followups.push({
-      date: today,
-      remarks,
-      student_interest: lead.student_interest || 'Hot',
-      presentation: lead.presentation || 'Completed',
-      next_followup_date: '',
-      admission_status: 'Admission',
-      lead_source: lead.lead_source || lead.source || '',
+      date: new Date().toISOString(),
+      student_id: finalStudentId,
+      admission_status: 'Admitted',
       payment_verification: paymentVerification,
-      student_id: studentId,
+      payment_amount: payment,
       course,
-      proof_url: '',
-      recorded_by: employee.name,
+      remarks: remarks || 'Lead confirmed as admission. Closed successfully.',
+      recorded_by: bdeName,
     });
 
     await lead.save();
 
-    const [mobile] = await serializeLeadsForMobile([lead.toObject()]);
+    // Incentive processing: ₹1,000 per closed admission
+    let incentiveRecord = existingIncentive;
+    if (!existingIncentive && isNewlyClosed) {
+      incentiveRecord = await Incentive.create({
+        lead_id: lead.lead_id || lead._id.toString(),
+        student_id: finalStudentId,
+        student_name: lead.name,
+        course,
+        bde_id: bdeId,
+        bde_name: bdeName,
+        asm_id: asmId,
+        asm_name: asmName,
+        team,
+        amount: 1000,
+        status: 'Earned',
+        admission_date: new Date(),
+      });
 
-    return ok(mobile, 'Lead closed successfully');
+      // Credit ₹1,000 to BDE wallet
+      await Wallet.findOneAndUpdate(
+        {
+          $or: [
+            { employee_id: bdeId },
+            { employee: new RegExp(`^${bdeName.trim()}$`, 'i') },
+          ],
+        },
+        {
+          $setOnInsert: {
+            employee: bdeName,
+            employee_id: bdeId,
+            currency: 'INR',
+          },
+          $inc: {
+            balance: 1000,
+            total_earned: 1000,
+          },
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    await logActivity({
+      description: `Admission closed for student ${lead.name} (${finalStudentId}) by ${bdeName}. ₹1,000 incentive credited.`,
+      subjectType: 'Admission',
+      causer: causerFromRequest(req),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Lead ${lead.name} successfully closed as Admission (${finalStudentId}). ₹1,000 incentive credited to ${bdeName}.`,
+      data: {
+        lead_id: lead.lead_id,
+        student_id: finalStudentId,
+        name: lead.name,
+        status: 4,
+        admission_status: 'Admitted',
+        incentive_earned: 1000,
+        incentive_id: incentiveRecord?._id?.toString() || null,
+        bde: bdeName,
+        team,
+      },
+    });
   } catch (error: any) {
     console.error('POST /api/leads/[id]/close error:', error);
-    return ok(null, error.message || 'Failed to close lead', 500);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to close lead' },
+      { status: 500 }
+    );
   }
-}
-
-function titleCase(value: string): string {
-  if (!value) return value;
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-}
-
-function normalizePaymentVerification(value: any): string {
-  const text = String(value || '').trim().toLowerCase();
-  if (!text) return 'Verified';
-  if (text === 'verified' || text === 'verifed' || text === 'paid' || text === 'done') {
-    return 'Verified';
-  }
-  if (text === 'pending' || text === 'not verified' || text === 'unpaid') {
-    return 'Pending';
-  }
-  return titleCase(text);
-}
-
-function normalizePaymentAmount(value: any): number | null {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
 }

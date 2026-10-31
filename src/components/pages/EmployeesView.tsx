@@ -47,6 +47,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'sm' | 'asm' | 'bde' | 'office'>('all');
 
   // Table controls
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -225,6 +226,21 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   const filteredAndSortedEmployees = useMemo(() => {
     let result = [...employees];
 
+    if (roleFilter === 'sm') {
+      result = result.filter((emp) => isSMDesignation(emp.designation));
+    } else if (roleFilter === 'asm') {
+      result = result.filter((emp) => isASMDesignation(emp.designation));
+    } else if (roleFilter === 'bde') {
+      result = result.filter((emp) => isBDEDesignation(emp.designation));
+    } else if (roleFilter === 'office') {
+      result = result.filter(
+        (emp) =>
+          (emp.team || '').toLowerCase().includes('office') ||
+          (emp.designation || '').toLowerCase().includes('tele') ||
+          (emp.designation || '').toLowerCase().includes('office')
+      );
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -251,7 +267,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     }
 
     return result;
-  }, [employees, searchQuery, sortField, sortOrder]);
+  }, [employees, searchQuery, sortField, sortOrder, roleFilter]);
 
   const paginatedEmployees = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -601,6 +617,127 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           New employee
         </button>
       </div>
+
+      {/* Role Hierarchy Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+        <button
+          onClick={() => { setRoleFilter('all'); setCurrentPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+            roleFilter === 'all'
+              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <span>All Employees</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
+            {employees.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { setRoleFilter('sm'); setCurrentPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+            roleFilter === 'sm'
+              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <span>Sales Manager (SM)</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-900/40 text-indigo-300">
+            {employees.filter((e) => isSMDesignation(e.designation)).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { setRoleFilter('asm'); setCurrentPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+            roleFilter === 'asm'
+              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <span>Area Sales Managers (7 ASM Teams)</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-900/40 text-amber-300">
+            {employees.filter((e) => isASMDesignation(e.designation)).length}/7
+          </span>
+        </button>
+
+        <button
+          onClick={() => { setRoleFilter('bde'); setCurrentPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+            roleFilter === 'bde'
+              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <span>Business Development Executives (BDE)</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-900/40 text-emerald-300">
+            {employees.filter((e) => isBDEDesignation(e.designation)).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => { setRoleFilter('office'); setCurrentPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+            roleFilter === 'office'
+              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <span>Office Team (Tele-callers)</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
+            {employees.filter(
+              (e) =>
+                (e.team || '').toLowerCase().includes('office') ||
+                (e.designation || '').toLowerCase().includes('tele')
+            ).length}
+          </span>
+        </button>
+      </div>
+
+      {/* ASM Regional Teams Overview Card when ASM filter is active */}
+      {roleFilter === 'asm' && (
+        <div className="p-4 rounded-xl bg-[#0c1424] border border-amber-900/40 text-xs space-y-2">
+          <div className="flex items-center justify-between text-amber-400 font-bold">
+            <span>Official 7 Regional Teams & Assigned Districts (1 ASM per Team, 2 Districts each)</span>
+            <span className="text-[11px] text-slate-400 font-normal">Supervised by SM</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">1. TVM Team</strong>
+              <span className="text-slate-400 text-[10px]">Thiruvananthapuram, Kollam</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">2. PTM Team</strong>
+              <span className="text-slate-400 text-[10px]">Pathanamthitta, Alappuzha</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">3. KTM Team</strong>
+              <span className="text-slate-400 text-[10px]">Kottayam, Idukki</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">4. EKM Team</strong>
+              <span className="text-slate-400 text-[10px]">Ernakulam, Thrissur</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">5. PKD Team</strong>
+              <span className="text-slate-400 text-[10px]">Palakkad, Malappuram</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">6. CLT Team</strong>
+              <span className="text-slate-400 text-[10px]">Kozhikode, Wayanad</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">7. KZE Team</strong>
+              <span className="text-slate-400 text-[10px]">Kannur, Kasaragod</span>
+            </div>
+            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
+              <strong className="text-white block font-mono text-[11px]">8. Office Team</strong>
+              <span className="text-slate-400 text-[10px]">Tele-callers under SM</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table Container Card */}
       <div className="bg-surface border border-line rounded-xl shadow-lg overflow-hidden">

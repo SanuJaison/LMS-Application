@@ -1,30 +1,58 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Leave } from '@/models';
-import { getEmployee, nameRegex, ok } from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { numericId } from '@/lib/employeeAuth';
 
 /**
  * GET /api/leaves
- * Leave requests submitted by the signed-in employee.
+ * Lists leave applications for the current employee.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    if (!employee) {
-      return ok([], 'Unauthenticated');
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+
+    let employee: any = null;
+    if (decoded?.role === 'employee' && decoded.id) {
+      employee = await Employee.findById(decoded.id).lean();
     }
 
-    const nameFilter = nameRegex(employee.name);
-    const query: any = nameFilter ? { employee: nameFilter } : { employee: '__none__' };
+    const { searchParams } = new URL(req.url);
+    const employeeParam = searchParams.get('employee');
+
+    const query: Record<string, any> = {};
+    if (employee) {
+      query.employee = new RegExp(`^${employee.name.trim()}$`, 'i');
+    } else if (employeeParam) {
+      query.employee = new RegExp(`^${employeeParam.trim()}$`, 'i');
+    }
 
     const leaves = await Leave.find(query).sort({ createdAt: -1 }).lean();
 
-    return ok(leaves, 'Leaves fetched successfully');
+    const data = leaves.map((l: any) => ({
+      id: numericId(l._id) || 1,
+      _id: l._id.toString(),
+      employee: l.employee,
+      leave_type: l.leave_type || 'Casual Leave',
+      start_date: l.start_date,
+      end_date: l.end_date,
+      reason: l.reason || '',
+      status: l.status || 'Pending',
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
   } catch (error: any) {
     console.error('GET /api/leaves error:', error);
-    return ok([], 'Leaves unavailable');
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch leaves' },
+      { status: 500 }
+    );
   }
 }

@@ -1,68 +1,114 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { logActivity } from '@/lib/activityLog';
-import {
-  formatTime,
-  getEmployee,
-  nameRegex,
-  ok,
-  parseTimeToMinutes,
-  todayKey,
-} from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { formatTime, parseTimeToMinutes, todayKey } from '@/lib/employeeAuth';
+import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/attendance/check-out
- * Sets check_out and computes hours_worked for today's record.
+ * Records daily employee check-out and computes hours worked.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    if (!employee) {
-      return ok(null, 'Unauthenticated', 401);
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+
+    let employee: any = null;
+    if (decoded?.role === 'employee' && decoded.id) {
+      employee = await Employee.findById(decoded.id).lean();
     }
 
-    const nameFilter = nameRegex(employee.name);
-    if (!nameFilter) {
-      return ok(null, 'Employee name is missing', 400);
+    let employeeId = employee?.employee_id || '';
+    let employeeName = employee?.name || '';
+    let notes = '';
+
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      notes = String(formData.get('notes') || '');
+      if (!employeeId) employeeId = String(formData.get('employee_id') || '');
+      if (!employeeName) employeeName = String(formData.get('name') || '');
+    } else {
+      const body = await req.json().catch(() => ({}));
+      notes = body.notes || '';
+      if (!employeeId) employeeId = body.employee_id || '';
+      if (!employeeName) employeeName = body.name || '';
+    }
+
+    if (!employee && employeeId) {
+      employee = await Employee.findOne({ employee_id: employeeId }).lean();
+      if (employee) employeeName = employee.name;
+    }
+
+    if (!employeeName) {
+      employeeName = 'Employee';
     }
 
     const today = todayKey();
-    const now = formatTime();
+    const checkOutTime = formatTime(new Date());
 
-    const record: any = await Attendance.findOne({ name: nameFilter, date: today });
-
-    if (!record) {
-      return ok(null, 'You have not checked in today', 400);
-    }
-
-    if (record.check_out) {
-      return ok(record, 'Already checked out today');
-    }
-
-    record.check_out = now;
-    record.status = 'OFFLINE';
-
-    const start = parseTimeToMinutes(record.check_in);
-    const end = parseTimeToMinutes(now);
-    if (start !== null && end !== null && end > start) {
-      record.hours_worked = Math.round(((end - start) / 60) * 100) / 100;
-    }
-
-    await record.save();
-
-    await logActivity({
-      description: `Checked out at ${now}`,
-      subjectType: 'Attendance',
-      causer: employee.name,
+    let record = await Attendance.findOne({
+      $or: [
+        { employee_id: employeeId, date: today },
+        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+      ],
     });
 
-    return ok(record, 'Checked out successfully');
+    let hoursWorked = 8.0;
+    if (record && record.check_in) {
+      const inMinutes = parseTimeToMinutes(record.check_in);
+      const outMinutes = parseTimeToMinutes(checkOutTime);
+      if (inMinutes !== null && outMinutes !== null && outMinutes > inMinutes) {
+        hoursWorked = parseFloat(((outMinutes - inMinutes) / 60).toFixed(2));
+      }
+    }
+
+    if (record) {
+      record.check_out = checkOutTime;
+      record.status = 'COMPLETED';
+      record.hours_worked = hoursWorked;
+      if (notes) (record as any).notes = notes;
+      await record.save();
+    } else {
+      record = await Attendance.create({
+        name: employeeName,
+        employee_id: employeeId,
+        designation: employee?.designation || 'Business Development Executive',
+        district: employee?.district || 'Ernakulam',
+        date: today,
+        check_in: '09:00 AM',
+        check_out: checkOutTime,
+        status: 'COMPLETED',
+        hours_worked: hoursWorked,
+      });
+    }
+
+    await logActivity({
+      description: `Attendance Check-Out logged for ${employeeName} at ${checkOutTime} (${hoursWorked} hrs worked)`,
+      subjectType: 'Attendance',
+      causer: causerFromRequest(req),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Checked out successfully at ${checkOutTime}.`,
+      data: {
+        date: today,
+        check_in: record.check_in,
+        check_out: checkOutTime,
+        hours_worked: hoursWorked,
+        status: 'OFFLINE',
+      },
+    });
   } catch (error: any) {
     console.error('POST /api/attendance/check-out error:', error);
-    return ok(null, error.message || 'Failed to check out', 500);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Check-out failed' },
+      { status: 500 }
+    );
   }
 }

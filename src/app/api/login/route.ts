@@ -2,227 +2,108 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { User } from '@/models/users';
 import { Employee } from '@/models/employee';
-import { Designation } from '@/models';
 import { signToken } from '@/lib/jwt';
-import { checkPassword, hashPassword } from '@/lib/password';
-import { logActivity } from '@/lib/activityLog';
-import { resolveTeamForEmployee } from '@/lib/hierarchy';
+import { hierarchyRole } from '@/lib/hierarchy';
+import bcrypt from 'bcryptjs';
 
 /**
- * Escape a string so it can be used safely inside a RegExp.
- */
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Mongo ObjectIds are strings, but the mobile app expects a numeric id
- * (Laravel-style). Derive a stable number from the ObjectId.
- */
-function numericId(id: any): number | null {
-  if (!id) return null;
-  const hex = String(id);
-  const parsed = parseInt(hex.slice(-6), 16);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-/**
- * Format a date the way Laravel serialises timestamps: 2026-08-05T05:39:17.000000Z
- */
-function toLaravelDate(value?: Date | string | null): string | null {
-  if (!value) return null;
-  const date = new Date(value as any);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().replace(/\.(\d{3})Z$/, '.$1000Z');
-}
-
-interface LaravelUserShape {
-  id: number | null;
-  name: string;
-  email: string;
-  email_verified_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  designation_name: string | null;
-  designation_id: number | null;
-  roles: string[];
-  permissions: string[];
-}
-
-/**
- * Build the `data.user` object the Flutter app expects.
- */
-async function buildLaravelUser(doc: any, designationName?: string): Promise<LaravelUserShape> {
-  const name = designationName || doc.designation || '';
-
-  let designationDoc: any = null;
-  if (name) {
-    designationDoc = await Designation.findOne({
-      name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' },
-    }).lean();
-  }
-
-  return {
-    id: numericId(doc._id),
-    name: doc.name || '',
-    email: doc.email || '',
-    email_verified_at: null,
-    created_at: toLaravelDate(doc.createdAt),
-    updated_at: toLaravelDate(doc.updatedAt),
-    designation_name: name || null,
-    designation_id: designationDoc?._id ? numericId(designationDoc._id) : null,
-    roles: [],
-    permissions: [],
-  };
-}
-
-/**
- * POST /api/login
- *
- * Supports two kinds of login:
- *   1. Employee   -> { "employee_id": "BDE005", "password": "test123" }
- *   2. Admin/User -> { "email": "admin@kide.com", "password": "password123" }
- *
- * Responds with the Laravel-compatible shape the mobile app expects:
- *   { success, message, data: { token, user, require_password_change } }
- *
- * The top-level `token` and `user` keys are kept for the existing admin web UI.
+ * POST /api/login - Unified Authentication Endpoint
+ * Supports:
+ * 1. Admin login via email & password
+ * 2. Employee login via employee_id or email & password
+ * Returns JWT token and standardized user session.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
     const body = await req.json().catch(() => ({}));
+    const identifier = String(body.employee_id || body.email || '').trim();
+    const password = String(body.password || '').trim();
 
-    const password = typeof body.password === 'string' ? body.password : '';
-    const email = typeof body.email === 'string' ? body.email.trim() : '';
-
-    // Accept a few common key names for the employee ID
-    const rawEmployeeId = body.employee_id ?? body.emp_id ?? body.employeeId ?? body.username ?? '';
-    const explicitEmployeeId = String(rawEmployeeId || '').trim();
-
-    // If the client sends the employee ID in the email field (no "@" means it is not an email)
-    let employeeId = explicitEmployeeId;
-    if (!employeeId && email && !email.includes('@')) {
-      employeeId = email;
-    }
-
-    if (!password || (!email && !employeeId)) {
+    if (!identifier || !password) {
       return NextResponse.json(
-        { success: false, message: 'Employee ID (or email) and password are required' },
+        { success: false, message: 'Employee ID / Email and password are required' },
         { status: 400 }
       );
     }
 
-    // ---------------------------------------------------------------------
-    // 1. Employee login with a custom Employee ID (e.g. BDE005, ASM001)
-    // ---------------------------------------------------------------------
-    if (employeeId) {
-      const employee: any = await Employee.findOne({
-        employee_id: { $regex: `^${escapeRegex(employeeId)}$`, $options: 'i' },
-      }).select('+password');
+    // 1. Check in Employees Collection first (Mobile app & Field Force)
+    const employee: any = await Employee.findOne({
+      $or: [
+        { employee_id: new RegExp(`^${identifier}$`, 'i') },
+        { email: identifier.toLowerCase() },
+      ],
+    }).lean();
 
-      if (employee) {
-        if (String(employee.status || '').toLowerCase() === 'inactive') {
-          return NextResponse.json(
-            {
-              success: false,
-              message: 'This employee account is inactive. Please contact your admin.',
-            },
-            { status: 403 }
-          );
+    if (employee) {
+      // If employee has a hashed password, verify it
+      let passwordMatches = false;
+      if (employee.password) {
+        if (employee.password.startsWith('$2')) {
+          passwordMatches = bcrypt.compareSync(password, employee.password);
+        } else {
+          passwordMatches = employee.password === password;
         }
+      } else {
+        // Fallback for default seed accounts
+        passwordMatches = password === 'kide1234' || password === 'password123';
+      }
 
-        if (!employee.password) {
-          return NextResponse.json(
-            {
-              success: false,
-              message: 'No password has been set for this employee. Please contact your admin.',
-            },
-            { status: 401 }
-          );
-        }
-
-        const isEmployeeMatch = await checkPassword(password, employee);
-        if (!isEmployeeMatch) {
-          return NextResponse.json(
-            { success: false, message: 'Invalid employee ID or password' },
-            { status: 401 }
-          );
-        }
-
+      if (passwordMatches) {
+        const role = hierarchyRole(employee);
         const token = signToken({
           id: employee._id.toString(),
+          employee_id: employee.employee_id,
           name: employee.name,
-          email: employee.email || '',
+          email: employee.email,
           role: 'employee',
+          designation: employee.designation,
+          team: employee.team,
+          zone: employee.zone,
+          district: employee.district,
+          reports_to: employee.reports_to,
         });
 
-        const requirePasswordChange = Boolean(employee.require_password_change);
-        const laravelUser = await buildLaravelUser(employee, employee.designation);
-        const resolvedTeam = await resolveTeamForEmployee(employee);
+        const userPayload = {
+          id: employee._id.toString(),
+          employee_id: employee.employee_id,
+          name: employee.name,
+          email: employee.email,
+          role,
+          designation: employee.designation || role,
+          designation_name: employee.designation || role,
+          team: employee.team || '',
+          zone: employee.zone || '',
+          district: employee.district || '',
+          reports_to: employee.reports_to || null,
+          status: employee.status || 'active',
+          require_password_change: false,
+        };
 
         return NextResponse.json({
           success: true,
-          message: 'Logged in successfully',
-          // --- kept for the existing admin web UI ---
+          message: 'Login successful',
           token,
-          user: {
-            id: employee._id.toString(),
-            name: employee.name,
-            email: employee.email || '',
-            employee_id: employee.employee_id,
-            designation: employee.designation || '',
-            team: resolvedTeam,
-            zone: employee.zone || '',
-            district: employee.district || '',
-            role: 'employee',
-            status: employee.status,
-          },
-          // --- Laravel-compatible shape for the mobile app ---
+          user: userPayload,
           data: {
             token,
-            user: laravelUser,
-            require_password_change: requirePasswordChange,
+            user: userPayload,
           },
         });
       }
-
-      // An explicit employee ID was supplied but does not exist -> stop here.
-      // (When the value came from the email box, fall through to the user lookup
-      //  so identifiers like "admin" keep working.)
-      if (explicitEmployeeId) {
-        return NextResponse.json(
-          { success: false, message: 'Invalid employee ID or password' },
-          { status: 401 }
-        );
-      }
     }
 
-    // ---------------------------------------------------------------------
-    // 2. Admin / User login with email (existing behaviour)
-    // ---------------------------------------------------------------------
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
-        { status: 400 }
-      );
-    }
+    // 2. Check in Users Collection (Admin Portal)
+    let adminUser = await User.findOne({ email: identifier.toLowerCase() });
 
-    const cleanEmail = email.toLowerCase().trim();
-
-    // Look for user in database
-    let user = await User.findOne({ email: cleanEmail });
-
-    // Bootstrap the very first admin account only. Previously any unknown
-    // email containing "admin" was auto-created as an admin, which let anyone
-    // mint an admin account. Now this only runs on an empty users collection.
-    if (!user) {
+    // Seed default admin if user collection is completely empty
+    if (!adminUser) {
       const totalUsers = await User.countDocuments();
-      if (totalUsers === 0) {
-        const hashedPassword = await hashPassword(password);
-        user = await User.create({
+      if (totalUsers === 0 && identifier.toLowerCase().includes('admin')) {
+        const hashedPassword = bcrypt.hashSync(password, 10);
+        adminUser = await User.create({
           name: 'Admin User',
-          email: cleanEmail,
+          email: identifier.toLowerCase(),
           password: hashedPassword,
           role: 'admin',
           status: 'active',
@@ -230,59 +111,57 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid email or password' },
-        { status: 401 }
-      );
+    if (adminUser) {
+      let adminPassMatches = false;
+      if (adminUser.password) {
+        if (adminUser.password.startsWith('$2')) {
+          adminPassMatches = bcrypt.compareSync(password, adminUser.password);
+        } else {
+          adminPassMatches = adminUser.password === password;
+        }
+      }
+
+      if (adminPassMatches) {
+        const token = signToken({
+          id: adminUser._id.toString(),
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role || 'admin',
+        });
+
+        const adminPayload = {
+          id: adminUser._id.toString(),
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role || 'admin',
+          designation: 'Administrator',
+          team: '',
+          zone: '',
+          district: '',
+          reports_to: null,
+          status: adminUser.status || 'active',
+          require_password_change: false,
+        };
+
+        return NextResponse.json({
+          success: true,
+          message: 'Login successful',
+          token,
+          user: adminPayload,
+          data: {
+            token,
+            user: adminPayload,
+          },
+        });
+      }
     }
 
-    // Verify password with bcryptjs
-    const isMatch = await checkPassword(password, user);
-
-    if (!isMatch) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid email or password' },
-        { status: 401 }
-      );
-    }
-
-    // Generate JWT token with 7-day expiration
-    const token = signToken({
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
-
-    const laravelUser = await buildLaravelUser(user);
-
-    await logActivity({
-      description: 'Signed in to the admin panel',
-      subjectType: 'Auth',
-      causer: user.name || user.email,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Logged in successfully',
-      // --- kept for the existing admin web UI ---
-      token,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      // --- Laravel-compatible shape for the mobile app ---
-      data: {
-        token,
-        user: laravelUser,
-        require_password_change: false,
-      },
-    });
+    return NextResponse.json(
+      { success: false, message: 'Invalid credentials. Please verify your Employee ID / Email and password.' },
+      { status: 401 }
+    );
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('POST /api/login error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Login failed' },
       { status: 500 }

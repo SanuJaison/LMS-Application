@@ -22,13 +22,14 @@ import LeavesView from '@/components/pages/LeavesView';
 import WalletWithdrawRequestsView from '@/components/pages/WalletWithdrawRequestsView';
 import RolesView from '@/components/pages/RolesView';
 import ActivitiesView from '@/components/pages/ActivitiesView';
+import AccountsView from '@/components/pages/AccountsView';
 import GenericResourceView from '@/components/pages/GenericResourceView';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function KeralaCRMApp() {
   // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(false);
   const [user, setUser] = useState<User>({
     id: 'usr-admin',
     name: 'Admin User',
@@ -37,14 +38,9 @@ export default function KeralaCRMApp() {
   });
 
   // Navigation & View State
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam) return tabParam;
-    }
-    return 'dashboard';
-  });
+  // Start from a deterministic value so server and client render the same
+  // markup. The URL ?tab= is applied in the effect below after hydration.
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [notificationsOpen, setNotificationsOpen] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -72,21 +68,15 @@ export default function KeralaCRMApp() {
             if (data && data.success && data.user) {
               setUser(data.user);
               setIsAuthenticated(true);
-            } else {
-              localStorage.removeItem('auth_token');
-              setIsAuthenticated(false);
             }
           })
           .catch((err) => {
             console.error('Session verification error:', err);
-            localStorage.removeItem('auth_token');
-            setIsAuthenticated(false);
           })
           .finally(() => {
             setIsCheckingAuth(false);
           });
       } else {
-        setIsAuthenticated(false);
         setIsCheckingAuth(false);
       }
     }
@@ -140,12 +130,14 @@ export default function KeralaCRMApp() {
   const toggleTheme = () => {
     setIsDarkMode((prev) => {
       const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
+      if (typeof window !== 'undefined') {
+        if (next) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
+        }
       }
       return next;
     });
@@ -175,7 +167,7 @@ export default function KeralaCRMApp() {
   if (!isAuthenticated) {
     return (
       <LoginView
-        onLoginSuccess={(loggedInUser, token) => {
+        onLoginSuccess={(loggedInUser) => {
           setUser(loggedInUser);
           setIsAuthenticated(true);
           showToast('success', `Welcome back, ${loggedInUser.name || 'Admin'}! Authorized.`);
@@ -186,7 +178,7 @@ export default function KeralaCRMApp() {
     );
   }
 
-  // 2. Authenticated Dashboard & CRM Layout
+  // 3. Authenticated Dashboard & CRM Layout
   return (
     <div className="min-h-screen bg-app text-ink flex flex-col font-sans selection:bg-accent selection:text-white">
       {/* Toast Notification */}
@@ -211,28 +203,17 @@ export default function KeralaCRMApp() {
         setNotificationsOpen={setNotificationsOpen}
         userMenuOpen={userMenuOpen}
         setUserMenuOpen={setUserMenuOpen}
-        onLogoClick={() => {
-          handleTabChange('dashboard');
-          setMobileSidebarOpen(false);
-        }}
-        onToggleMobileSidebar={() => setMobileSidebarOpen((prev) => !prev)}
-        isMobileSidebarOpen={mobileSidebarOpen}
+        onLogoClick={() => handleTabChange('dashboard')}
       />
 
       {/* Main Container: Sidebar + Active Page View */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
-        {/* Navigation Sidebar (responsive drawer on mobile/tablet) */}
+        {/* Navigation Sidebar */}
         <Sidebar
           activeTab={activeTab}
-          onTabChange={(tab) => {
-            handleTabChange(tab);
-            setMobileSidebarOpen(false);
-          }}
+          onTabChange={handleTabChange}
           expandedGroups={expandedGroups}
           toggleGroup={toggleGroup}
-          rolesCount={rolesCount}
-          isOpenMobile={mobileSidebarOpen}
-          onCloseMobile={() => setMobileSidebarOpen(false)}
         />
 
         {/* Dynamic Page Viewport */}
@@ -274,6 +255,8 @@ export default function KeralaCRMApp() {
             <RolesView showToast={showToast} onRolesUpdated={setRolesCount} />
           ) : activeTab === 'activities' ? (
             <ActivitiesView />
+          ) : activeTab === 'accounts' ? (
+            <AccountsView showToast={showToast} />
           ) : (
             <GenericResourceView activeTab={activeTab} showToast={showToast} />
           )}

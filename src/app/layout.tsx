@@ -27,6 +27,46 @@ const themeScript = `
 })();
 `;
 
+/**
+ * Some browser autofill/password-manager extensions stamp a `fdprocessedid`
+ * attribute onto buttons and inputs before React hydrates. The server markup
+ * never has it, so React logs a noisy "Extra attributes from the server"
+ * warning in development. This removes that extension-only marker as it
+ * appears; it has no effect on the app itself.
+ */
+const extensionAttrScript = `
+(function () {
+  try {
+    var ATTR = 'fdprocessedid';
+    var strip = function (node) {
+      if (!node || node.nodeType !== 1) return;
+      if (node.hasAttribute && node.hasAttribute(ATTR)) node.removeAttribute(ATTR);
+      if (node.querySelectorAll) {
+        var list = node.querySelectorAll('[' + ATTR + ']');
+        for (var i = 0; i < list.length; i++) list[i].removeAttribute(ATTR);
+      }
+    };
+    strip(document.documentElement);
+    var observer = new MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        var record = records[i];
+        if (record.type === 'attributes' && record.attributeName === ATTR) {
+          record.target.removeAttribute(ATTR);
+        } else {
+          for (var j = 0; j < record.addedNodes.length; j++) strip(record.addedNodes[j]);
+        }
+      }
+    });
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: [ATTR]
+    });
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,6 +78,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.bunny.net" />
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: extensionAttrScript }} />
       </head>
       <body className="min-h-screen font-sans antialiased bg-app text-ink transition-colors duration-200">
         {children}

@@ -2,32 +2,52 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITaskTemplate extends Document {
   title: string;
-  metric_type: string;
-  designation: string;
-  frequency: string;
-  target_count: number;
-  is_carry_over: boolean;
-  is_active: boolean;
   description?: string;
+  designation?: string;
+  priority?: string;
+  points?: number;
+  is_active?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const TaskTemplateSchema = new Schema<ITaskTemplate>(
   {
-    title: { type: String, required: true, trim: true },
-    metric_type: { type: String, required: true, default: 'Leads Generated', trim: true },
-    designation: { type: String, required: true, trim: true },
-    frequency: { type: String, enum: ['daily', 'weekly', 'monthly'], default: 'daily' },
-    target_count: { type: Number, required: true, default: 15 },
-    is_carry_over: { type: Boolean, default: true },
-    is_active: { type: Boolean, default: true },
-    description: { type: String, default: '' },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      default: '',
+    },
+    designation: {
+      type: String,
+      default: 'Business Development Executive',
+      trim: true,
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high'],
+      default: 'medium',
+    },
+    points: {
+      type: Number,
+      default: 10,
+    },
+    is_active: {
+      type: Boolean,
+      default: true,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 export const TaskTemplate =
-  mongoose.models.TaskTemplate || mongoose.model<ITaskTemplate>('TaskTemplate', TaskTemplateSchema);
+  mongoose.models.TaskTemplate ||
+  mongoose.model<ITaskTemplate>('TaskTemplate', TaskTemplateSchema);
 
 export default TaskTemplate;

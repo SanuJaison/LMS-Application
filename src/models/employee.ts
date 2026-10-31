@@ -9,15 +9,8 @@ export interface IEmployee extends Document {
   district?: string;
   zone?: string;
   team?: string;
-  /** Employee ID of this employee's manager (e.g. BDE004 reports to BDM001). */
   reports_to?: string;
   upi_id?: string;
-  password?: string;
-  require_password_change?: boolean;
-  bank_name?: string;
-  account_holder_name?: string;
-  account_number?: string;
-  ifsc_code?: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -52,17 +45,17 @@ const EmployeeSchema = new Schema<IEmployee>(
     },
     district: {
       type: String,
-      default: 'Ernakulam',
+      default: '',
       trim: true,
     },
     zone: {
       type: String,
-      default: 'Central Zone',
+      default: '',
       trim: true,
     },
     team: {
       type: String,
-      default: 'Team Kakkanad',
+      default: '',
       trim: true,
     },
     reports_to: {
@@ -73,35 +66,6 @@ const EmployeeSchema = new Schema<IEmployee>(
     upi_id: {
       type: String,
       default: '',
-    },
-    password: {
-      type: String,
-      default: '',
-      select: false,
-    },
-    require_password_change: {
-      type: Boolean,
-      default: false,
-    },
-    bank_name: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    account_holder_name: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    account_number: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    ifsc_code: {
-      type: String,
-      default: '',
-      trim: true,
     },
     status: {
       type: String,

@@ -1,43 +1,63 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Leave } from '@/models';
-import { getEmployee, ok } from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { numericId } from '@/lib/employeeAuth';
+import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/leaves/apply
- * Body: { leave_type, start_date, end_date, reason }
+ * Applies for leave.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    if (!employee) {
-      return ok(null, 'Unauthenticated', 401);
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
+
+    let employee: any = null;
+    if (decoded?.role === 'employee' && decoded.id) {
+      employee = await Employee.findById(decoded.id).lean();
     }
 
     const body = await req.json().catch(() => ({}));
-
-    const startDate = String(body.start_date || body.from_date || '').trim();
-    const endDate = String(body.end_date || body.to_date || startDate).trim();
-
-    if (!startDate || !endDate) {
-      return ok(null, 'Start date and end date are required', 400);
-    }
+    const employeeName =
+      employee?.name || body.employee || body.name || 'Employee';
 
     const leave = await Leave.create({
-      employee: employee.name,
-      leave_type: String(body.leave_type || body.type || 'Casual Leave').trim(),
-      start_date: startDate,
-      end_date: endDate,
-      reason: String(body.reason || body.remarks || '').trim(),
+      employee: employeeName,
+      leave_type: body.leave_type || 'Casual Leave',
+      start_date: body.start_date || new Date().toISOString().split('T')[0],
+      end_date: body.end_date || body.start_date || new Date().toISOString().split('T')[0],
+      reason: body.reason || '',
       status: 'Pending',
     });
 
-    return ok(leave, 'Leave applied successfully', 201);
+    await logActivity({
+      description: `Leave application submitted by ${employeeName} (${leave.start_date} to ${leave.end_date})`,
+      subjectType: 'Leave',
+      causer: causerFromRequest(req),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Leave applied successfully',
+      data: {
+        id: numericId(leave._id) || 1,
+        _id: leave._id.toString(),
+        leave_type: leave.leave_type,
+        start_date: leave.start_date,
+        end_date: leave.end_date,
+        status: leave.status,
+      },
+    });
   } catch (error: any) {
     console.error('POST /api/leaves/apply error:', error);
-    return ok(null, error.message || 'Failed to apply leave', 500);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to apply leave' },
+      { status: 500 }
+    );
   }
 }

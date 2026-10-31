@@ -1,44 +1,74 @@
+import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { getEmployee, nameRegex, ok } from '@/lib/employeeAuth';
-
-export const dynamic = 'force-dynamic';
+import { Employee } from '@/models/employee';
+import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 
 /**
  * GET /api/attendance/history
- * Query: ?from=YYYY-MM-DD&to=YYYY-MM-DD&limit=60
+ * Returns the attendance history records for an employee.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    if (!employee) {
-      return ok([], 'Unauthenticated');
-    }
+    const token = extractTokenFromHeader(req);
+    const decoded = token ? verifyToken(token) : null;
 
-    const nameFilter = nameRegex(employee.name);
-    if (!nameFilter) {
-      return ok([], 'No attendance history found');
+    let employee: any = null;
+    if (decoded?.role === 'employee' && decoded.id) {
+      employee = await Employee.findById(decoded.id).lean();
     }
 
     const { searchParams } = new URL(req.url);
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
-    const limit = Math.min(Number(searchParams.get('limit') || 60), 365);
+    const email = searchParams.get('email');
+    const empId = searchParams.get('employee_id');
 
-    const query: any = { name: nameFilter };
-    if (from || to) {
-      query.date = {};
-      if (from) query.date.$gte = from;
-      if (to) query.date.$lte = to;
+    if (!employee && (email || empId)) {
+      employee = await Employee.findOne({
+        $or: [
+          ...(email ? [{ email: email.toLowerCase() }] : []),
+          ...(empId ? [{ employee_id: empId }] : []),
+        ],
+      }).lean();
     }
 
-    const records = await Attendance.find(query).sort({ date: -1 }).limit(limit).lean();
+    const query: Record<string, any> = {};
+    if (employee) {
+      query.$or = [
+        { employee_id: employee.employee_id },
+        { name: new RegExp(`^${employee.name.trim()}$`, 'i') },
+      ];
+    }
 
-    return ok(records, 'Attendance history fetched successfully');
+    const month = searchParams.get('month'); // e.g. "2026-10"
+    if (month) {
+      query.date = new RegExp(`^${month}`);
+    }
+
+    const records = await Attendance.find(query)
+      .sort({ date: -1 })
+      .limit(31)
+      .lean();
+
+    const data = records.map((r: any) => ({
+      date: r.date,
+      check_in: r.check_in || '--:--',
+      check_out: r.check_out || '--:--',
+      hours_worked: r.hours_worked ?? 8,
+      status: r.status === 'COMPLETED' ? 'PRESENT' : r.status || 'PRESENT',
+    }));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Attendance history loaded',
+      data,
+    });
   } catch (error: any) {
     console.error('GET /api/attendance/history error:', error);
-    return ok([], 'Attendance history unavailable');
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch attendance history' },
+      { status: 500 }
+    );
   }
 }

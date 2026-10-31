@@ -1,14 +1,11 @@
 import mongoose from 'mongoose';
 
-// Atlas cluster fallback for serverless deployments (e.g. Vercel) if env vars are unset
-const DEFAULT_MONGODB_URI =
-  'mongodb+srv://abincs:Abin-c-s@cluster0.neb4vpv.mongodb.net/LMS_Platfrom?appName=Cluster0';
+// Support both MONGODB_URL and MONGODB_URI environment variables
+const MONGODB_URI = process.env.MONGODB_URL || process.env.MONGODB_URI || '';
 
-// Support MONGODB_URL and MONGODB_URI with fallback
-const MONGODB_URI =
-  process.env.MONGODB_URL ||
-  process.env.MONGODB_URI ||
-  DEFAULT_MONGODB_URI;
+if (!MONGODB_URI) {
+  console.warn('⚠️ Warning: MONGODB_URL or MONGODB_URI is not set in environment variables.');
+}
 
 // Global cache for Next.js hot-reloads to prevent multiple connections
 interface MongooseCache {
@@ -42,7 +39,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   if (!cached!.promise) {
     const opts = {
-      bufferCommands: true,
+      bufferCommands: false,
     };
 
     cached!.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {

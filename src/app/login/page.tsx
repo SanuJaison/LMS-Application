@@ -65,9 +65,11 @@ export default function LoginPage() {
     });
   };
 
-  const handleLoginSuccess = (user: User, token: string) => {
+  const handleLoginSuccess = (user: User, token?: string) => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      }
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect') || '/';
       window.location.href = redirectPath;

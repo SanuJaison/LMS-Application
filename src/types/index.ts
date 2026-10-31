@@ -28,6 +28,7 @@ export interface Designation {
 
 export interface Employee {
   id: string;
+  _id?: string;
   employee_id: string;
   name: string;
   email: string;
@@ -39,7 +40,8 @@ export interface Employee {
   reports_to?: string;
   upi_id?: string;
   status: 'active' | 'inactive';
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface Course {
@@ -51,59 +53,19 @@ export interface Course {
   created_at: string;
 }
 
-export interface FollowUpLog {
-  id?: string;
-  _id?: string;
-  date: string;
-  remarks: string;
-  student_interest?: 'High' | 'Medium' | 'Low' | 'Not Interested' | string;
-  presentation?: 'Not Scheduled' | 'Scheduled' | 'Completed' | 'Not Attended' | string;
-  next_followup_date?: string;
-  admission_status?: string;
-  proof_url?: string;
-  recorded_by?: string;
-  createdAt?: string;
-}
-
 export interface Lead {
   id: string;
-  _id?: string;
-  lead_id?: string;
   name: string;
-  contact_number?: string;
-  phone?: string;
-  whats_number?: string;
-  whatsapp_number?: string;
-  district: string;
-  place?: string;
-  age?: number | string;
-  qualification?: string;
-  college_name?: string;
-  current_year?: string;
-  interested_topic?: string;
-  interested_course?: string;
-  course?: string;
-  employee?: string;
+  phone: string;
   email?: string;
-  address?: string;
-
-  // Follow-up & Admission
-  lead_source?: string;
-  source?: string;
-  student_interest?: 'High' | 'Medium' | 'Low' | 'Not Interested' | string;
-  next_followup_date?: string;
-  remarks?: string;
-  notes?: string;
-  admission_status?: string;
-  status?: any;
+  course: string;
+  district: string;
+  employee: string;
+  status: number; // 1: New, 2: Contacted, 3: In Progress, 4: Won, 5: Lost
   statusLabel?: string;
-  presentation?: 'Not Scheduled' | 'Scheduled' | 'Completed' | 'Not Attended' | string;
-  student_id?: string;
-  proof_url?: string;
-  followups?: FollowUpLog[];
-  created_at?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  source: string;
+  notes?: string;
+  created_at: string;
 }
 
 export interface AttendanceRecord {
@@ -123,11 +85,14 @@ export interface Team {
   _id?: string;
   name: string;
   district?: string;
+  districts?: string[];
   zone?: string;
   team_lead?: string;
+  is_office?: boolean;
   description?: string;
   members_count?: number;
   created_at?: string;
+  createdAt?: string;
 }
 
 export interface Task {
