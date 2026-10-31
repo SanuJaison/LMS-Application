@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/apiAuth';
 
 /**
  * GET /api/sources
  * Returns the list of standard lead source options for Kerala Institute.
+ * Requires a valid Bearer token.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const guard = await requireAuth(req);
+  if (!guard.ok) return guard.response;
+
   const sources = [
     { id: 1, name: 'College Visit' },
     { id: 2, name: 'Referral' },

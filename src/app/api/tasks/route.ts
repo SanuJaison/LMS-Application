@@ -1,38 +1,52 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Task, EmployeeTask } from '@/models';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { Task } from '@/models';
 import { numericId } from '@/lib/employeeAuth';
+import {
+  andFilter,
+  canAccessEmployee,
+  getScope,
+  requireAuth,
+  scopeFilter,
+} from '@/lib/apiAuth';
 
 /**
  * GET /api/tasks
- * Returns tasks assigned to the employee or team.
+ * Tasks for the caller and, for managers, their team.
+ * Requires a Bearer token; no token no longer returns every task.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const { auth } = guard;
+    const scope = await getScope(auth);
 
     const { searchParams } = new URL(req.url);
-    const assignedTo = searchParams.get('assigned_to') || employee?.name;
+    const assignedTo = (searchParams.get('assigned_to') || '').trim();
 
-    const query: Record<string, any> = {};
+    const filters: Record<string, any>[] = [
+      scopeFilter(scope, { nameFields: ['assigned_to'] }),
+    ];
+
     if (assignedTo) {
-      query.$or = [
-        { assigned_to: new RegExp(`^${assignedTo.trim()}$`, 'i') },
-        { assigned_to: 'Unassigned' },
-      ];
+      if (!canAccessEmployee(scope, '', assignedTo)) {
+        return NextResponse.json(
+          { success: false, message: 'You cannot view this employee\'s tasks.' },
+          { status: 403 }
+        );
+      }
+      filters.push({
+        assigned_to: new RegExp(`^${escapeRegex(assignedTo)}$`, 'i'),
+      });
     }
 
-    const tasks = await Task.find(query).sort({ createdAt: -1 }).lean();
+    const tasks = await Task.find(andFilter(...filters))
+      .sort({ createdAt: -1 })
+      .lean();
 
     const data = tasks.map((t: any) => ({
       id: numericId(t._id) || t._id.toString(),
@@ -62,4 +76,8 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

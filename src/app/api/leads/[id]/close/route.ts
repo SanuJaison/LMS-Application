@@ -5,8 +5,8 @@ import { Employee } from '@/models/employee';
 import { Wallet } from '@/models';
 import { Incentive } from '@/models/incentive';
 import { findLeadByAnyId } from '@/lib/mobileLead';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAuth';
 
 /**
  * POST /api/leads/[id]/close
@@ -27,12 +27,22 @@ export async function POST(
     await connectDB();
     const { id } = await params;
 
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
+
     const lead: any = await findLeadByAnyId(id);
     if (!lead) {
       return NextResponse.json(
         { success: false, message: `Lead with ID ${id} not found.` },
         { status: 404 }
       );
+    }
+
+    if (!canAccessEmployee(scope, lead.employee_id, lead.employee)) {
+      return forbidden('This lead is outside your hierarchy.');
     }
 
     const body = await req.json().catch(() => ({}));
@@ -67,8 +77,6 @@ export async function POST(
     }
 
     // Determine closer
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
     let bdeEmployee: any = null;
 
     if (lead.employee_id) {
@@ -76,11 +84,11 @@ export async function POST(
     }
     if (!bdeEmployee && lead.employee && lead.employee !== 'Unassigned') {
       bdeEmployee = await Employee.findOne({
-        name: new RegExp(`^${lead.employee.trim()}$`, 'i'),
+        name: new RegExp(`^${escapeRegex(lead.employee.trim())}$`, 'i'),
       }).lean();
     }
-    if (!bdeEmployee && decoded?.role === 'employee' && decoded.id) {
-      bdeEmployee = await Employee.findById(decoded.id).lean();
+    if (!bdeEmployee && auth.employee) {
+      bdeEmployee = auth.employee;
     }
 
     const bdeId = bdeEmployee?.employee_id || lead.employee_id || 'BDE-UNKNOWN';
@@ -216,4 +224,8 @@ export async function POST(
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

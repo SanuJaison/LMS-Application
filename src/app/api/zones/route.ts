@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Zone } from '@/models/zone';
+import { requireAdmin } from '@/lib/adminAuth';
+import { requireAuth } from '@/lib/apiAuth';
 
 const DEFAULT_ZONES = [
   { name: 'South Zone', description: 'South Kerala regional zone (TVM, Kollam, Alappuzha, Pathanamthitta, Kottayam)' },
@@ -12,11 +14,15 @@ const DEFAULT_ZONES = [
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/zones - Fetch all zones
+ * GET /api/zones - Fetch all zones (any valid token)
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
     let zones = await Zone.find().sort({ name: 1 }).lean();
 
     // Auto-seed default Kerala zones if empty
@@ -35,10 +41,13 @@ export async function GET() {
 }
 
 /**
- * POST /api/zones - Create a new zone
+ * POST /api/zones - Create a new zone (admin only)
  */
 export async function POST(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json();
 

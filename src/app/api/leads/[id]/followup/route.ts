@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { findLeadByAnyId } from '@/lib/mobileLead';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAuth';
 
 /**
  * POST /api/leads/[id]/followup
@@ -17,12 +17,22 @@ export async function POST(
     await connectDB();
     const { id } = await params;
 
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
+
     const lead: any = await findLeadByAnyId(id);
     if (!lead) {
       return NextResponse.json(
         { success: false, message: `Lead with ID ${id} not found.` },
         { status: 404 }
       );
+    }
+
+    if (!canAccessEmployee(scope, lead.employee_id, lead.employee)) {
+      return forbidden('This lead is outside your hierarchy.');
     }
 
     const body = await req.json().catch(() => ({}));
@@ -45,9 +55,7 @@ export async function POST(
       );
     }
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    const recorderName = decoded?.name || lead.employee || 'User';
+    const recorderName = auth.name || lead.employee || 'User';
 
     const nextDate = body.next_followup_date || body.followup_date || '';
     const remarks = String(body.remarks || body.notes || '').trim();

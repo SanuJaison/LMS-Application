@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { getNextStudentId } from '@/lib/studentId';
+import { requireAuth } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+/**
+ * GET /api/leads/next-student-id
+ * Returns the next sequential student ID. Requires a valid Bearer token.
+ */
+export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
     const studentId = await getNextStudentId();
     return NextResponse.json({
       success: true,

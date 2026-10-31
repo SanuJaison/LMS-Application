@@ -1,30 +1,24 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Leave } from '@/models';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { numericId } from '@/lib/employeeAuth';
+import { requireEmployee } from '@/lib/apiAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/leaves/apply
- * Applies for leave.
+ * Applies for leave as the signed-in employee. The employee name always comes
+ * from the token; `employee` / `name` in the body are ignored.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
     const body = await req.json().catch(() => ({}));
-    const employeeName =
-      employee?.name || body.employee || body.name || 'Employee';
+    const employeeName = guard.auth.name;
 
     const leave = await Leave.create({
       employee: employeeName,

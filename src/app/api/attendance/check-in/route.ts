@@ -1,33 +1,32 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireEmployee } from '@/lib/apiAuth';
 import { formatTime, todayKey } from '@/lib/employeeAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/attendance/check-in
- * Records daily employee check-in with timestamp and optional coordinates.
+ * Records today's check-in for the signed-in employee.
+ *
+ * The employee is always taken from the Bearer token. `employee_id` / `name`
+ * in the body are ignored, so one employee can no longer check in for another.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const { auth } = guard;
+    const employee = auth.employee;
+    const employeeId = auth.employeeId;
+    const employeeName = auth.name;
 
-    // Support FormData or JSON body
     let latitude: number | null = null;
     let longitude: number | null = null;
     let address = '';
-    let employeeId = employee?.employee_id || '';
-    let employeeName = employee?.name || '';
 
     const contentType = req.headers.get('content-type') || '';
     if (contentType.includes('multipart/form-data')) {
@@ -35,24 +34,11 @@ export async function POST(req: Request) {
       latitude = parseFloat(String(formData.get('latitude') || '0')) || null;
       longitude = parseFloat(String(formData.get('longitude') || '0')) || null;
       address = String(formData.get('address') || '');
-      if (!employeeId) employeeId = String(formData.get('employee_id') || '');
-      if (!employeeName) employeeName = String(formData.get('name') || '');
     } else {
       const body = await req.json().catch(() => ({}));
       latitude = body.latitude ?? null;
       longitude = body.longitude ?? null;
       address = body.address || '';
-      if (!employeeId) employeeId = body.employee_id || '';
-      if (!employeeName) employeeName = body.name || '';
-    }
-
-    if (!employee && employeeId) {
-      employee = await Employee.findOne({ employee_id: employeeId }).lean();
-      if (employee) employeeName = employee.name;
-    }
-
-    if (!employeeName) {
-      employeeName = 'Employee';
     }
 
     const today = todayKey();
@@ -61,7 +47,7 @@ export async function POST(req: Request) {
     let record = await Attendance.findOne({
       $or: [
         { employee_id: employeeId, date: today },
-        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+        { name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i'), date: today },
       ],
     });
 
@@ -81,6 +67,7 @@ export async function POST(req: Request) {
       record.status = 'ONLINE';
       if (latitude) (record as any).latitude = latitude;
       if (longitude) (record as any).longitude = longitude;
+      if (address) (record as any).address = address;
       await record.save();
     } else {
       record = await Attendance.create({
@@ -120,4 +107,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

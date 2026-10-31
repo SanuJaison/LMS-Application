@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Institute } from '@/models/institute';
 import { numericId } from '@/lib/employeeAuth';
+import { requireAuth } from '@/lib/apiAuth';
 
 /**
- * GET /api/institutes - List institutes
- * POST /api/institutes - Create institute
+ * GET /api/institutes - List institutes (any valid token)
+ * POST /api/institutes - Create institute (any valid token)
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
     const { searchParams } = new URL(req.url);
 
     const district = searchParams.get('district');
@@ -51,6 +56,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
     const body = await req.json().catch(() => ({}));
 
     if (!body.name || !String(body.name).trim()) {

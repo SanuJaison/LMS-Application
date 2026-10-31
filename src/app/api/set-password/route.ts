@@ -2,42 +2,64 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { User } from '@/models/users';
+import { requireAdmin } from '@/lib/adminAuth';
 import bcrypt from 'bcryptjs';
 
 /**
  * POST /api/set-password
- * Set / reset password for employee.
+ * Set / reset an employee or admin password.
+ *
+ * Admin only. Previously this was unauthenticated, which let anyone overwrite
+ * any account's password.
  */
 export async function POST(req: Request) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
     const body = await req.json().catch(() => ({}));
     const { employee_id, email, password } = body;
 
-    if (!password || !password.trim()) {
+    if (!password || !String(password).trim()) {
       return NextResponse.json(
         { success: false, message: 'Password is required' },
         { status: 400 }
       );
     }
 
-    const hashedPassword = bcrypt.hashSync(password.trim(), 10);
+    if (!employee_id && !email) {
+      return NextResponse.json(
+        { success: false, message: 'employee_id or email is required' },
+        { status: 400 }
+      );
+    }
+
+    const hashedPassword = bcrypt.hashSync(String(password).trim(), 10);
 
     const emp = await Employee.findOneAndUpdate(
       {
         $or: [
           ...(employee_id ? [{ employee_id }] : []),
-          ...(email ? [{ email: email.toLowerCase() }] : []),
+          ...(email ? [{ email: String(email).toLowerCase() }] : []),
         ],
       },
       { password: hashedPassword },
       { new: true }
     );
 
+    let userUpdated = null;
     if (email) {
-      await User.findOneAndUpdate(
-        { email: email.toLowerCase() },
+      userUpdated = await User.findOneAndUpdate(
+        { email: String(email).toLowerCase() },
         { password: hashedPassword }
+      );
+    }
+
+    if (!emp && !userUpdated) {
+      return NextResponse.json(
+        { success: false, message: 'Account not found' },
+        { status: 404 }
       );
     }
 

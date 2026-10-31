@@ -1,6 +1,8 @@
 import { connection } from "@/lib/db";
 import district from "@/models/districtModel";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { requireAuth } from "@/lib/apiAuth";
 
 // Default Kerala districts seeded automatically when the collection is empty
 const DEFAULT_DISTRICTS = [
@@ -24,6 +26,9 @@ const DEFAULT_DISTRICTS = [
 export async function GET(req: NextRequest) {
   try {
     await connection();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
     const search = req.nextUrl.searchParams.get("search");
 
@@ -57,6 +62,9 @@ export async function GET(req: NextRequest) {
 // 2. POST: Create new district
 export async function POST(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const body = await req.json();
@@ -88,6 +96,9 @@ export async function POST(req: NextRequest) {
 // 3. PUT: Update district (via body: { id / _id, name, zone, description })
 export async function PUT(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const body = await req.json();
@@ -131,6 +142,9 @@ export async function PUT(req: NextRequest) {
 // 4. DELETE: Delete district (via query param ?id=... or body { id })
 export async function DELETE(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const searchParams = req.nextUrl.searchParams;

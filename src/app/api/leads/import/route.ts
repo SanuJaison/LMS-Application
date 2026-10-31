@@ -1,44 +1,81 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { getNextStudentId } from '@/lib/studentId';
 import { assignLegacyIds, resolveEmployeeAssignment } from '@/lib/mobileLead';
+import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAuth';
 
 /**
  * POST /api/leads/import
- * Bulk CSV lead upload endpoint
+ * Bulk CSV lead upload endpoint.
+ *
+ * Accepts multipart/form-data with a `file` field, or a JSON body `{ csv }`.
+ * Employees always import leads assigned to themselves; managers may pass
+ * `employee` / `employee_id`, which must be inside their hierarchy.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    let defaultEmployee = '';
-    let defaultEmployeeId = '';
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      const me: any = await Employee.findById(decoded.id).lean();
-      if (me) {
-        defaultEmployee = me.name;
-        defaultEmployeeId = me.employee_id;
-      }
+    const { auth } = guard;
+    const scope = await getScope(auth);
+
+    const contentType = req.headers.get('content-type') || '';
+    let csvText = '';
+    let requestedEmployee = '';
+    let requestedEmployeeId = '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      const file = formData.get('file') as File | null;
+      if (file) csvText = await file.text();
+      requestedEmployee = String(formData.get('employee') || '').trim();
+      requestedEmployeeId = String(formData.get('employee_id') || '').trim();
+    } else {
+      const body = await req.json().catch(() => ({}));
+      csvText = String(body.csv || body.data || '');
+      requestedEmployee = String(body.employee || '').trim();
+      requestedEmployeeId = String(body.employee_id || '').trim();
     }
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
+    if (!csvText.trim()) {
       return NextResponse.json(
         { success: false, message: 'No CSV file uploaded' },
         { status: 400 }
       );
     }
 
-    const text = await file.text();
-    const lines = text
+    let defaultEmployee = '';
+    let defaultEmployeeId = '';
+
+    if (auth.employee) {
+      defaultEmployee = auth.name;
+      defaultEmployeeId = auth.employeeId;
+    } else {
+      if (!requestedEmployee && !requestedEmployeeId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Validation failed: employee or employee_id is required for bulk import.',
+          },
+          { status: 400 }
+        );
+      }
+      if (!auth.isAdmin && !canAccessEmployee(scope, requestedEmployeeId, requestedEmployee)) {
+        return forbidden('You cannot import leads for an employee outside your hierarchy.');
+      }
+      const assignment = await resolveEmployeeAssignment({
+        employee: requestedEmployee,
+        employee_id: requestedEmployeeId,
+      });
+      defaultEmployee = assignment.employee || requestedEmployee;
+      defaultEmployeeId = assignment.employee_id || requestedEmployeeId;
+    }
+
+    const lines = csvText
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean);
@@ -83,8 +120,8 @@ export async function POST(req: Request) {
         district,
         course,
         interested_course: course,
-        employee: defaultEmployee || 'Unassigned',
-        employee_id: defaultEmployeeId || '',
+        employee: defaultEmployee,
+        employee_id: defaultEmployeeId,
         status: 1,
         admission_status: 'New',
         source: 'Bulk Import',

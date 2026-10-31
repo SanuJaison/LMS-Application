@@ -1,51 +1,38 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireEmployee } from '@/lib/apiAuth';
 import { formatTime, parseTimeToMinutes, todayKey } from '@/lib/employeeAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/attendance/check-out
- * Records daily employee check-out and computes hours worked.
+ * Records today's check-out for the signed-in employee.
+ *
+ * Identity comes from the Bearer token. The Attendance `status` enum only
+ * allows ONLINE / OFFLINE, so a completed day is stored as OFFLINE.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const { auth } = guard;
+    const employee = auth.employee;
+    const employeeId = auth.employeeId;
+    const employeeName = auth.name;
 
-    let employeeId = employee?.employee_id || '';
-    let employeeName = employee?.name || '';
     let notes = '';
 
     const contentType = req.headers.get('content-type') || '';
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       notes = String(formData.get('notes') || '');
-      if (!employeeId) employeeId = String(formData.get('employee_id') || '');
-      if (!employeeName) employeeName = String(formData.get('name') || '');
     } else {
       const body = await req.json().catch(() => ({}));
       notes = body.notes || '';
-      if (!employeeId) employeeId = body.employee_id || '';
-      if (!employeeName) employeeName = body.name || '';
-    }
-
-    if (!employee && employeeId) {
-      employee = await Employee.findOne({ employee_id: employeeId }).lean();
-      if (employee) employeeName = employee.name;
-    }
-
-    if (!employeeName) {
-      employeeName = 'Employee';
     }
 
     const today = todayKey();
@@ -54,7 +41,7 @@ export async function POST(req: Request) {
     let record = await Attendance.findOne({
       $or: [
         { employee_id: employeeId, date: today },
-        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+        { name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i'), date: today },
       ],
     });
 
@@ -69,7 +56,7 @@ export async function POST(req: Request) {
 
     if (record) {
       record.check_out = checkOutTime;
-      record.status = 'COMPLETED';
+      record.status = 'OFFLINE';
       record.hours_worked = hoursWorked;
       if (notes) (record as any).notes = notes;
       await record.save();
@@ -82,7 +69,7 @@ export async function POST(req: Request) {
         date: today,
         check_in: '09:00 AM',
         check_out: checkOutTime,
-        status: 'COMPLETED',
+        status: 'OFFLINE',
         hours_worked: hoursWorked,
       });
     }
@@ -111,4 +98,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

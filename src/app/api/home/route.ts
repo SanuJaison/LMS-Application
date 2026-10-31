@@ -4,59 +4,51 @@ import { Employee } from '@/models/employee';
 import { Lead } from '@/models/lead';
 import { Attendance } from '@/models/attendence';
 import { Wallet } from '@/models';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { hierarchyRole } from '@/lib/hierarchy';
 import { numericId, todayKey } from '@/lib/employeeAuth';
+import {
+  getScope,
+  leadScopeFilter,
+  requireEmployee,
+  scopeFilter,
+  type Scope,
+} from '@/lib/apiAuth';
 
 /**
  * GET /api/home
- * Main Dashboard Feed endpoint for the mobile app (HomeDashboardModel).
+ *
+ * One endpoint, three role-specific dashboards:
+ *   - BDE  -> only their own leads, wallet, attendance and performance
+ *   - ASM  -> their own data + the BDEs that report to them
+ *   - SM   -> their own data + every ASM and BDE below them
+ *
+ * Requires an employee Bearer token. There is no "first active employee"
+ * fallback any more: no token returns 401.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const { auth } = guard;
+    const employee = auth.employee;
+    const employeeId = auth.employeeId;
+    const employeeName = auth.name;
+    const role = hierarchyRole(employee);
 
-    if (!employee) {
-      // Fallback
-      const { searchParams } = new URL(req.url);
-      const email = searchParams.get('email');
-      const empId = searchParams.get('employee_id');
+    const scope = await getScope(auth);
+    const leads = (await Lead.find(leadScopeFilter(scope)).lean()) as any[];
 
-      if (email || empId) {
-        employee = await Employee.findOne({
-          $or: [
-            ...(email ? [{ email: email.toLowerCase() }] : []),
-            ...(empId ? [{ employee_id: empId }] : []),
-          ],
-        }).lean();
-      } else {
-        employee = await Employee.findOne({ status: 'active' }).lean();
-      }
-    }
+    // ---------------------------------------------------------------- own data
+    const ownLeads = leads.filter((lead) => belongsTo(lead, employeeId, employeeName));
 
-    const employeeName = employee?.name || 'Employee';
-    const employeeId = employee?.employee_id || 'EMP001';
-    const role = employee ? hierarchyRole(employee) : 'BDE';
-    const designationName =
-      employee?.designation || (role === 'ASM' ? 'Area Sales Manager' : 'Business Development Executive');
-    const teamName = employee?.team || 'TVM Team';
-
-    const empNumericId = numericId(employee?._id) || 101;
-
-    // 1. Attendance Today
     const today = todayKey();
     const todayAtt: any = await Attendance.findOne({
       $or: [
         { employee_id: employeeId, date: today },
-        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+        { name: new RegExp(`^${escape(employeeName)}$`, 'i'), date: today },
       ],
     }).lean();
 
@@ -65,91 +57,87 @@ export async function GET(req: Request) {
     const checkOutTime = todayAtt?.check_out || '--:--';
     const shiftStatus = todayAtt ? (isCheckedIn ? 'ONLINE' : 'COMPLETED') : 'NOT_STARTED';
 
-    // 2. Leads & Performance
-    const leadQuery: Record<string, any> = {};
-    if (role === 'BDE') {
-      leadQuery.$or = [
-        { employee_id: employeeId },
-        { employee: new RegExp(`^${employeeName.trim()}$`, 'i') },
-      ];
-    } else if (role === 'ASM') {
-      leadQuery.$or = [{ asm_id: employeeId }, { team: teamName }];
-    }
-
-    const allLeads = await Lead.find(leadQuery).lean();
-
-    const assignedLeads = allLeads.length;
-    const followUpLeads = allLeads.filter(
-      (l: any) =>
-        l.admission_status === 'Follow-up' ||
-        l.admission_status === 'Interested' ||
-        l.status === 2 ||
-        l.status === 3
-    ).length;
-    const closedLeads = allLeads.filter(
-      (l: any) =>
-        l.admission_status === 'Admitted' ||
-        l.admission_status === 'Closed' ||
-        l.status === 4 ||
-        l.status === 5
-    ).length;
-
-    // 3. Wallet / Incentives
     const wallet: any = await Wallet.findOne({
       $or: [
         { employee_id: employeeId },
-        { employee: new RegExp(`^${employeeName.trim()}$`, 'i') },
+        { employee: new RegExp(`^${escape(employeeName)}$`, 'i') },
       ],
     }).lean();
 
-    const incentivesEarned = wallet?.total_earned ?? closedLeads * 1000;
+    // ------------------------------------------------------- role-scoped data
+    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs.
+    const scopedLeads = role === 'BDE' ? ownLeads : leads;
 
-    // 4. Subordinate BDE Status (if manager / ASM)
-    let subordinateList: any[] = [];
-    if (role === 'ASM' || role === 'SM') {
-      const bdes: any[] = await Employee.find({
-        $or: [
-          { reports_to: employeeId },
-          { team: teamName, designation: /business development executive/i },
-        ],
-      }).lean();
+    const assignedLeads = scopedLeads.length;
+    const followUpLeads = scopedLeads.filter(isFollowUp).length;
+    const closedLeads = scopedLeads.filter(isClosed).length;
+    const ownClosedLeads = ownLeads.filter(isClosed).length;
 
-      subordinateList = bdes.map((bde) => {
-        const bdeLeads = allLeads.filter((l: any) => l.employee_id === bde.employee_id);
-        const bdeClosed = bdeLeads.filter(
-          (l: any) =>
-            l.admission_status === 'Admitted' ||
-            l.admission_status === 'Closed' ||
-            l.status === 4
-        ).length;
-        const conv =
-          bdeLeads.length > 0 ? Math.round((bdeClosed / bdeLeads.length) * 100) : 0;
+    const incentivesEarned = wallet?.total_earned ?? ownClosedLeads * 1000;
 
-        return {
-          id: numericId(bde._id) || 1,
-          name: bde.name,
-          designation: bde.designation || 'Business Development Executive',
-          conversion_percentage: `${conv}%`,
-          leads_assigned: `${bdeLeads.length}`,
-          online_status: bde.status === 'active' ? 'ONLINE' : 'OFFLINE',
-          online_time: '09:00 AM',
-          location_lat: 10.0159,
-          location_lng: 76.3419,
-        };
-      });
-    }
+    // Subordinates: only people below the caller (never team-wide).
+    const subordinates =
+      role === 'BDE'
+        ? []
+        : ((await Employee.find({
+            employee_id: { $in: scope.ids.filter((id) => id !== employeeId) },
+          }).lean()) as any[]);
+
+    const bdeSubordinates = subordinates.filter((e) => hierarchyRole(e) === 'BDE');
+    const asmSubordinates = subordinates.filter((e) => {
+      const r = hierarchyRole(e);
+      return r === 'ASM' || r === 'BDM';
+    });
+
+    const subordinateList = bdeSubordinates.map((bde) => {
+      const bdeLeads = scopedLeads.filter((lead) =>
+        belongsTo(lead, bde.employee_id, bde.name)
+      );
+      const bdeClosed = bdeLeads.filter(isClosed).length;
+      const conv =
+        bdeLeads.length > 0 ? Math.round((bdeClosed / bdeLeads.length) * 100) : 0;
+
+      return {
+        id: numericId(bde._id) || 1,
+        employee_id: bde.employee_id || '',
+        name: bde.name,
+        designation: bde.designation || 'Business Development Executive',
+        conversion_percentage: `${conv}%`,
+        leads_assigned: `${bdeLeads.length}`,
+        online_status: bde.status === 'active' ? 'ONLINE' : 'OFFLINE',
+        online_time: '09:00 AM',
+        location_lat: 10.0159,
+        location_lng: 76.3419,
+      };
+    });
 
     const conversionRate =
       assignedLeads > 0 ? Math.round((closedLeads / assignedLeads) * 100) : 0;
 
     const payload = {
       user: {
-        id: empNumericId,
+        id: numericId(employee?._id) || 101,
+        employee_id: employeeId,
         name: employeeName,
         email: employee?.email || '',
+        role,
       },
-      designation_id: role === 'ASM' ? 401 : role === 'SM' ? 301 : 501,
-      designation_name: designationName,
+      designation_id: role === 'SM' ? 301 : role === 'ASM' ? 401 : 501,
+      designation_name:
+        employee?.designation ||
+        (role === 'SM'
+          ? 'Sales Manager'
+          : role === 'ASM'
+            ? 'Area Sales Manager'
+            : 'Business Development Executive'),
+      dashboard_type: role === 'SM' ? 'sm' : role === 'ASM' ? 'asm' : 'bde',
+      team_name: employee?.team || '',
+      scope: {
+        role,
+        visible_employees: scope.isAll ? 'all' : scope.ids.length,
+        visible_bdes: bdeSubordinates.length,
+        visible_asms: asmSubordinates.length,
+      },
       attendance: {
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
@@ -159,9 +147,12 @@ export async function GET(req: Request) {
         location_lng: todayAtt?.longitude ?? 76.3419,
       },
       eod_sync: {
-        tasks_completed: closedLeads,
-        total_tasks: Math.max(assignedLeads, 15),
-        completion_percentage: conversionRate,
+        tasks_completed: ownClosedLeads,
+        total_tasks: Math.max(ownLeads.length, 15),
+        completion_percentage:
+          ownLeads.length > 0
+            ? Math.round((ownClosedLeads / ownLeads.length) * 100)
+            : 0,
       },
       operational_overview: {
         assigned_leads: assignedLeads,
@@ -169,22 +160,29 @@ export async function GET(req: Request) {
         closed_leads: closedLeads,
         incentives_earned: incentivesEarned,
       },
-      dashboard_type: role === 'ASM' ? 'asm' : role === 'SM' ? 'sm' : 'bde',
-      team_name: teamName,
       team_metrics: {
         team_leads: assignedLeads,
-        team_admissions: closedAdmissionsCount(allLeads),
+        team_admissions: closedLeads,
         team_conversion: `${conversionRate}%`,
         visits_pending: followUpLeads,
       },
       team_subordinate_status: {
         bdes: subordinateList,
+        asms: asmSubordinates.map((asm) => ({
+          id: numericId(asm._id) || 1,
+          employee_id: asm.employee_id || '',
+          name: asm.name,
+          designation: asm.designation || 'Area Sales Manager',
+          team: asm.team || '',
+          leads_assigned: `${scopedLeads.filter((l) => l.asm_id === asm.employee_id).length}`,
+          online_status: asm.status === 'active' ? 'ONLINE' : 'OFFLINE',
+        })),
       },
       territory_report: [
         {
           district_name: employee?.district || 'Ernakulam',
           target: 100,
-          achieved: closedLeads,
+          achieved: ownClosedLeads,
           growth_rate: '+12.5%',
         },
       ],
@@ -192,7 +190,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Home dashboard data loaded',
+      message: `${role} home dashboard loaded`,
       data: payload,
     });
   } catch (error: any) {
@@ -204,12 +202,31 @@ export async function GET(req: Request) {
   }
 }
 
-function closedAdmissionsCount(leads: any[]): number {
-  return leads.filter(
-    (l) =>
-      l.admission_status === 'Admitted' ||
-      l.admission_status === 'Closed' ||
-      l.status === 4 ||
-      l.status === 5
-  ).length;
+function belongsTo(lead: any, employeeId: string, name: string): boolean {
+  if (!lead) return false;
+  if (employeeId && String(lead.employee_id || '') === employeeId) return true;
+  if (name && String(lead.employee || '').toLowerCase() === name.toLowerCase()) return true;
+  return false;
+}
+
+function isFollowUp(lead: any): boolean {
+  return (
+    lead.admission_status === 'Follow-up' ||
+    lead.admission_status === 'Interested' ||
+    lead.status === 2 ||
+    lead.status === 3
+  );
+}
+
+function isClosed(lead: any): boolean {
+  return (
+    lead.admission_status === 'Admitted' ||
+    lead.admission_status === 'Closed' ||
+    lead.status === 4 ||
+    lead.status === 5
+  );
+}
+
+function escape(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

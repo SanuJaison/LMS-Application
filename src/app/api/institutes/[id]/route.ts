@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
 import { Institute } from '@/models/institute';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireAdmin } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,17 +13,10 @@ export const dynamic = 'force-dynamic';
  */
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connectDB();
-
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-
-    if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'manager')) {
-      return NextResponse.json(
-        { success: false, message: 'Only admins can delete institutes.' },
-        { status: 403 }
-      );
-    }
 
     const value = String(params.id || '').trim();
     const filter = mongoose.isValidObjectId(value)

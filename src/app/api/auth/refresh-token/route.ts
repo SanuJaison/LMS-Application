@@ -1,26 +1,38 @@
 import { NextResponse } from 'next/server';
+import { authenticate, unauthorized } from '@/lib/apiAuth';
 import { extractTokenFromHeader, signToken, verifyToken } from '@/lib/jwt';
 
 /**
  * POST /api/auth/refresh-token
- * Refreshes an expired or active JWT token.
+ * Issues a fresh 30-day token for a valid, active identity.
+ *
+ * Invalid, expired or inactive identities are rejected with 401. The old
+ * behaviour of signing `{ role: 'employee' }` for any garbage token is gone.
  */
 export async function POST(req: Request) {
   try {
-    const token = extractTokenFromHeader(req);
     const body = await req.json().catch(() => ({}));
-    const rawToken = token || body.token;
+    const token = extractTokenFromHeader(req) || String(body.token || '').trim();
 
-    if (!rawToken) {
+    if (!token) {
       return NextResponse.json(
         { success: false, message: 'No token provided' },
         { status: 400 }
       );
     }
 
-    const decoded = verifyToken(rawToken);
-    const payload = decoded || { role: 'employee' };
+    // The token must still verify (refresh happens before expiry) and the
+    // identity must be active in the database.
+    if (!verifyToken(token)) {
+      return unauthorized('Invalid or expired token. Please log in again.');
+    }
 
+    const auth = await authenticate(req);
+    if (!auth) {
+      return unauthorized('Invalid or expired token. Please log in again.');
+    }
+
+    const payload = { ...auth.decoded };
     delete (payload as any).iat;
     delete (payload as any).exp;
 

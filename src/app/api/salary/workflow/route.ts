@@ -1,35 +1,70 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { SalaryRequest } from '@/models/salaryRequest';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import {
+  canAccessEmployee,
+  forbidden,
+  getScope,
+  requireAuth,
+} from '@/lib/apiAuth';
 
 /**
  * POST /api/salary/workflow
- * Moves a salary request through the official approval chain:
- * BDE -> ASM -> SM -> Accounts -> Payment Sanction
+ * Moves a salary request through BDE -> ASM -> SM -> Accounts -> Payment.
  *
- * Request Body:
- * {
- *   "request_id": "SAL-1001",
- *   "action": "forward_to_sm" | "forward_to_accounts" | "sanction" | "pay" | "reject",
- *   "remarks": "Verified attendance and approved",
- *   "transaction_reference": "TXN987654" (required when paying)
- * }
+ * Authorization per action:
+ *   forward_to_sm / asm_approve        -> ASM / BDM / SM / admin
+ *   forward_to_accounts / sm_approve   -> SM / admin
+ *   sanction / approve / pay           -> admin only
+ *   reject                             -> ASM / BDM / SM / admin
+ *
+ * Non-admin callers can only act on requests inside their own hierarchy.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    const actorName = decoded?.name || 'Administrator';
-    const actorRole = decoded?.role || 'admin';
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
+    const { auth } = guard;
     const body = await req.json().catch(() => ({}));
     const { request_id, id, action, remarks, transaction_reference } = body;
 
-    const request = await SalaryRequest.findOne({
+    const normalizedAction = String(action || '').toLowerCase();
+
+    const allowed: Record<string, string[]> = {
+      forward_to_sm: ['ASM', 'BDM', 'SM', 'ADMIN'],
+      asm_approve: ['ASM', 'BDM', 'SM', 'ADMIN'],
+      forward_to_accounts: ['SM', 'ADMIN'],
+      sm_approve: ['SM', 'ADMIN'],
+      sanction: ['ADMIN'],
+      approve: ['ADMIN'],
+      accounts_approve: ['ADMIN'],
+      pay: ['ADMIN'],
+      mark_paid: ['ADMIN'],
+      reject: ['ASM', 'BDM', 'SM', 'ADMIN'],
+    };
+
+    if (!allowed[normalizedAction]) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Invalid action. Valid actions: forward_to_sm, forward_to_accounts, sanction, pay, reject.',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!allowed[normalizedAction].includes(auth.role)) {
+      return forbidden(
+        `Action "${normalizedAction}" requires one of: ${allowed[normalizedAction].join(', ')}.`
+      );
+    }
+
+    const request: any = await SalaryRequest.findOne({
       $or: [
         { request_id: request_id || id },
         ...(id && /^[0-9a-fA-F]{24}$/.test(id) ? [{ _id: id }] : []),
@@ -43,10 +78,24 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!auth.isAdmin) {
+      const scope = await getScope(auth);
+      const inScope =
+        canAccessEmployee(scope, request.employee_id, request.employee_name) ||
+        canAccessEmployee(scope, request.asm_id, request.asm_name);
+
+      if (!inScope) {
+        return forbidden('This salary request is outside your hierarchy.');
+      }
+    }
+
+    const actorName = auth.name || 'Administrator';
+    const actorRole = auth.role;
+
     let nextStatus = request.status;
     let stepDescription = '';
 
-    switch (action?.toLowerCase()) {
+    switch (normalizedAction) {
       case 'forward_to_sm':
       case 'asm_approve':
         nextStatus = 'Forwarded to SM';
@@ -78,24 +127,17 @@ export async function POST(req: Request) {
         nextStatus = 'Rejected';
         stepDescription = `Rejected by ${actorName}`;
         break;
-
-      default:
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              'Invalid action. Valid actions: forward_to_sm, forward_to_accounts, sanction, pay, reject.',
-          },
-          { status: 400 }
-        );
     }
 
     request.status = nextStatus as any;
+    if (!Array.isArray(request.approval_history)) {
+      request.approval_history = [];
+    }
     request.approval_history.push({
       step: stepDescription,
       actor: actorName,
       role: actorRole,
-      action: action.toUpperCase(),
+      action: normalizedAction.toUpperCase(),
       remarks: remarks || '',
       timestamp: new Date(),
     });

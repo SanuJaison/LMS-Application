@@ -1,53 +1,59 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Incentive } from '@/models/incentive';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
-import { hierarchyRole } from '@/lib/hierarchy';
+import {
+  andFilter,
+  getScope,
+  requireAuth,
+  scopeFilter,
+} from '@/lib/apiAuth';
 
 /**
  * GET /api/incentives
- * Lists individual incentive records for closed admissions.
- * Supports role-based filtering:
- * - BDE sees own incentives
- * - ASM sees team incentives
- * - SM & Admin/Accounts see all
+ * Incentive records visible to the caller:
+ *   - BDE        -> own incentives
+ *   - ASM / BDM  -> own + direct reports
+ *   - SM         -> own + whole subtree
+ *   - admin      -> all
+ *
+ * Requires a Bearer token. Scope-override params (`?bde_id=`, `?asm_id=`,
+ * `?team=`) are ignored for employee tokens, so a BDE can no longer read
+ * another BDE's incentives.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const query: Record<string, any> = {};
+    const filters: Record<string, any>[] = [
+      scopeFilter(scope, {
+        idFields: ['bde_id', 'asm_id'],
+        nameFields: ['bde_name', 'asm_name'],
+      }),
+    ];
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      const me: any = await Employee.findById(decoded.id).lean();
-      if (me) {
-        const role = hierarchyRole(me);
-        if (role === 'BDE') {
-          query.bde_id = me.employee_id;
-        } else if (role === 'ASM') {
-          query.$or = [{ asm_id: me.employee_id }, { team: me.team }];
-        }
-      }
+    // Only admins may narrow by arbitrary employee/team.
+    if (auth.isAdmin) {
+      const bdeId = searchParams.get('bde_id') || searchParams.get('employee_id');
+      if (bdeId) filters.push({ bde_id: bdeId });
+
+      const asmId = searchParams.get('asm_id');
+      if (asmId) filters.push({ asm_id: asmId });
+
+      const team = searchParams.get('team');
+      if (team) filters.push({ team });
     }
 
-    const bdeId = searchParams.get('bde_id') || searchParams.get('employee_id');
-    if (bdeId) query.bde_id = bdeId;
-
-    const asmId = searchParams.get('asm_id');
-    if (asmId) query.asm_id = asmId;
-
-    const team = searchParams.get('team');
-    if (team) query.team = team;
-
     const status = searchParams.get('status');
-    if (status) query.status = status;
+    if (status) filters.push({ status });
 
-    const records = await Incentive.find(query)
+    const records = await Incentive.find(andFilter(...filters))
       .sort({ createdAt: -1 })
       .lean();
 

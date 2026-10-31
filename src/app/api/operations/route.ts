@@ -2,18 +2,25 @@ import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Leave, Wallet } from '@/models';
-import { getEmployee, nameRegex, ok, todayKey } from '@/lib/employeeAuth';
+import { nameRegex, ok, todayKey } from '@/lib/employeeAuth';
+import { requireEmployee } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/operations
  * Combined data for the Operations tab: leaves, wallet, attendance and tasks.
+ * Own records only; requires an employee token.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
+
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
+
+    const employee = guard.auth.employee;
+    const nameFilter = nameRegex(employee.name);
 
     const empty = {
       leaves: [],
@@ -28,11 +35,6 @@ export async function GET(req: Request) {
       },
     };
 
-    if (!employee) {
-      return ok(empty, 'Unauthenticated');
-    }
-
-    const nameFilter = nameRegex(employee.name);
     if (!nameFilter) {
       return ok(empty, 'No operations data found');
     }

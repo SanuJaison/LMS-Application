@@ -1,51 +1,30 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireEmployee } from '@/lib/apiAuth';
 import { todayKey } from '@/lib/employeeAuth';
 
 /**
  * GET /api/attendance/status
- * Returns today's attendance status for the calling employee.
+ * Today's attendance for the signed-in employee only.
+ * Requires an employee Bearer token; query params can no longer impersonate.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
-
-    if (!employee) {
-      const { searchParams } = new URL(req.url);
-      const email = searchParams.get('email');
-      const empId = searchParams.get('employee_id');
-
-      if (email || empId) {
-        employee = await Employee.findOne({
-          $or: [
-            ...(email ? [{ email: email.toLowerCase() }] : []),
-            ...(empId ? [{ employee_id: empId }] : []),
-          ],
-        }).lean();
-      } else {
-        employee = await Employee.findOne({ status: 'active' }).lean();
-      }
-    }
-
-    const employeeName = employee?.name || 'Employee';
-    const employeeId = employee?.employee_id || '';
+    const { auth } = guard;
+    const employeeName = auth.name;
+    const employeeId = auth.employeeId;
     const today = todayKey();
 
     const record: any = await Attendance.findOne({
       $or: [
         { employee_id: employeeId, date: today },
-        { name: new RegExp(`^${employeeName.trim()}$`, 'i'), date: today },
+        { name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i'), date: today },
       ],
     }).lean();
 
@@ -53,6 +32,8 @@ export async function GET(req: Request) {
     const isCheckedOut = Boolean(record && record.check_out);
 
     const payload = {
+      employee_id: employeeId,
+      name: employeeName,
       date: today,
       check_in: record?.check_in || null,
       check_out: record?.check_out || null,
@@ -78,4 +59,8 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

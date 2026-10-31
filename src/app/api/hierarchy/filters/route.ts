@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Zone, District, Designation, Team } from '@/models';
 import { numericId } from '@/lib/employeeAuth';
+import { requireAuth } from '@/lib/apiAuth';
 
 // Avoid build-time static caching of dropdown data on Vercel.
 export const dynamic = 'force-dynamic';
@@ -9,10 +10,14 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/hierarchy/filters
  * Returns combined dropdown options bundle for mobile hierarchy navigation.
+ * Requires a valid Bearer token.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
     const [zones, districts, designations, teams] = await Promise.all([
       Zone.find().lean(),

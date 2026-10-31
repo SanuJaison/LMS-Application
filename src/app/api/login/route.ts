@@ -4,6 +4,7 @@ import { User } from '@/models/users';
 import { Employee } from '@/models/employee';
 import { signToken } from '@/lib/jwt';
 import { hierarchyRole } from '@/lib/hierarchy';
+import { escapeRegex } from '@/lib/employeeAuth';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -30,10 +31,12 @@ export async function POST(req: Request) {
     // 1. Check in Employees Collection first (Mobile app & Field Force)
     const employee: any = await Employee.findOne({
       $or: [
-        { employee_id: new RegExp(`^${identifier}$`, 'i') },
+        { employee_id: new RegExp(`^${escapeRegex(identifier)}$`, 'i') },
         { email: identifier.toLowerCase() },
       ],
-    }).lean();
+    })
+      .select('+password')
+      .lean();
 
     if (employee) {
       // If employee has a hashed password, verify it

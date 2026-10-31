@@ -1,43 +1,23 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { serializeEmployee } from '@/lib/employeeAuth';
+import { requireEmployee } from '@/lib/apiAuth';
 
 /**
  * GET /api/profile
- * Returns the current authenticated employee's profile data.
+ * Returns the signed-in employee's profile data.
+ *
+ * Identity always comes from the Bearer token. The old first-active-employee
+ * fallback (and the ?email= / ?employee_id= override) has been removed.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
-
-    if (!employee) {
-      // Fallback: fetch first active employee or query param
-      const { searchParams } = new URL(req.url);
-      const email = searchParams.get('email');
-      const empId = searchParams.get('employee_id');
-
-      if (email || empId) {
-        employee = await Employee.findOne({
-          $or: [
-            ...(email ? [{ email: email.toLowerCase() }] : []),
-            ...(empId ? [{ employee_id: empId }] : []),
-          ],
-        }).lean();
-      } else {
-        employee = await Employee.findOne({ status: 'active' }).lean();
-      }
-    }
-
+    const employee: any = guard.auth.employee;
     if (!employee) {
       return NextResponse.json(
         { success: false, message: 'Profile not found' },

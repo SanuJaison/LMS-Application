@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team } from '@/models';
+import { andFilter, getScope, requireRoles, scopeFilter } from '@/lib/apiAuth';
 
 // Always read fresh data: Next.js 14 otherwise statically caches this GET at
 // build time, so newly created ASMs never show up on Vercel.
@@ -9,12 +10,20 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/sm/asms
- * Lists all Area Sales Managers (ASMs) with their assigned teams, districts, and BDE counts.
+ * Lists the Area Sales Managers (ASMs) visible to the caller.
+ *   - SM    -> only ASMs that report to that SM
+ *   - admin -> all ASMs
+ *
+ * Requires an SM or admin token. BDE/ASM tokens get 403.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
+    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
     const { searchParams } = new URL(req.url);
     const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();
     const wantedEmployeeId = (
@@ -24,13 +33,22 @@ export async function GET(req: Request) {
     ).trim();
     const wantedEmail = (searchParams.get('email') || '').trim();
 
-    const asms: any[] = await Employee.find({
+    const asmFilter = {
       $or: [
         { designation: /area sales manager/i },
         { employee_id: /^ASM/i },
         { designation: /office team lead/i },
       ],
-    })
+    };
+
+    // An SM only sees ASMs in their own reporting line. Never team-wide.
+    const scope = await getScope(auth);
+    const visibility =
+      auth.isAdmin || auth.role === 'MD'
+        ? {}
+        : scopeFilter(scope, { idFields: ['employee_id'] });
+
+    const asms: any[] = await Employee.find(andFilter(asmFilter, visibility))
       .sort({ employee_id: 1 })
       .lean();
 
@@ -51,10 +69,9 @@ export async function GET(req: Request) {
           t.team_lead?.toLowerCase().includes(asm.name.toLowerCase())
       );
 
+      // Count only BDEs that explicitly report to this ASM (not the whole team).
       const assignedBdes = bdes.filter(
-        (b: any) =>
-          b.reports_to === asm.employee_id ||
-          (asm.team && b.team?.toLowerCase() === asm.team?.toLowerCase())
+        (b: any) => String(b.reports_to || '') === String(asm.employee_id || '')
       );
 
       return {
@@ -67,7 +84,7 @@ export async function GET(req: Request) {
         team: asm.team || teamDoc?.name || '',
         districts: teamDoc?.districts || (asm.district ? [asm.district] : []),
         zone: asm.zone || teamDoc?.zone || '',
-        reports_to: asm.reports_to || 'SM001',
+        reports_to: asm.reports_to || '',
         bdes_count: assignedBdes.length,
         status: asm.status || 'active',
       };
@@ -77,7 +94,6 @@ export async function GET(req: Request) {
     //   /api/sm/asms?id=<mongo id>  |  ?employee_id=ASM001  |  ?email=...
     if (wantedId || wantedEmployeeId || wantedEmail) {
       const one = data.find((asm) => {
-        // `id` accepts any identifier: Mongo _id, employee_id (ASM001) or email.
         const matchesId =
           wantedId &&
           (String(asm.id).toLowerCase() === wantedId.toLowerCase() ||

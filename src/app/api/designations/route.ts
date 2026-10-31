@@ -1,11 +1,16 @@
 import { connection } from "@/lib/db";
 import designation from "@/models/designationModel";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { requireAuth } from "@/lib/apiAuth";
 
 // 1. GET: Fetch all designations (with search filter)
 export async function GET(req: NextRequest) {
   try {
     await connection();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
     const search = req.nextUrl.searchParams.get("search");
 
@@ -35,6 +40,9 @@ export async function GET(req: NextRequest) {
 // 2. POST: Create new designation
 export async function POST(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const body = await req.json();
@@ -65,6 +73,9 @@ export async function POST(req: NextRequest) {
 // 3. PUT: Update designation (via body: { id / _id, name, prefix })
 export async function PUT(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const body = await req.json();
@@ -104,6 +115,9 @@ export async function PUT(req: NextRequest) {
 // 4. DELETE: Delete designation (via query param ?id=... or body { id })
 export async function DELETE(req: NextRequest) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
 
     const searchParams = req.nextUrl.searchParams;

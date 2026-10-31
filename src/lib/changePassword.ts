@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireEmployee } from '@/lib/apiAuth';
 import { checkPassword, hashPassword } from '@/lib/password';
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /**
- * Shared handler for POST /api/set-password and /api/employee/change-password
+ * Shared handler for POST /api/employee/change-password
  *
  * Body:
  *   { "current_password": "old", "new_password": "new" }
  * Aliases: old_password / currentPassword / password / newPassword
  *
- * Auth: Authorization: Bearer <token>, or "employee_id" in the body.
+ * Auth: Authorization: Bearer <employee token>. The account is always taken
+ * from the token; `employee_id` in the body can no longer target another user.
  */
 export async function handleChangePassword(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
     const body = await req.json().catch(() => ({}));
 
@@ -27,9 +27,6 @@ export async function handleChangePassword(req: Request) {
       body.current_password ?? body.old_password ?? body.currentPassword ?? ''
     );
     const newPassword = String(body.new_password ?? body.password ?? body.newPassword ?? '');
-    const employeeIdInput = String(
-      body.employee_id ?? body.emp_id ?? body.employeeId ?? ''
-    ).trim();
 
     if (!currentPassword || !newPassword) {
       return NextResponse.json(
@@ -52,38 +49,13 @@ export async function handleChangePassword(req: Request) {
       );
     }
 
-    // Resolve the employee: JWT first, then employee_id from the body
-    let employee: any = null;
-
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    if (decoded?.id) {
-      employee = await Employee.findById(decoded.id).select('+password');
-    }
-
-    if (!employee && employeeIdInput) {
-      employee = await Employee.findOne({
-        employee_id: { $regex: `^${escapeRegex(employeeIdInput)}$`, $options: 'i' },
-      }).select('+password');
-    }
+    // Always resolve the account from the token.
+    const employee: any = await Employee.findById(guard.auth.employee._id).select('+password');
 
     if (!employee) {
       return NextResponse.json(
-        {
-          success: false,
-          message: 'Unable to identify the employee. Provide a valid token or employee_id.',
-        },
+        { success: false, message: 'Unable to identify the employee.' },
         { status: 401 }
-      );
-    }
-
-    if (String(employee.status || '').toLowerCase() === 'inactive') {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'This employee account is inactive. Please contact your admin.',
-        },
-        { status: 403 }
       );
     }
 

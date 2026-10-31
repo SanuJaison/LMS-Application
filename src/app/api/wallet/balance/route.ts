@@ -2,66 +2,71 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Wallet, WalletWithdrawRequest } from '@/models';
 import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { numericId, toLaravelDate } from '@/lib/employeeAuth';
+import { requireAuth } from '@/lib/apiAuth';
 
 /**
  * GET /api/wallet/balance
- * Returns wallet balance, earned incentives, paid amount, and withdrawal requests.
+ *
+ * - Employee token: always their own wallet and their own withdrawal requests.
+ * - Admin token: must pass ?employee_id= or ?employee=; there is no "all".
+ *
+ * Query params are ignored for employee tokens, so one employee can never read
+ * another employee's wallet.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const { searchParams } = new URL(req.url);
 
     let employeeName = '';
     let employeeId = '';
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      const me: any = await Employee.findById(decoded.id).lean();
-      if (me) {
-        employeeName = me.name;
-        employeeId = me.employee_id;
-      }
+    if (auth.employee) {
+      employeeName = auth.name;
+      employeeId = auth.employeeId;
     } else {
-      const { searchParams } = new URL(req.url);
-      employeeName = searchParams.get('employee') || '';
-      employeeId = searchParams.get('employee_id') || '';
+      employeeName = (searchParams.get('employee') || '').trim();
+      employeeId = (searchParams.get('employee_id') || '').trim();
+
+      if (!employeeName && !employeeId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Admin requests must specify ?employee_id= or ?employee=.',
+          },
+          { status: 400 }
+        );
+      }
+
+      if (employeeId && !employeeName) {
+        const target: any = await Employee.findOne({ employee_id: employeeId }).lean();
+        if (target) employeeName = target.name;
+      }
     }
 
     const walletQuery: Record<string, any> = {};
     if (employeeId) {
       walletQuery.$or = [
         { employee_id: employeeId },
-        { employee: new RegExp(`^${employeeName.trim()}$`, 'i') },
+        { employee: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') },
       ];
-    } else if (employeeName) {
-      walletQuery.employee = new RegExp(`^${employeeName.trim()}$`, 'i');
+    } else {
+      walletQuery.employee = new RegExp(`^${escapeRegex(employeeName)}$`, 'i');
     }
 
-    let wallet: any = null;
-    if (employeeId || employeeName) {
-      wallet = await Wallet.findOne(walletQuery).lean();
-    }
+    const wallet: any = await Wallet.findOne(walletQuery).lean();
 
     const currentBalance = wallet?.balance ?? 0;
     const totalEarned = wallet?.total_earned ?? currentBalance;
     const totalPaid = wallet?.total_paid ?? 0;
 
-    // Fetch withdrawal requests for this employee
-    const requestQuery: Record<string, any> = {};
-    if (employeeId) {
-      requestQuery.$or = [
-        { employee_id: employeeId },
-        { employee: new RegExp(`^${employeeName.trim()}$`, 'i') },
-      ];
-    } else if (employeeName) {
-      requestQuery.employee = new RegExp(`^${employeeName.trim()}$`, 'i');
-    }
-
-    const requests = await WalletWithdrawRequest.find(requestQuery)
+    const requests = await WalletWithdrawRequest.find(walletQuery)
       .sort({ createdAt: -1 })
       .lean();
 
@@ -107,4 +112,8 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

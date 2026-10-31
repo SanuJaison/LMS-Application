@@ -566,66 +566,57 @@ See §3.3 (`GET /incentives`).
 - `/institutes` and `/institutes/create` are identical.
 - `/profile` and `/auth/me` return the same payload.
 
-### 5.11 Auth & role scoping — current status (audited 2026-10-31)
+### 5.11 Auth & role scoping — fixed (2026-10-31)
 
-**No app route enforces the Bearer token.** Every handler does
-`const decoded = token ? verifyToken(token) : null` and then treats `null` as
-"no scope" instead of returning `401`. So every endpoint answers without a
-token, and several return another employee's or everyone's data.
+Every KIDE app/admin route now goes through `src/lib/apiAuth.ts`:
+
+- `requireAuth` — any valid, active Bearer token; otherwise **401**.
+- `requireEmployee` — employee token only; admin tokens get **403**.
+- `requireRoles(...)` — employee role allow-list; otherwise **403**.
+- `getScope(auth)` — downward `reports_to` traversal only:
+  - BDE → itself
+  - ASM / BDM → itself + direct reports
+  - SM → itself + whole subtree
+  - MD / admin → everything
+- `scopeFilter` / `leadScopeFilter` — Mongo filter for the visible set. It is
+  combined with `$and`, so a query parameter can never widen it.
+- `canAccessEmployee` — per-record check before read/update/delete.
+
+Admin panel routes (`/api/admin/*`, `/api/seed`, `/api/set-password`, catalog
+POST/PUT/DELETE) use the strict `requireAdmin` in `src/lib/adminAuth.ts`:
+`Authorization: Bearer <admin token>` or `x-admin-key`. The old localhost /
+Vercel-referer bypass is gone.
 
 Verified against localhost (same MongoDB as production):
 
-| Request | Result without a token |
+| Request | Result |
 |---|---|
-| `GET /api/home` | 200, dashboard for **Sanu (SM001)** — first active employee, `dashboard_type: "sm"` |
-| `GET /api/attendance/history` | 200, **all** attendance records |
-| `GET /api/attendance/status` | 200, first active employee's status |
-| `GET /api/leads` | 200, **all** leads |
-| `GET /api/tasks` | 200, **all** tasks |
-| `GET /api/leaves` | 200, **all** leaves |
-| `GET /api/wallet/balance` | 200, empty wallet + **all** withdrawal requests (`requestQuery = {}`) |
-| `GET /api/sm/asms` | 200, every ASM |
-| `GET /api/asm/bdes` | 200, every BDE |
-| `POST /api/attendance/check-in` / `check-out` | body `employee_id` picks the employee (impersonation) |
-| `POST /api/wallet/withdraw` | body `employee_id` / `employee` picks the employee |
-| `POST /api/wallet/workflow` | runs as `role: "admin"`; can sanction/pay/reject **any** request |
+| any app route with no token | **401** |
+| `GET /api/home` as BDE / ASM / SM | own dashboard only (`visible_employees` 1 / 2 / 3) |
+| `GET /api/leads` as BDE / ASM / SM / admin | 4 / 4 / 5 / 5 leads (own subtree only) |
+| `GET /api/leads?lead_id=<another hierarchy's lead>` | **403** |
+| `PUT` / `DELETE` on a lead outside the hierarchy | **403** |
+| `GET /api/sm/asms` as BDE / ASM | **403**; SM sees only own ASMs |
+| `GET /api/asm/bdes` as BDE | **403**; ASM sees only own BDEs |
+| `POST /api/asm/create-bde` as BDE | **403**; ASM ignores body `asm_id` |
+| `POST /api/sm/create-asm` as BDE / ASM | **403** |
+| `?employee=` / `?assigned_to=` / `?bde_id=` overrides | **403** or ignored |
+| admin token on `/api/home`, attendance check-in/out | **403** |
+| `POST /api/set-password` with no admin auth | **401** |
+| `POST /api/auth/refresh-token` with an invalid token | **401** |
 
-With a valid token the scoping is hand-written per route and inconsistent:
+Notes:
 
-| Endpoint | BDE token | ASM token | SM token |
-|---|---|---|---|
-| `/api/home` | own leads/wallet | own + **whole team's** leads and BDEs | all leads, but only `reports_to: SM001` subordinates |
-| `/api/leads` | own leads | **own only → 0** (does not see team leads) | **own only → 1** (does not see all leads) |
-| `/api/asm/bdes` | **all BDEs** (no filter) | team BDEs (`reports_to` OR same `team`) | all BDEs |
-| `/api/sm/asms` | **all ASMs** | **all ASMs** | all ASMs |
-| `/api/salary/requests` | own | `asm_id` OR `team` (whole team) | all |
-| `/api/incentives` | own, but `?bde_id=` **overrides** the scope | `asm_id` OR `team`, but `?asm_id=` / `?team=` override | all |
-| `/api/attendance/history` | own | own | **own only** (no team view) |
-| `/api/tasks` | own + `Unassigned` | own + `Unassigned` | own + `Unassigned` |
-| `/api/leaves` | own | own | own |
-| `/api/wallet/balance` | own | own | own |
-| `/api/wallet/workflow` | any request (no role check) | any request | any request |
+1. `GET /api/home` no longer falls back to the first active employee.
+2. ASM scoping never uses `team`; two ASMs sharing a team cannot see each
+   other's BDEs.
+3. `POST /api/leads` / `/api/leads/create` always assign an employee-created
+   lead to the caller; body `employee` / `employee_id` are ignored for employees.
+4. Wallet/salary workflow actions are role-gated and scope-checked.
+5. Attendance check-out stores `status: 'OFFLINE'` (the enum has no `COMPLETED`).
+6. The `Employee` schema now has a real `password` field (`select: false`), so
+   passwords chosen in create-ASM / create-BDE are persisted and work at login.
 
-Key gaps:
-
-1. Missing `401` — no shared guard; add one helper that rejects requests
-   without a valid employee/admin token.
-2. `GET /api/home` silently impersonates the first active employee when the
-   token is absent. Remove the fallback; require the token.
-3. ASM scoping uses `team` as well as `reports_to`, so two ASMs in the same
-   team see each other's BDEs and leads. Scope by `reports_to` / `asm_id` only.
-4. `/api/leads` restricts **every** employee token to their own leads, so SM
-   and ASM cannot see team leads. Add role-aware scoping.
-5. `/api/incentives` lets a BDE override `?bde_id=` and an ASM override
-   `?asm_id=` / `?team=`. Ignore those params when the caller is scoped.
-6. `/api/sm/asms` and `/api/asm/bdes` need auth + role checks (SM/admin only
-   for the first; ASM sees own BDEs, SM/admin all).
-7. `/api/wallet/workflow` needs a role check per action (ASM → `forward_to_sm`,
-   SM → `forward_to_accounts`, accounts/admin → `sanction`/`pay`).
-8. `/api/attendance/history`, `/api/tasks`, `/api/leaves` return everything
-   when no token is supplied; require a token and scope by role.
-9. `/api/wallet/balance` must not run `WalletWithdrawRequest.find({})`; require
-   an employee scope.
 
 ---
 

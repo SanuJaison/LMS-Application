@@ -2,43 +2,32 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { SalaryRequest } from '@/models/salaryRequest';
 import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireEmployee } from '@/lib/apiAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/salary/request
- * Submits a monthly minimum salary request (₹5,000 minimum).
- *
- * Workflow:
- * Step 1: BDE submits salary request to assigned ASM.
- * Status: 'Submitted to ASM'
+ * Submits a monthly minimum salary request (₹5,000 minimum) for the
+ * signed-in employee. Body employee fields are ignored.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const employee = auth.employee;
     const body = await req.json().catch(() => ({}));
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    } else if (body.employee_id) {
-      employee = await Employee.findOne({ employee_id: body.employee_id }).lean();
-    } else if (body.employee) {
-      employee = await Employee.findOne({
-        name: new RegExp(`^${String(body.employee).trim()}$`, 'i'),
-      }).lean();
-    }
+    const employeeName = auth.name;
+    const employeeId = auth.employeeId;
+    const team = employee?.team || '';
+    const asmId = employee?.reports_to || '';
 
-    const employeeName = employee?.name || body.employee || 'BDE';
-    const employeeId = employee?.employee_id || body.employee_id || '';
-    const team = employee?.team || body.team || '';
-    const asmId = employee?.reports_to || body.asm_id || '';
-
-    let asmName = body.asm_name || '';
-    if (!asmName && asmId) {
+    let asmName = '';
+    if (asmId) {
       const asmEmp: any = await Employee.findOne({ employee_id: asmId }).lean();
       if (asmEmp) asmName = asmEmp.name;
     }
@@ -60,7 +49,6 @@ export async function POST(req: Request) {
     });
     const period = body.period || currentMonth;
 
-    // Check if a request already exists for this period
     const existing = await SalaryRequest.findOne({
       employee_id: employeeId,
       period,

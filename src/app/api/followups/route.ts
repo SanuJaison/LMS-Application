@@ -1,15 +1,31 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
+import {
+  andFilter,
+  canAccessEmployee,
+  forbidden,
+  getScope,
+  leadScopeFilter,
+  requireAuth,
+} from '@/lib/apiAuth';
 
 /**
  * 1. GET /api/followups
- * Fetch follow-up pipeline records, scheduled presentations, and follow-up histories.
- * Query params: ?lead_id= | ?status= | ?presentation= | ?student_interest= | ?due=today|upcoming|overdue
+ * Follow-up pipeline records, scheduled presentations and follow-up histories
+ * limited to the caller's hierarchy.
+ * Query params: ?lead_id= | ?status= | ?presentation= | ?student_interest= |
+ *               ?due=today|upcoming|overdue
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
     const leadId = searchParams.get('lead_id') || searchParams.get('id');
@@ -21,6 +37,10 @@ export async function GET(req: Request) {
 
       if (!lead) {
         return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
+      }
+
+      if (!canAccessEmployee(scope, lead.employee_id, lead.employee)) {
+        return forbidden('This lead is outside your hierarchy.');
       }
 
       return NextResponse.json({
@@ -47,31 +67,33 @@ export async function GET(req: Request) {
     }
 
     // Build filter for Follow-up Pipeline
-    const filter: Record<string, any> = {};
+    const filters: Record<string, any>[] = [leadScopeFilter(scope)];
 
     const status = searchParams.get('status') || searchParams.get('admission_status');
     if (status) {
-      filter.$or = [{ admission_status: status }, { status: status }];
+      filters.push({ $or: [{ admission_status: status }, { status: status }] });
     }
 
     const presentation = searchParams.get('presentation');
-    if (presentation) filter.presentation = presentation;
+    if (presentation) filters.push({ presentation });
 
     const interest = searchParams.get('student_interest') || searchParams.get('interest');
-    if (interest) filter.student_interest = interest;
+    if (interest) filters.push({ student_interest: interest });
 
     const todayStr = new Date().toISOString().split('T')[0];
     const due = searchParams.get('due');
     if (due === 'today') {
-      filter.next_followup_date = todayStr;
+      filters.push({ next_followup_date: todayStr });
     } else if (due === 'upcoming') {
-      filter.next_followup_date = { $gte: todayStr };
+      filters.push({ next_followup_date: { $gte: todayStr } });
     } else if (due === 'overdue') {
-      filter.next_followup_date = { $lt: todayStr, $ne: '' };
-      filter.admission_status = { $nin: ['Admitted', 'Won'] };
+      filters.push({ next_followup_date: { $lt: todayStr, $ne: '' } });
+      filters.push({ admission_status: { $nin: ['Admitted', 'Won'] } });
     }
 
-    const leads: any[] = await Lead.find(filter).sort({ updatedAt: -1 }).lean();
+    const leads: any[] = await Lead.find(andFilter(...filters))
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const data = leads.map((l) => ({
       id: l._id.toString(),
@@ -113,12 +135,17 @@ export async function GET(req: Request) {
 
 /**
  * 2. POST /api/followups
- * Log a new follow-up interaction for a lead.
- * Updates the lead's current state and appends to the follow-up history log.
+ * Log a new follow-up interaction for a lead inside the caller's hierarchy.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const body = await req.json();
 
     const leadIdentifier = body.lead_id || body.id || body._id;
@@ -145,6 +172,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
     }
 
+    if (!canAccessEmployee(scope, lead.employee_id, lead.employee)) {
+      return forbidden('This lead is outside your hierarchy.');
+    }
+
     if (!lead.lead_id) {
       lead.lead_id = `LD-${Math.floor(1000 + Math.random() * 9000)}`;
     }
@@ -168,7 +199,7 @@ export async function POST(req: Request) {
       next_followup_date: body.next_followup_date || '',
       admission_status: admissionStatus,
       proof_url: (body.proof_url || '').trim(),
-      recorded_by: body.recorded_by || lead.employee || 'Counselor',
+      recorded_by: auth.name || lead.employee || 'Counselor',
     };
 
     // Update parent lead record

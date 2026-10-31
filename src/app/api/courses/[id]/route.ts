@@ -1,6 +1,8 @@
 import { connection } from "@/lib/db";
 import course from "@/models/courseModel";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { requireAuth } from "@/lib/apiAuth";
 
 // GET single course by ID
 export async function GET(
@@ -9,6 +11,9 @@ export async function GET(
 ) {
   try {
     await connection();
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
     const item = await course.findById(params.id);
     if (!item) {
       return NextResponse.json(
@@ -32,6 +37,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
     const body = await req.json();
     const { name } = body;
@@ -72,6 +80,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const denied = requireAdmin(req);
+    if (denied) return denied;
+
     await connection();
     const deleted = await course.findByIdAndDelete(params.id);
 

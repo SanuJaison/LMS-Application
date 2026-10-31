@@ -11,6 +11,7 @@ export interface IEmployee extends Document {
   team?: string;
   reports_to?: string;
   upi_id?: string;
+  password?: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +67,11 @@ const EmployeeSchema = new Schema<IEmployee>(
     upi_id: {
       type: String,
       default: '',
+    },
+    password: {
+      type: String,
+      default: '',
+      select: false,
     },
     status: {
       type: String,

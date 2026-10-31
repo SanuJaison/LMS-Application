@@ -1,37 +1,52 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Leave } from '@/models';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { numericId } from '@/lib/employeeAuth';
+import {
+  andFilter,
+  canAccessEmployee,
+  getScope,
+  requireAuth,
+  scopeFilter,
+} from '@/lib/apiAuth';
 
 /**
  * GET /api/leaves
- * Lists leave applications for the current employee.
+ * Leave applications for the caller and, for managers, their team.
+ * Requires a Bearer token; no token no longer returns every leave.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
-    let employee: any = null;
-    if (decoded?.role === 'employee' && decoded.id) {
-      employee = await Employee.findById(decoded.id).lean();
-    }
+    const { auth } = guard;
+    const scope = await getScope(auth);
 
     const { searchParams } = new URL(req.url);
-    const employeeParam = searchParams.get('employee');
+    const employeeParam = (searchParams.get('employee') || '').trim();
 
-    const query: Record<string, any> = {};
-    if (employee) {
-      query.employee = new RegExp(`^${employee.name.trim()}$`, 'i');
-    } else if (employeeParam) {
-      query.employee = new RegExp(`^${employeeParam.trim()}$`, 'i');
+    const filters: Record<string, any>[] = [
+      scopeFilter(scope, { nameFields: ['employee'] }),
+    ];
+
+    if (employeeParam) {
+      if (!canAccessEmployee(scope, '', employeeParam)) {
+        return NextResponse.json(
+          { success: false, message: 'You cannot view this employee\'s leaves.' },
+          { status: 403 }
+        );
+      }
+      filters.push({
+        employee: new RegExp(`^${escapeRegex(employeeParam)}$`, 'i'),
+      });
     }
 
-    const leaves = await Leave.find(query).sort({ createdAt: -1 }).lean();
+    const leaves = await Leave.find(andFilter(...filters))
+      .sort({ createdAt: -1 })
+      .lean();
 
     const data = leaves.map((l: any) => ({
       id: numericId(l._id) || 1,
@@ -46,6 +61,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
+      count: data.length,
       data,
     });
   } catch (error: any) {
@@ -55,4 +71,8 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

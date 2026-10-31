@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import {
+  andFilter,
+  canAccessEmployee,
+  forbidden,
+  getScope,
+  leadScopeFilter,
+  requireAuth,
+} from '@/lib/apiAuth';
 import {
   assignLegacyIds,
   resolveEmployeeAssignment,
@@ -15,26 +21,19 @@ import { getNextStudentId } from '@/lib/studentId';
  * 1. POST /api/leads/create
  * Official Lead Creation Endpoint
  * Supports JSON payload with full Kerala Institute lead & follow-up fields.
+ *
+ * Employees always create leads assigned to themselves. Managers may assign
+ * within their own hierarchy.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
-    // Check optional Authorization header for audit / verification
-    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader);
-    let creatorRole = 'guest';
-    let creatorName = '';
-    let creatorId = '';
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
 
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        creatorRole = decoded.role || 'admin';
-        creatorName = decoded.name || '';
-        creatorId = (decoded as any).id || '';
-      }
-    }
+    const { auth } = guard;
+    const scope = await getScope(auth);
 
     const body = await req.json().catch(() => null);
 
@@ -74,18 +73,18 @@ export async function POST(req: Request) {
     // Normalize payload
     const payload = normalizeLeadPayload(body);
 
-    // If created by an employee (e.g. from the mobile app), the lead is automatically
-    // assigned to that employee without requiring them to enter an assigned employee.
-    if (creatorRole === 'employee' && creatorId) {
-      const me: any = await Employee.findById(creatorId).lean();
-      if (me) {
-        payload.employee = me.name || payload.employee;
-        payload.employee_id = me.employee_id || '';
-      }
+    if (auth.employee) {
+      // Employees can only create leads for themselves.
+      payload.employee = auth.name || payload.employee;
+      payload.employee_id = auth.employeeId || '';
     } else {
-      // If created by an admin or portal user, assigned employee is strictly required
+      // Admin / manager must specify an employee inside their hierarchy.
       const assignedEmp = String(body.employee || body.assigned_to || payload.employee || '').trim();
-      if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
+      if (
+        !assignedEmp ||
+        assignedEmp.toLowerCase() === 'unassigned' ||
+        assignedEmp.toLowerCase() === 'aslam'
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -93,6 +92,9 @@ export async function POST(req: Request) {
           },
           { status: 400 }
         );
+      }
+      if (!auth.isAdmin && !canAccessEmployee(scope, body.employee_id, assignedEmp)) {
+        return forbidden('You cannot assign a lead to an employee outside your hierarchy.');
       }
       payload.employee = assignedEmp;
     }
@@ -129,7 +131,7 @@ export async function POST(req: Request) {
         success: true,
         message: `Lead ${createdLead.name} (${createdLead.lead_id}) created successfully`,
         endpoint: '/api/leads/create',
-        authorized_by: creatorRole,
+        authorized_by: auth.isAdmin ? 'admin' : 'employee',
         data: mobileLead,
       },
       { status: 201 }
@@ -149,11 +151,18 @@ export async function POST(req: Request) {
 /**
  * 2. GET /api/leads/create
  * Information & Schema Guide for testing the Lead Creation endpoint.
+ * Recent leads are limited to the caller's hierarchy.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const latestLeads = await Lead.find()
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const scope = await getScope(guard.auth);
+
+    const latestLeads = await Lead.find(andFilter(leadScopeFilter(scope)))
       .sort({ createdAt: -1 })
       .limit(5)
       .lean();

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team, Wallet } from '@/models';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { requireRoles, getScope, canAccessEmployee } from '@/lib/apiAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import bcrypt from 'bcryptjs';
 
@@ -15,11 +15,19 @@ import bcrypt from 'bcryptjs';
  * - Inherits the ASM's team, zone, and district.
  * - BDE count is unlimited.
  * - Visible in both ASM side and Admin side.
+ *
+ * Authorization:
+ * - ASM / BDM -> always creates under themselves; `asm_id` in the body is ignored.
+ * - SM / admin -> may target an ASM via `asm_id` (SM only within its own subtree).
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
+    const guard = await requireRoles(req, ['ASM', 'BDM', 'SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
     const body = await req.json().catch(() => ({}));
     const { name, email, contact_number, password, district, asm_id } = body;
 
@@ -30,25 +38,55 @@ export async function POST(req: Request) {
       );
     }
 
-    // Resolve the creating ASM
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    // Resolve the owning ASM.
     let asmEmployee: any = null;
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      asmEmployee = await Employee.findById(decoded.id).lean();
-    } else if (asm_id) {
-      asmEmployee = await Employee.findOne({ employee_id: asm_id }).lean();
-    }
-
-    // If caller is Admin and no ASM specified, pick default or require one
-    if (!asmEmployee) {
-      asmEmployee = await Employee.findOne({
-        $or: [
-          { designation: /area sales manager/i },
-          { employee_id: /^ASM/i },
-        ],
-      }).lean();
+    if (auth.role === 'ASM' || auth.role === 'BDM') {
+      // Never trust the body: an ASM only creates BDEs under itself.
+      asmEmployee = auth.employee;
+    } else {
+      const requestedAsm = String(asm_id || body.asm_employee_id || '').trim();
+      if (requestedAsm) {
+        asmEmployee = await Employee.findOne({ employee_id: requestedAsm }).lean();
+        if (!asmEmployee) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Validation failed: ASM ${requestedAsm} not found.`,
+            },
+            { status: 400 }
+          );
+        }
+        if (!auth.isAdmin && auth.role !== 'MD') {
+          const scope = await getScope(auth);
+          if (!canAccessEmployee(scope, asmEmployee.employee_id, asmEmployee.name)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: 'This ASM is outside your hierarchy.',
+              },
+              { status: 403 }
+            );
+          }
+        }
+      } else if (auth.role === 'SM') {
+        // An SM must name one of its own ASMs.
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'Validation failed: asm_id is required. An SM creates BDEs under one of its ASMs.',
+          },
+          { status: 400 }
+        );
+      } else {
+        asmEmployee = await Employee.findOne({
+          $or: [
+            { designation: /area sales manager/i },
+            { employee_id: /^ASM/i },
+          ],
+        }).lean();
+      }
     }
 
     if (!asmEmployee) {

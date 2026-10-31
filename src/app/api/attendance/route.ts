@@ -1,22 +1,22 @@
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { getEmployee, nameRegex, ok, todayKey } from '@/lib/employeeAuth';
+import { nameRegex, ok, todayKey } from '@/lib/employeeAuth';
+import { requireEmployee } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/attendance
- * Today's record plus the employee's recent attendance.
+ * Today's record plus the employee's recent attendance. Own records only.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
-    const employee = await getEmployee(req);
 
-    if (!employee) {
-      return ok({ today: null, records: [] }, 'Unauthenticated');
-    }
+    const guard = await requireEmployee(req);
+    if (!guard.ok) return guard.response;
 
+    const employee = guard.auth.employee;
     const nameFilter = nameRegex(employee.name);
     if (!nameFilter) {
       return ok({ today: null, records: [] }, 'No attendance found');

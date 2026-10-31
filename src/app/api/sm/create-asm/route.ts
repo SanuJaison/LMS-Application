@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team } from '@/models';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import { requireRoles } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 
 // Predefined 7 Regional Teams and their fixed 2 districts
-export const REGIONAL_TEAMS_CONFIG: Record<
+const REGIONAL_TEAMS_CONFIG: Record<
   string,
   { teamName: string; districts: [string, string]; zone: string }
 > = {
@@ -78,26 +78,39 @@ export async function POST(req: Request) {
       );
     }
 
-    // Resolve SM (Sales Manager)
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    let smEmployee: any = null;
+    // Only an SM (or an admin acting on behalf of an SM) can create an ASM.
+    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+    const { auth } = guard;
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      smEmployee = await Employee.findById(decoded.id).lean();
-    }
+    // Resolve the owning SM. An SM always creates ASMs under themselves; an
+    // admin may target a specific SM with sm_id / sm_employee_id.
+    let smEmployee: any = auth.employee;
     if (!smEmployee) {
-      smEmployee = await Employee.findOne({
-        $or: [
-          { designation: /sales manager/i },
-          { designation: /state manager/i },
-          { employee_id: /^SM/i },
-        ],
-      }).lean();
+      const requestedSm = String(body.sm_id || body.sm_employee_id || '').trim();
+      smEmployee = requestedSm
+        ? await Employee.findOne({ employee_id: requestedSm }).lean()
+        : await Employee.findOne({
+            $or: [
+              { designation: /sales manager/i },
+              { designation: /state manager/i },
+              { employee_id: /^SM/i },
+            ],
+          }).lean();
     }
 
-    const smId = smEmployee?.employee_id || 'SM001';
-    const smName = smEmployee?.name || 'Sales Manager';
+    if (!smEmployee) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'No Sales Manager found. Pass sm_id when calling as an admin.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const smId = smEmployee.employee_id;
+    const smName = smEmployee.name || 'Sales Manager';
 
     // Normalize team code (e.g. TVM, PTM, KTM, EKM, PKD, CLT, KZE / KZD)
     const normalizedCode = String(team_code || '').trim().toUpperCase();

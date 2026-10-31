@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { requireAdmin } from '@/lib/adminAuth';
 import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { Lead } from '@/models/lead';
-import { Employee } from '@/models/employee';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
-import { escapeRegex } from '@/lib/employeeAuth';
+import {
+  andFilter,
+  canAccessEmployee,
+  forbidden,
+  getScope,
+  leadScopeFilter,
+  requireAuth,
+} from '@/lib/apiAuth';
 import { getNextStudentId } from '@/lib/studentId';
 import {
   assignLegacyIds,
@@ -17,27 +21,41 @@ import {
 
 /**
  * 1. GET /api/leads
- * Fetch all leads or filter by search query, district, status, course, or employee.
- * Query params: ?id= | ?lead_id= | ?search= | ?district= | ?status= | ?course= | ?interest= | ?employee=
+ * Fetch leads visible to the caller.
+ *   - BDE        -> only leads assigned to them
+ *   - ASM / BDM  -> own leads + their BDEs' leads
+ *   - SM         -> own leads + whole subtree
+ *   - admin      -> all
+ *
+ * Query params: ?id= | ?lead_id= | ?search= | ?district= | ?status= |
+ *               ?course= | ?interest= | ?employee=
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
     const id = searchParams.get('id');
     const leadId = searchParams.get('lead_id');
 
-    // Single lead lookup by MongoDB ID, numeric app id, or Unique Lead ID (e.g., LD-1001)
+    // Single lead lookup by MongoDB ID, numeric app id, or Unique Lead ID.
     if (id || leadId) {
       const lead: any = await findLeadByAnyId(String(id || leadId));
       if (!lead) {
         return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
       }
-      const tokenForSingle = extractTokenFromHeader(req);
-      const decodedForSingle = tokenForSingle ? verifyToken(tokenForSingle) : null;
 
-      if (decodedForSingle?.role === 'employee') {
+      if (!canAccessEmployee(scope, lead.employee_id, lead.employee)) {
+        return forbidden('This lead is outside your hierarchy.');
+      }
+
+      if (auth.employee) {
         const [mobile] = await serializeLeadsForMobile([lead.toObject ? lead.toObject() : lead]);
         return NextResponse.json({ success: true, data: mobile });
       }
@@ -49,8 +67,8 @@ export async function GET(req: Request) {
     }
 
     // Build filter query. Conditions are combined with $and so that adding the
-    // employee scope below never overwrites a search/status filter.
-    const conditions: Record<string, any>[] = [];
+    // scope below never overwrites a search/status filter.
+    const conditions: Record<string, any>[] = [leadScopeFilter(scope)];
 
     const district = searchParams.get('district');
     if (district) conditions.push({ district });
@@ -76,11 +94,16 @@ export async function GET(req: Request) {
     if (interest) conditions.push({ student_interest: interest });
 
     const employee = searchParams.get('employee');
-    if (employee) conditions.push({ employee });
+    if (employee) {
+      if (!canAccessEmployee(scope, '', employee)) {
+        return forbidden('You cannot view this employee\'s leads.');
+      }
+      conditions.push({ employee });
+    }
 
     const search = searchParams.get('search');
     if (search) {
-      const regex = new RegExp(search.trim(), 'i');
+      const regex = new RegExp(escapeRegex(search.trim()), 'i');
       conditions.push({
         $or: [
           { name: regex },
@@ -99,30 +122,11 @@ export async function GET(req: Request) {
       });
     }
 
-    // Employees only see the leads assigned to them. Admin/manager requests are
-    // unchanged and still receive every lead.
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
-    if (decoded?.role === 'employee') {
-      const me: any = await Employee.findById(decoded.id).lean();
-
-      if (!me) {
-        conditions.push({ employee: '__none__' });
-      } else {
-        const mine: Record<string, any>[] = [];
-        if (me.name) mine.push({ employee: new RegExp(`^${escapeRegex(me.name)}$`, 'i') });
-        if (me.employee_id) mine.push({ employee_id: me.employee_id });
-        conditions.push(mine.length ? { $or: mine } : { employee: '__none__' });
-      }
-    }
-
-    const filter: Record<string, any> = conditions.length ? { $and: conditions } : {};
-
-    const docs = await Lead.find(filter).sort({ createdAt: -1 }).lean();
+    const docs = await Lead.find(andFilter(...conditions)).sort({ createdAt: -1 }).lean();
 
     // The Flutter app parses a Laravel-style lead object with numeric ids,
     // integer status/source and snake_case timestamps.
-    if (decoded?.role === 'employee') {
+    if (auth.employee) {
       const mobile = await serializeLeadsForMobile(docs as any[]);
       return NextResponse.json({
         success: true,
@@ -147,10 +151,18 @@ export async function GET(req: Request) {
 /**
  * 2. POST /api/leads
  * Lead Generation: Create a new lead with all Kerala Institute fields.
+ * Employees always create leads assigned to themselves; managers may assign
+ * within their own hierarchy.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const body = await req.json();
 
     if (!body.name || !body.name.trim()) {
@@ -168,34 +180,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check optional Authorization header
-    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader);
-    let creatorRole = 'guest';
-    let creatorId = '';
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        creatorRole = decoded.role || 'admin';
-        creatorId = decoded.id || '';
-      }
-    }
-
     let assignedEmp = String(body.employee || body.assigned_to || '').trim();
     let assignedEmpId = String(body.employee_id || '').trim();
 
-    if (creatorRole === 'employee' && creatorId) {
-      const me = await Employee.findById(creatorId).lean();
-      if (me) {
-        assignedEmp = me.name || assignedEmp;
-        assignedEmpId = me.employee_id || assignedEmpId;
-      }
+    if (auth.employee) {
+      // Employees can only create leads for themselves.
+      assignedEmp = auth.name || assignedEmp;
+      assignedEmpId = auth.employeeId || assignedEmpId;
     } else {
-      if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
+      if (
+        !assignedEmp ||
+        assignedEmp.toLowerCase() === 'unassigned' ||
+        assignedEmp.toLowerCase() === 'aslam'
+      ) {
         return NextResponse.json(
           { success: false, message: 'Validation failed: Assigned employee is required.' },
           { status: 400 }
         );
+      }
+
+      if (!auth.isAdmin && !canAccessEmployee(scope, assignedEmpId, assignedEmp)) {
+        return forbidden('You cannot assign a lead to an employee outside your hierarchy.');
       }
     }
 
@@ -248,8 +253,8 @@ export async function POST(req: Request) {
     // Resolve the assigned employee so both the name and the employee ID are
     // stored. Accepts a name ("Aslam") or an ID ("BDE001").
     const assignment = await resolveEmployeeAssignment({
-      employee: body.employee || payload.employee,
-      employee_id: body.employee_id || payload.employee_id,
+      employee: payload.employee,
+      employee_id: payload.employee_id,
     });
     payload.employee = assignment.employee || payload.employee;
     payload.employee_id = assignment.employee_id;
@@ -280,14 +285,19 @@ export async function POST(req: Request) {
 
 /**
  * 3. PUT /api/leads
- * Update existing lead by id, _id, or lead_id.
+ * Update an existing lead by id, _id, or lead_id.
+ * The lead must be inside the caller's hierarchy. Employees cannot reassign a
+ * lead to someone else.
  */
 export async function PUT(req: Request) {
   try {
-    const denied = requireAdmin(req);
-    if (denied) return denied;
-
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const body = await req.json();
 
     const id = body.id || body._id;
@@ -302,9 +312,31 @@ export async function PUT(req: Request) {
 
     const query = id ? { _id: id } : { lead_id: leadId };
 
+    const existing: any = await Lead.findOne(query).lean();
+    if (!existing) {
+      return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
+    }
+
+    if (!canAccessEmployee(scope, existing.employee_id, existing.employee)) {
+      return forbidden('This lead is outside your hierarchy.');
+    }
+
     // Synchronize aliases
     const updateData: Record<string, any> = { ...body };
     delete updateData.id;
+    delete updateData._id;
+
+    // Employees can never move a lead to another employee.
+    if (auth.employee) {
+      delete updateData.employee;
+      delete updateData.employee_id;
+    } else if (updateData.employee !== undefined || updateData.employee_id !== undefined) {
+      const targetName = updateData.employee ?? existing.employee;
+      const targetId = updateData.employee_id ?? existing.employee_id;
+      if (!canAccessEmployee(scope, targetId, targetName)) {
+        return forbidden('You cannot assign a lead to an employee outside your hierarchy.');
+      }
+    }
 
     if (updateData.age !== undefined) {
       if (updateData.age === '' || updateData.age === null) delete updateData.age;
@@ -370,13 +402,17 @@ export async function PUT(req: Request) {
 /**
  * 4. DELETE /api/leads
  * Delete lead(s) by query parameter ?id= or JSON body { id: "..." } or { ids: [...] }.
+ * Only leads inside the caller's hierarchy can be deleted.
  */
 export async function DELETE(req: Request) {
   try {
-    const denied = requireAdmin(req);
-    if (denied) return denied;
-
     await connectDB();
+
+    const guard = await requireAuth(req);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
     const idFromQuery = searchParams.get('id') || searchParams.get('lead_id');
 
@@ -399,16 +435,26 @@ export async function DELETE(req: Request) {
       );
     }
 
-    // Delete by _id or lead_id
-    const doomed = await Lead.find({
-      $or: [{ _id: { $in: idsToDelete } }, { lead_id: { $in: idsToDelete } }],
-    })
-      .select('name lead_id')
-      .lean();
+    const objectIds = idsToDelete.filter((value) => /^[0-9a-fA-F]{24}$/.test(value));
+    const idConditions: Record<string, any> = {
+      $or: [
+        { lead_id: { $in: idsToDelete } },
+        ...(objectIds.length > 0 ? [{ _id: { $in: objectIds } }] : []),
+      ],
+    };
 
-    await Lead.deleteMany({
-      $or: [{ _id: { $in: idsToDelete } }, { lead_id: { $in: idsToDelete } }],
-    });
+    const doomed = await Lead.find(idConditions).select('name lead_id employee employee_id').lean();
+
+    if (!auth.isAdmin) {
+      const outOfScope = (doomed as any[]).filter(
+        (lead) => !canAccessEmployee(scope, lead.employee_id, lead.employee)
+      );
+      if (outOfScope.length > 0) {
+        return forbidden('One or more leads are outside your hierarchy.');
+      }
+    }
+
+    await Lead.deleteMany(idConditions);
 
     if (doomed.length > 0) {
       const single = doomed.length === 1 ? (doomed[0] as any) : null;
@@ -423,10 +469,14 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `${idsToDelete.length} lead(s) deleted successfully`,
+      message: `${doomed.length} lead(s) deleted successfully`,
     });
   } catch (error: any) {
     console.error('DELETE /api/leads error:', error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

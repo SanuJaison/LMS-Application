@@ -2,56 +2,99 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Lead } from '@/models/lead';
-import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
-import { hierarchyRole } from '@/lib/hierarchy';
+import {
+  andFilter,
+  canAccessEmployee,
+  getScope,
+  requireRoles,
+  scopeFilter,
+} from '@/lib/apiAuth';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/asm/bdes
- * Lists Business Development Executives (BDEs).
- * - If called by an ASM: returns BDEs under their team.
- * - If called by Admin/SM: returns all BDEs with their assigned ASMs and performance stats.
+ * Lists Business Development Executives (BDEs) visible to the caller.
+ *   - ASM / BDM -> only BDEs that report to them
+ *   - SM        -> all BDEs in their subtree
+ *   - admin     -> all
+ *
+ * BDE tokens get 403: a BDE can no longer enumerate other BDEs.
  */
 export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const token = extractTokenFromHeader(req);
-    const decoded = token ? verifyToken(token) : null;
+    const guard = await requireRoles(req, ['ASM', 'BDM', 'SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const query: Record<string, any> = {
+    const baseFilter = {
       $or: [
         { designation: /business development executive/i },
         { employee_id: /^BDE/i },
       ],
     };
 
-    if (decoded?.role === 'employee' && decoded.id) {
-      const me: any = await Employee.findById(decoded.id).lean();
-      if (me) {
-        const role = hierarchyRole(me);
-        if (role === 'ASM') {
-          query.$and = [{ $or: [{ reports_to: me.employee_id }, { team: me.team }] }];
-        }
-      }
+    const visibility =
+      auth.isAdmin || auth.role === 'MD'
+        ? {}
+        : scopeFilter(scope, { idFields: ['employee_id'] });
+
+    const filters: Record<string, any>[] = [baseFilter, visibility];
+
+    // ASM / BDM: strictly their own direct reports.
+    if (auth.role === 'ASM' || auth.role === 'BDM') {
+      filters.push({ reports_to: auth.employeeId });
     }
 
-    const asmId = searchParams.get('asm_id');
-    if (asmId) query.reports_to = asmId;
+    const asmId = (searchParams.get('asm_id') || '').trim();
+    if (asmId) {
+      if (auth.role === 'ASM' || auth.role === 'BDM') {
+        if (asmId !== auth.employeeId) {
+          return NextResponse.json(
+            { success: false, message: 'You can only list your own BDEs.' },
+            { status: 403 }
+          );
+        }
+      } else if (!auth.isAdmin && auth.role !== 'MD') {
+        if (!canAccessEmployee(scope, asmId)) {
+          return NextResponse.json(
+            { success: false, message: 'This ASM is outside your hierarchy.' },
+            { status: 403 }
+          );
+        }
+      }
+      filters.push({ reports_to: asmId });
+    }
 
-    const team = searchParams.get('team');
-    if (team) query.team = team;
+    const team = (searchParams.get('team') || '').trim();
+    if (team) {
+      if (
+        !auth.isAdmin &&
+        auth.role !== 'MD' &&
+        auth.role !== 'SM' &&
+        team.toLowerCase() !== auth.team.toLowerCase()
+      ) {
+        return NextResponse.json(
+          { success: false, message: 'You can only list your own team.' },
+          { status: 403 }
+        );
+      }
+      filters.push({ team });
+    }
 
-    // Single-BDE lookup identifiers (Mongo id, employee_id or email).
     const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();
     const wantedEmployeeId = (searchParams.get('employee_id') || '').trim();
     const wantedEmail = (searchParams.get('email') || '').trim();
 
-    const bdes: any[] = await Employee.find(query)
+    const bdes: any[] = await Employee.find(andFilter(...filters))
       .sort({ employee_id: 1 })
       .lean();
 
-    // Fetch leads summary for each BDE
     const leads = await Lead.find({
       employee_id: { $in: bdes.map((b) => b.employee_id).filter(Boolean) },
     })
