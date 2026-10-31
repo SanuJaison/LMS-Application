@@ -11,9 +11,18 @@ export const dynamic = 'force-dynamic';
  * GET /api/sm/asms
  * Lists all Area Sales Managers (ASMs) with their assigned teams, districts, and BDE counts.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     await connectDB();
+
+    const { searchParams } = new URL(req.url);
+    const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();
+    const wantedEmployeeId = (
+      searchParams.get('employee_id') ||
+      searchParams.get('asm_id') ||
+      ''
+    ).trim();
+    const wantedEmail = (searchParams.get('email') || '').trim();
 
     const asms: any[] = await Employee.find({
       $or: [
@@ -63,6 +72,38 @@ export async function GET() {
         status: asm.status || 'active',
       };
     });
+
+    // Single-ASM lookup:
+    //   /api/sm/asms?id=<mongo id>  |  ?employee_id=ASM001  |  ?email=...
+    if (wantedId || wantedEmployeeId || wantedEmail) {
+      const one = data.find((asm) => {
+        // `id` accepts any identifier: Mongo _id, employee_id (ASM001) or email.
+        const matchesId =
+          wantedId &&
+          (String(asm.id).toLowerCase() === wantedId.toLowerCase() ||
+            String(asm.employee_id || '').toLowerCase() === wantedId.toLowerCase() ||
+            String(asm.email || '').toLowerCase() === wantedId.toLowerCase());
+        const matchesEmployeeId =
+          wantedEmployeeId &&
+          String(asm.employee_id || '').toLowerCase() === wantedEmployeeId.toLowerCase();
+        const matchesEmail =
+          wantedEmail &&
+          String(asm.email || '').toLowerCase() === wantedEmail.toLowerCase();
+        return Boolean(matchesId || matchesEmployeeId || matchesEmail);
+      });
+
+      if (!one) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `ASM ${wantedId || wantedEmployeeId || wantedEmail} not found.`,
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ success: true, data: one });
+    }
 
     return NextResponse.json({
       success: true,

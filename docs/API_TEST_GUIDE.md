@@ -306,6 +306,8 @@ Supported filters in code: `bde_id` / `employee_id`, `asm_id`, `team`, `status`.
 | # | Method | Endpoint | Expected |
 |---|---|---|---|
 | 4.2 | GET | `/sm/asms` | 200, `{ count, data: [...] }` — ASMs with team, districts, BDE count |
+| 4.2.1 | GET | `/sm/asms/:id` | 200, single ASM — `:id` can be `ASM001`, the Mongo `id`, or the email |
+| 4.2.2 | GET | `/sm/asms?id=ASM001` | 200, same single ASM (also accepts `employee_id=` / `email=`) |
 
 ### 4.3 ASM creates a BDE
 

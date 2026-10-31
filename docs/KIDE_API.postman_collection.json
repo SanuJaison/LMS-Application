@@ -205,6 +205,22 @@
           }
         },
         {
+          "name": "Get ASM by employee_id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "url": "{{baseUrl}}/api/sm/asms/{{asmEmployeeId}}"
+          }
+        },
+        {
+          "name": "Get ASM by Mongo id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "url": "{{baseUrl}}/api/sm/asms?id={{asmDocId}}"
+          }
+        },
+        {
           "name": "Create BDE (ASM)",
           "event": [
             {
