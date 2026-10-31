@@ -1,0 +1,1004 @@
+{
+  "info": {
+    "name": "KIDE API — Full Test Suite",
+    "description": "Every documented KIDE API for admin + mobile app. Run folders top to bottom.\n\n1) Auth: run Admin Login, SM Login. 2) Hierarchy: Create ASM, then ASM Login, Create BDE, then BDE Login. 3) App folders. 4) Admin folders.\n\nTokens are saved automatically into collection variables by the login requests.\n\nBase URL: http://localhost:3000 (change the baseUrl variable for production).\n\nNote: employee passwords are not persisted in the DB — employee logins accept password123 or kide1234.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "adminToken", "value": "" },
+    { "key": "smToken", "value": "" },
+    { "key": "asmToken", "value": "" },
+    { "key": "bdeToken", "value": "" },
+    { "key": "asmEmployeeId", "value": "" },
+    { "key": "bdeEmployeeId", "value": "" },
+    { "key": "asmDocId", "value": "" },
+    { "key": "bdeDocId", "value": "" },
+    { "key": "leadDocId", "value": "" },
+    { "key": "leadId", "value": "" },
+    { "key": "studentId", "value": "STU-004" },
+    { "key": "wdrId", "value": "" },
+    { "key": "salId", "value": "" },
+    { "key": "recordId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', j.token || (j.data && j.data.token));",
+                  "pm.test('admin login ok', function () { pm.expect(j.success).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@kide.com\",\"password\":\"password123\"}" },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "SM Login (SM001)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "pm.collectionVariables.set('smToken', j.token || (j.data && j.data.token));",
+                  "pm.test('sm login ok', function () { pm.expect(j.success).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"employee_id\":\"SM001\",\"password\":\"password123\"}" },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "ASM Login (uses asmEmployeeId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "pm.collectionVariables.set('asmToken', j.token || (j.data && j.data.token));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{asmEmployeeId}}\",\"password\":\"password123\"}" },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "BDE Login (uses bdeEmployeeId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "pm.collectionVariables.set('bdeToken', j.token || (j.data && j.data.token));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"password123\"}" },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"token\":\"{{adminToken}}\"}" },
+            "url": "{{baseUrl}}/api/auth/refresh-token"
+          }
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/profile"
+          }
+        },
+        {
+          "name": "Auth Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/logout"
+          }
+        },
+        {
+          "name": "Set Password (employee password is not persisted)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"newpass123\"}" },
+            "url": "{{baseUrl}}/api/set-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Catalogs",
+      "item": [
+        { "name": "Courses", "request": { "method": "GET", "url": "{{baseUrl}}/api/courses" } },
+        { "name": "Districts", "request": { "method": "GET", "url": "{{baseUrl}}/api/districts" } },
+        { "name": "Zones", "request": { "method": "GET", "url": "{{baseUrl}}/api/zones" } },
+        { "name": "Sources", "request": { "method": "GET", "url": "{{baseUrl}}/api/sources" } },
+        { "name": "Designations", "request": { "method": "GET", "url": "{{baseUrl}}/api/designations" } },
+        { "name": "Hierarchy Filters", "request": { "method": "GET", "url": "{{baseUrl}}/api/hierarchy/filters" } }
+      ]
+    },
+    {
+      "name": "03 Hierarchy",
+      "item": [
+        {
+          "name": "Create ASM (SM)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('asmEmployeeId', j.data.employee_id); pm.collectionVariables.set('asmDocId', j.data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{smToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Bipin Joseph\",\"email\":\"bipin.ekm@kide.com\",\"contact_number\":\"+91 90000 00001\",\"password\":\"password123\",\"team_code\":\"EKM\"}" },
+            "url": "{{baseUrl}}/api/sm/create-asm"
+          }
+        },
+        {
+          "name": "List ASMs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "url": "{{baseUrl}}/api/sm/asms"
+          }
+        },
+        {
+          "name": "Create BDE (ASM)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('bdeEmployeeId', j.data.employee_id); pm.collectionVariables.set('bdeDocId', j.data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Vishnu Mohan\",\"email\":\"vishnu.bde@kide.com\",\"contact_number\":\"+91 98471 99999\",\"password\":\"password123\",\"district\":\"Ernakulam\"}" },
+            "url": "{{baseUrl}}/api/asm/create-bde"
+          }
+        },
+        {
+          "name": "List BDEs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "url": "{{baseUrl}}/api/asm/bdes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Admin",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/stats?zone=Central%20Zone&district=Ernakulam"
+          }
+        },
+        {
+          "name": "GET Employees",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/employees" }
+        },
+        {
+          "name": "GET Teams",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/teams" }
+        },
+        {
+          "name": "GET Leads",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/leads" }
+        },
+        {
+          "name": "GET Attendance",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/attendance" }
+        },
+        {
+          "name": "GET Wallets",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/wallets" }
+        },
+        {
+          "name": "GET Leaves",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/leaves" }
+        },
+        {
+          "name": "GET Activities",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/activities" }
+        },
+        {
+          "name": "GET Wallet Withdraw Requests",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/wallet-withdraw-requests" }
+        },
+        {
+          "name": "GET Roles",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/roles" }
+        },
+        {
+          "name": "GET Settings",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/settings" }
+        },
+        {
+          "name": "GET Task Templates",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/taskTemplates" }
+        },
+        {
+          "name": "GET Employee Tasks",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/employeeTasks" }
+        },
+        {
+          "name": "Create Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('recordId', j.data._id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"API Test BDE\",\"email\":\"apitest.bde@kide.com\",\"contact_number\":\"9000000001\",\"designation\":\"Business Development Executive\",\"zone\":\"Central Zone\",\"district\":\"Ernakulam\",\"team\":\"Team Ernakulam\",\"reports_to\":\"{{asmEmployeeId}}\",\"status\":\"active\",\"password\":\"password123\"}" },
+            "url": "{{baseUrl}}/api/admin/employees"
+          }
+        },
+        {
+          "name": "Create Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Test Team\",\"team_lead\":\"Bipin Joseph\",\"districts\":[\"Pathanamthitta\",\"Alappuzha\"],\"zone\":\"South Zone\"}" },
+            "url": "{{baseUrl}}/api/admin/teams"
+          }
+        },
+        {
+          "name": "Create District",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Test District\",\"zone\":\"Central Zone\",\"description\":\"\"}" },
+            "url": "{{baseUrl}}/api/admin/districts"
+          }
+        },
+        {
+          "name": "Create Zone",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Test Zone\",\"description\":\"Test zone\"}" },
+            "url": "{{baseUrl}}/api/admin/zones"
+          }
+        },
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Flutter\",\"fee\":25000,\"duration\":\"6 Months\",\"status\":\"active\"}" },
+            "url": "{{baseUrl}}/api/admin/courses"
+          }
+        },
+        {
+          "name": "Create Designation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Business Development Executive\",\"prefix\":\"BDE\"}" },
+            "url": "{{baseUrl}}/api/admin/designations"
+          }
+        },
+        {
+          "name": "Create Lead (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"district\":\"Ernakulam\",\"course\":\"Flutter\",\"employee\":\"Vishnu Mohan\",\"status\":\"New\"}" },
+            "url": "{{baseUrl}}/api/admin/leads"
+          }
+        },
+        {
+          "name": "Create Attendance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"date\":\"2026-10-31\",\"check_in\":\"09:05 AM\",\"check_out\":\"06:10 PM\",\"status\":\"COMPLETED\"}" },
+            "url": "{{baseUrl}}/api/admin/attendance"
+          }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Visit 5 colleges\",\"description\":\"Ernakulam zone\",\"assigned_to\":\"Vishnu Mohan\",\"priority\":\"high\",\"status\":\"pending\",\"due_date\":\"2026-11-05\"}" },
+            "url": "{{baseUrl}}/api/admin/tasks"
+          }
+        },
+        {
+          "name": "Create Task Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Daily 5 college visits\",\"description\":\"Visit five colleges per day\",\"designation\":\"Business Development Executive\",\"priority\":\"high\",\"points\":10,\"is_active\":true}" },
+            "url": "{{baseUrl}}/api/admin/taskTemplates"
+          }
+        },
+        {
+          "name": "Create Employee Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"task_template\":\"Daily Lead Generation\",\"period_start\":\"2026-11-01\",\"period_end\":\"2026-11-30\",\"total_target\":15,\"achieved\":0,\"is_completed\":false,\"metric_type\":\"Leads Generated\",\"notes\":\"\"}" },
+            "url": "{{baseUrl}}/api/admin/employeeTasks"
+          }
+        },
+        {
+          "name": "Create Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"balance\":0,\"total_earned\":0,\"total_paid\":0,\"currency\":\"INR\"}" },
+            "url": "{{baseUrl}}/api/admin/wallets"
+          }
+        },
+        {
+          "name": "Create Withdraw Request (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"amount\":1000,\"status\":\"Submitted to ASM\"}" },
+            "url": "{{baseUrl}}/api/admin/wallet-withdraw-requests"
+          }
+        },
+        {
+          "name": "Create Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Personal\",\"status\":\"Pending\"}" },
+            "url": "{{baseUrl}}/api/admin/leaves"
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Accounts\",\"guard_name\":\"web\",\"description\":\"Finance team\",\"permissions\":[]}" },
+            "url": "{{baseUrl}}/api/admin/roles"
+          }
+        },
+        {
+          "name": "Create Setting",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Incentive amount\",\"key\":\"incentive_amount\",\"value\":1000,\"description\":\"INR per admission\"}" },
+            "url": "{{baseUrl}}/api/admin/settings"
+          }
+        },
+        {
+          "name": "Update Employee (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"id\":\"{{recordId}}\",\"name\":\"Updated Name\"}" },
+            "url": "{{baseUrl}}/api/admin/employees"
+          }
+        },
+        {
+          "name": "Delete Employee (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/employees?id={{recordId}}"
+          }
+        },
+        {
+          "name": "Incentives",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/incentives?bde_id={{bdeEmployeeId}}"
+          }
+        },
+        {
+          "name": "Salary Requests (dedicated route)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/salary/requests"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 App - Home & Attendance",
+      "item": [
+        {
+          "name": "Home",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/home"
+          }
+        },
+        {
+          "name": "Attendance Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/attendance/status"
+          }
+        },
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"latitude\":9.9816,\"longitude\":76.2999,\"address\":\"Kochi, Ernakulam\"}" },
+            "url": "{{baseUrl}}/api/attendance/check-in"
+          }
+        },
+        {
+          "name": "Check Out (currently 500 - enum bug)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"notes\":\"Day completed\"}" },
+            "url": "{{baseUrl}}/api/attendance/check-out"
+          }
+        },
+        {
+          "name": "Attendance History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/attendance/history?month=2026-10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 App - Leads",
+      "item": [
+        {
+          "name": "List Leads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/leads?status=&search=&district=Ernakulam&course=Flutter&interest=&employee="
+          }
+        },
+        {
+          "name": "Next Student ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "pm.collectionVariables.set('studentId', j.student_id || (j.data && j.data.student_id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/leads/next-student-id"
+          }
+        },
+        {
+          "name": "Lead Create Schema",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/leads/create"
+          }
+        },
+        {
+          "name": "Create Lead (app)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('leadDocId', j.data.id); pm.collectionVariables.set('leadId', j.data.lead_id); if (j.data.student_id) pm.collectionVariables.set('studentId', j.data.student_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"whatsapp_number\":\"9847123456\",\"district\":\"Ernakulam\",\"place\":\"Aluva, Kochi\",\"age\":21,\"qualification\":\"B.Tech Computer Science\",\"college_name\":\"SCMS School of Engineering\",\"current_year\":\"Passout\",\"interested_areas\":\"Mobile Apps & Backend\",\"interested_course\":\"Flutter\",\"lead_source\":\"College Visit\",\"admission_status\":\"New\",\"notes\":\"Looking for placement guarantee\"}" },
+            "url": "{{baseUrl}}/api/leads/create"
+          }
+        },
+        {
+          "name": "Create Lead (admin path, requires employee)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Meera Nair\",\"contact_number\":\"9847000111\",\"district\":\"Ernakulam\",\"interested_course\":\"Flutter\",\"lead_source\":\"Referral\",\"admission_status\":\"New\",\"employee\":\"Vishnu Mohan\"}" },
+            "url": "{{baseUrl}}/api/leads"
+          }
+        },
+        {
+          "name": "Update Lead",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"id\":\"{{leadDocId}}\",\"remarks\":\"Called again, still interested\",\"student_interest\":\"Hot\"}" },
+            "url": "{{baseUrl}}/api/leads"
+          }
+        },
+        {
+          "name": "Delete Lead",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/leads?id={{leadDocId}}"
+          }
+        },
+        {
+          "name": "Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"lead_source\":\"College Visit\",\"student_interest\":\"Hot\",\"next_followup_date\":\"2026-11-02\",\"remarks\":\"Student interested in weekend Flutter batch\",\"admission_status\":\"Follow-up\",\"payment_verification\":\"Pending\",\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"followup_date\":\"2026-10-31\",\"proof_url\":\"\"}" },
+            "url": "{{baseUrl}}/api/leads/{{leadDocId}}/followup"
+          }
+        },
+        {
+          "name": "Follow-up (alias)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"student_interest\":\"Warm\",\"next_followup_date\":\"2026-11-03\",\"remarks\":\"Alias route test\",\"student_id\":\"{{studentId}}\"}" },
+            "url": "{{baseUrl}}/api/leads/{{leadDocId}}/follow-up"
+          }
+        },
+        {
+          "name": "Close Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"payment\":20000,\"payment_verification\":\"Verified\",\"remarks\":\"Admission confirmed; first installment received via UPI\"}" },
+            "url": "{{baseUrl}}/api/leads/{{leadDocId}}/close"
+          }
+        },
+        {
+          "name": "Import Leads (CSV)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": [] }]
+            },
+            "url": "{{baseUrl}}/api/leads/import"
+          }
+        },
+        {
+          "name": "Follow-up Pipeline",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/followups?due=today"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 App - Institutes, Tasks, Leaves",
+      "item": [
+        {
+          "name": "List Institutes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "url": "{{baseUrl}}/api/institutes?district=Ernakulam&search="
+          }
+        },
+        {
+          "name": "Create Institute",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('recordId', j.data._id || j.data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"XYZ College of Arts & Science\",\"type\":\"College\",\"district\":\"Ernakulam\",\"address\":\"Kakkanad, Kochi\",\"contact_person\":\"Dr. Rajesh Kumar\",\"contact_phone\":\"9847123456\",\"email\":\"principal@xyz.edu\"}" },
+            "url": "{{baseUrl}}/api/institutes"
+          }
+        },
+        {
+          "name": "Create Institute (alias)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"name\":\"ABC Institute\",\"type\":\"Institute\",\"district\":\"Ernakulam\",\"address\":\"Kochi\",\"contact_person\":\"Jane Doe\",\"contact_phone\":\"9847000000\",\"email\":\"jane@abc.edu\"}" },
+            "url": "{{baseUrl}}/api/institutes/create"
+          }
+        },
+        {
+          "name": "Delete Institute",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/institutes/{{recordId}}"
+          }
+        },
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/tasks"
+          }
+        },
+        {
+          "name": "List Leaves",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/leaves"
+          }
+        },
+        {
+          "name": "Apply Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Family function\"}" },
+            "url": "{{baseUrl}}/api/leaves/apply"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 App - Wallet",
+      "item": [
+        {
+          "name": "Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/wallet/balance"
+          }
+        },
+        {
+          "name": "Withdraw (max 5000)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('wdrId', j.data.request_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"amount\":1000,\"remarks\":\"October incentive withdrawal\",\"upi_id\":\"vishnu@okaxis\"}" },
+            "url": "{{baseUrl}}/api/wallet/withdraw"
+          }
+        },
+        {
+          "name": "Withdraw Workflow - forward_to_sm (ASM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"Verified closed admissions\"}" },
+            "url": "{{baseUrl}}/api/wallet/workflow"
+          }
+        },
+        {
+          "name": "Withdraw Workflow - forward_to_accounts (SM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{smToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"Approved by SM\"}" },
+            "url": "{{baseUrl}}/api/wallet/workflow"
+          }
+        },
+        {
+          "name": "Withdraw Workflow - sanction (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"sanction\",\"remarks\":\"Sanctioned by accounts\"}" },
+            "url": "{{baseUrl}}/api/wallet/workflow"
+          }
+        },
+        {
+          "name": "Withdraw Workflow - pay (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"pay\",\"transaction_reference\":\"TXN987654\",\"remarks\":\"Paid via UPI\"}" },
+            "url": "{{baseUrl}}/api/wallet/workflow"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 App - Salary",
+      "item": [
+        {
+          "name": "Salary Request (min 5000)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j = pm.response.json();",
+                  "if (j.data) { pm.collectionVariables.set('salId', j.data.request_id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"amount\":5000,\"period\":\"October 2026\",\"attendance_days\":28,\"remarks\":\"Monthly minimum salary request\"}" },
+            "url": "{{baseUrl}}/api/salary/request"
+          }
+        },
+        {
+          "name": "List Salary Requests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "url": "{{baseUrl}}/api/salary/requests"
+          }
+        },
+        {
+          "name": "Salary Workflow - forward_to_sm (ASM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"28 days attendance verified\"}" },
+            "url": "{{baseUrl}}/api/salary/workflow"
+          }
+        },
+        {
+          "name": "Salary Workflow - forward_to_accounts (SM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{smToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"SM approval granted\"}" },
+            "url": "{{baseUrl}}/api/salary/workflow"
+          }
+        },
+        {
+          "name": "Salary Workflow - sanction (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"sanction\",\"remarks\":\"Payment sanctioned\"}" },
+            "url": "{{baseUrl}}/api/salary/workflow"
+          }
+        },
+        {
+          "name": "Salary Workflow - pay (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"pay\",\"transaction_reference\":\"SBIN002918239102\",\"remarks\":\"Salary disbursed via NEFT\"}" },
+            "url": "{{baseUrl}}/api/salary/workflow"
+          }
+        }
+      ]
+    }
+  ]
+}
