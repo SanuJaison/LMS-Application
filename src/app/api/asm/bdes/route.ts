@@ -42,6 +42,11 @@ export async function GET(req: Request) {
     const team = searchParams.get('team');
     if (team) query.team = team;
 
+    // Single-BDE lookup identifiers (Mongo id, employee_id or email).
+    const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();
+    const wantedEmployeeId = (searchParams.get('employee_id') || '').trim();
+    const wantedEmail = (searchParams.get('email') || '').trim();
+
     const bdes: any[] = await Employee.find(query)
       .sort({ employee_id: 1 })
       .lean();
@@ -83,6 +88,37 @@ export async function GET(req: Request) {
         conversion_rate: conversionRate,
       };
     });
+
+    // Single-BDE lookup:
+    //   /api/asm/bdes?id=<mongo id>  |  ?employee_id=BDE001  |  ?email=...
+    if (wantedId || wantedEmployeeId || wantedEmail) {
+      const one = data.find((bde) => {
+        const matchesId =
+          wantedId &&
+          (String(bde.id).toLowerCase() === wantedId.toLowerCase() ||
+            String(bde.employee_id || '').toLowerCase() === wantedId.toLowerCase() ||
+            String(bde.email || '').toLowerCase() === wantedId.toLowerCase());
+        const matchesEmployeeId =
+          wantedEmployeeId &&
+          String(bde.employee_id || '').toLowerCase() === wantedEmployeeId.toLowerCase();
+        const matchesEmail =
+          wantedEmail &&
+          String(bde.email || '').toLowerCase() === wantedEmail.toLowerCase();
+        return Boolean(matchesId || matchesEmployeeId || matchesEmail);
+      });
+
+      if (!one) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `BDE ${wantedId || wantedEmployeeId || wantedEmail} not found.`,
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ success: true, data: one });
+    }
 
     return NextResponse.json({
       success: true,

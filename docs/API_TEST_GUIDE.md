@@ -333,6 +333,9 @@ Supported filters in code: `bde_id` / `employee_id`, `asm_id`, `team`, `status`.
 | # | Method | Endpoint | Expected |
 |---|---|---|---|
 | 4.4 | GET | `/asm/bdes` | 200, BDEs with ASM + metrics (ASM token = own team; admin/SM = all) |
+| 4.4.1 | GET | `/asm/bdes/:id` | 200, single BDE — `:id` can be `BDE001`, the Mongo `id`, or the email |
+| 4.4.2 | GET | `/asm/bdes?id=BDE001` | 200, same single BDE (also accepts `employee_id=` / `email=`) |
+| 4.4.3 | GET | `/asm/bdes?asm_id=ASM001` | 200, list of BDEs under that ASM |
 
 ---
 

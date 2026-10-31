@@ -251,6 +251,22 @@
             "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
             "url": "{{baseUrl}}/api/asm/bdes"
           }
+        },
+        {
+          "name": "Get BDE by employee_id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "url": "{{baseUrl}}/api/asm/bdes/{{bdeEmployeeId}}"
+          }
+        },
+        {
+          "name": "Get BDE by Mongo id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "url": "{{baseUrl}}/api/asm/bdes?id={{bdeDocId}}"
+          }
         }
       ]
     },
