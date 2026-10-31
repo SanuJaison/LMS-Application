@@ -3,6 +3,10 @@ import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team } from '@/models';
 
+// Always read fresh data: Next.js 14 otherwise statically caches this GET at
+// build time, so newly created ASMs never show up on Vercel.
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/sm/asms
  * Lists all Area Sales Managers (ASMs) with their assigned teams, districts, and BDE counts.

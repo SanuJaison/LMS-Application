@@ -338,7 +338,11 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
       params.tab === 'settings'
         ? { createdAt: 1 }
         : { createdAt: -1 };
-    const docs = await Model.find().sort(sortOrder).lean();
+    const docs = await Model.find()
+      .sort(sortOrder)
+      // Never expose password hashes (seeded employee docs can contain one).
+      .select(params.tab === 'employees' ? '-password' : '')
+      .lean();
     let data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));
 
     // The employee `team` is derived from the Teams assignment (team lead),

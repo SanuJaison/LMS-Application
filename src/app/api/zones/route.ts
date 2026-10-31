@@ -8,6 +8,9 @@ const DEFAULT_ZONES = [
   { name: 'North Zone', description: 'North Kerala regional zone (Kozhikode, Wayanad, Kannur, Kasaragod)' },
 ];
 
+// Avoid build-time static caching on Vercel.
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/zones - Fetch all zones
  */

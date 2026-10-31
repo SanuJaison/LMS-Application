@@ -3,6 +3,9 @@ import { connectDB } from '@/lib/db';
 import { Zone, District, Designation, Team } from '@/models';
 import { numericId } from '@/lib/employeeAuth';
 
+// Avoid build-time static caching of dropdown data on Vercel.
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/hierarchy/filters
  * Returns combined dropdown options bundle for mobile hierarchy navigation.
