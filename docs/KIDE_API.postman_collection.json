@@ -1,25 +1,70 @@
 {
   "info": {
     "name": "KIDE API — Full Test Suite",
-    "description": "Every documented KIDE API for admin + mobile app. Run folders top to bottom.\n\n1) Auth: run Admin Login, SM Login. 2) Hierarchy: Create ASM, then ASM Login, Create BDE, then BDE Login. 3) App folders. 4) Admin folders.\n\nTokens are saved automatically into collection variables by the login requests.\n\nBase URL: http://localhost:3000 (change the baseUrl variable for production).\n\nNote: employee passwords are not persisted in the DB — employee logins accept password123 or kide1234.",
+    "description": "Every documented KIDE API for admin + mobile app. Run folders top to bottom.\n\n1) Auth: run Admin Login, SM Login. 2) Hierarchy: Create ASM, then ASM Login, Create BDE, then BDE Login. 3) App folders. 4) Admin folders.\n\nTokens are saved automatically into collection variables by the login requests.\n\nBase URL: http://localhost:3000 (change the baseUrl variable for production).\n\nNote: employee passwords ARE persisted now (chosen at create-ASM / create-BDE). The seeded accounts use password123.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "adminToken", "value": "" },
-    { "key": "smToken", "value": "" },
-    { "key": "asmToken", "value": "" },
-    { "key": "bdeToken", "value": "" },
-    { "key": "asmEmployeeId", "value": "" },
-    { "key": "bdeEmployeeId", "value": "" },
-    { "key": "asmDocId", "value": "" },
-    { "key": "bdeDocId", "value": "" },
-    { "key": "leadDocId", "value": "" },
-    { "key": "leadId", "value": "" },
-    { "key": "studentId", "value": "STU-004" },
-    { "key": "wdrId", "value": "" },
-    { "key": "salId", "value": "" },
-    { "key": "recordId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "smToken",
+      "value": ""
+    },
+    {
+      "key": "asmToken",
+      "value": ""
+    },
+    {
+      "key": "bdeToken",
+      "value": ""
+    },
+    {
+      "key": "asmEmployeeId",
+      "value": ""
+    },
+    {
+      "key": "bdeEmployeeId",
+      "value": ""
+    },
+    {
+      "key": "asmDocId",
+      "value": ""
+    },
+    {
+      "key": "bdeDocId",
+      "value": ""
+    },
+    {
+      "key": "leadDocId",
+      "value": ""
+    },
+    {
+      "key": "leadId",
+      "value": ""
+    },
+    {
+      "key": "studentId",
+      "value": "STU-004"
+    },
+    {
+      "key": "wdrId",
+      "value": ""
+    },
+    {
+      "key": "salId",
+      "value": ""
+    },
+    {
+      "key": "recordId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -42,8 +87,16 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"email\":\"admin@kide.com\",\"password\":\"password123\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin@kide.com\",\"password\":\"password123\"}"
+            },
             "url": "{{baseUrl}}/api/login"
           }
         },
@@ -64,8 +117,16 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"employee_id\":\"SM001\",\"password\":\"password123\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee_id\":\"SM001\",\"password\":\"password123\"}"
+            },
             "url": "{{baseUrl}}/api/login"
           }
         },
@@ -85,8 +146,16 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{asmEmployeeId}}\",\"password\":\"password123\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee_id\":\"{{asmEmployeeId}}\",\"password\":\"password123\"}"
+            },
             "url": "{{baseUrl}}/api/login"
           }
         },
@@ -106,8 +175,16 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"password123\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"password123\"}"
+            },
             "url": "{{baseUrl}}/api/login"
           }
         },
@@ -116,10 +193,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"token\":\"{{adminToken}}\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"token\":\"{{adminToken}}\"}"
+            },
             "url": "{{baseUrl}}/api/auth/refresh-token"
           }
         },
@@ -127,7 +213,12 @@
           "name": "Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/profile"
           }
         },
@@ -135,7 +226,12 @@
           "name": "Auth Me",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/auth/me"
           }
         },
@@ -143,16 +239,29 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/logout"
           }
         },
         {
-          "name": "Set Password (employee password is not persisted)",
+          "name": "Set Password (admin only)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"newpass123\"}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee_id\":\"{{bdeEmployeeId}}\",\"password\":\"newpass123\"}"
+            },
             "url": "{{baseUrl}}/api/set-password"
           }
         }
@@ -161,12 +270,48 @@
     {
       "name": "02 Catalogs",
       "item": [
-        { "name": "Courses", "request": { "method": "GET", "url": "{{baseUrl}}/api/courses" } },
-        { "name": "Districts", "request": { "method": "GET", "url": "{{baseUrl}}/api/districts" } },
-        { "name": "Zones", "request": { "method": "GET", "url": "{{baseUrl}}/api/zones" } },
-        { "name": "Sources", "request": { "method": "GET", "url": "{{baseUrl}}/api/sources" } },
-        { "name": "Designations", "request": { "method": "GET", "url": "{{baseUrl}}/api/designations" } },
-        { "name": "Hierarchy Filters", "request": { "method": "GET", "url": "{{baseUrl}}/api/hierarchy/filters" } }
+        {
+          "name": "Courses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/courses"
+          }
+        },
+        {
+          "name": "Districts",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/districts"
+          }
+        },
+        {
+          "name": "Zones",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/zones"
+          }
+        },
+        {
+          "name": "Sources",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/sources"
+          }
+        },
+        {
+          "name": "Designations",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/designations"
+          }
+        },
+        {
+          "name": "Hierarchy Filters",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/hierarchy/filters"
+          }
+        }
       ]
     },
     {
@@ -189,10 +334,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{smToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Bipin Joseph\",\"email\":\"bipin.ekm@kide.com\",\"contact_number\":\"+91 90000 00001\",\"password\":\"password123\",\"team_code\":\"EKM\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Bipin Joseph\",\"email\":\"bipin.ekm@kide.com\",\"contact_number\":\"+91 90000 00001\",\"password\":\"password123\",\"team_code\":\"EKM\"}"
+            },
             "url": "{{baseUrl}}/api/sm/create-asm"
           }
         },
@@ -200,7 +354,12 @@
           "name": "List ASMs",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/sm/asms"
           }
         },
@@ -208,7 +367,12 @@
           "name": "Get ASM by employee_id",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/sm/asms/{{asmEmployeeId}}"
           }
         },
@@ -216,7 +380,12 @@
           "name": "Get ASM by Mongo id",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{smToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/sm/asms?id={{asmDocId}}"
           }
         },
@@ -237,10 +406,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Vishnu Mohan\",\"email\":\"vishnu.bde@kide.com\",\"contact_number\":\"+91 98471 99999\",\"password\":\"password123\",\"district\":\"Ernakulam\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Vishnu Mohan\",\"email\":\"vishnu.bde@kide.com\",\"contact_number\":\"+91 98471 99999\",\"password\":\"password123\",\"district\":\"Ernakulam\"}"
+            },
             "url": "{{baseUrl}}/api/asm/create-bde"
           }
         },
@@ -248,7 +426,12 @@
           "name": "List BDEs",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/asm/bdes"
           }
         },
@@ -256,7 +439,12 @@
           "name": "Get BDE by employee_id",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/asm/bdes/{{bdeEmployeeId}}"
           }
         },
@@ -264,7 +452,12 @@
           "name": "Get BDE by Mongo id",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/asm/bdes?id={{bdeDocId}}"
           }
         }
@@ -277,57 +470,170 @@
           "name": "Dashboard Stats",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/admin/stats?zone=Central%20Zone&district=Ernakulam"
           }
         },
         {
           "name": "GET Employees",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/employees" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/employees"
+          }
         },
         {
           "name": "GET Teams",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/teams" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/teams"
+          }
         },
         {
           "name": "GET Leads",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/leads" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/leads"
+          }
         },
         {
           "name": "GET Attendance",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/attendance" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/attendance"
+          }
         },
         {
           "name": "GET Wallets",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/wallets" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/wallets"
+          }
         },
         {
           "name": "GET Leaves",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/leaves" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/leaves"
+          }
         },
         {
           "name": "GET Activities",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/activities" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/activities"
+          }
         },
         {
           "name": "GET Wallet Withdraw Requests",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/wallet-withdraw-requests" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/wallet-withdraw-requests"
+          }
         },
         {
           "name": "GET Roles",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/roles" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/roles"
+          }
         },
         {
           "name": "GET Settings",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/settings" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/settings"
+          }
         },
         {
           "name": "GET Task Templates",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/taskTemplates" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/taskTemplates"
+          }
         },
         {
           "name": "GET Employee Tasks",
-          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/employeeTasks" }
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/employeeTasks"
+          }
         },
         {
           "name": "Create Employee",
@@ -346,10 +652,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"API Test BDE\",\"email\":\"apitest.bde@kide.com\",\"contact_number\":\"9000000001\",\"designation\":\"Business Development Executive\",\"zone\":\"Central Zone\",\"district\":\"Ernakulam\",\"team\":\"Team Ernakulam\",\"reports_to\":\"{{asmEmployeeId}}\",\"status\":\"active\",\"password\":\"password123\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"API Test BDE\",\"email\":\"apitest.bde@kide.com\",\"contact_number\":\"9000000001\",\"designation\":\"Business Development Executive\",\"zone\":\"Central Zone\",\"district\":\"Ernakulam\",\"team\":\"Team Ernakulam\",\"reports_to\":\"{{asmEmployeeId}}\",\"status\":\"active\",\"password\":\"password123\"}"
+            },
             "url": "{{baseUrl}}/api/admin/employees"
           }
         },
@@ -358,10 +673,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Test Team\",\"team_lead\":\"Bipin Joseph\",\"districts\":[\"Pathanamthitta\",\"Alappuzha\"],\"zone\":\"South Zone\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Test Team\",\"team_lead\":\"Bipin Joseph\",\"districts\":[\"Pathanamthitta\",\"Alappuzha\"],\"zone\":\"South Zone\"}"
+            },
             "url": "{{baseUrl}}/api/admin/teams"
           }
         },
@@ -370,10 +694,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Test District\",\"zone\":\"Central Zone\",\"description\":\"\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Test District\",\"zone\":\"Central Zone\",\"description\":\"\"}"
+            },
             "url": "{{baseUrl}}/api/admin/districts"
           }
         },
@@ -382,10 +715,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Test Zone\",\"description\":\"Test zone\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Test Zone\",\"description\":\"Test zone\"}"
+            },
             "url": "{{baseUrl}}/api/admin/zones"
           }
         },
@@ -394,10 +736,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Flutter\",\"fee\":25000,\"duration\":\"6 Months\",\"status\":\"active\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Flutter\",\"fee\":25000,\"duration\":\"6 Months\",\"status\":\"active\"}"
+            },
             "url": "{{baseUrl}}/api/admin/courses"
           }
         },
@@ -406,10 +757,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Business Development Executive\",\"prefix\":\"BDE\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Business Development Executive\",\"prefix\":\"BDE\"}"
+            },
             "url": "{{baseUrl}}/api/admin/designations"
           }
         },
@@ -418,10 +778,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"district\":\"Ernakulam\",\"course\":\"Flutter\",\"employee\":\"Vishnu Mohan\",\"status\":\"New\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"district\":\"Ernakulam\",\"course\":\"Flutter\",\"employee\":\"Vishnu Mohan\",\"status\":\"New\"}"
+            },
             "url": "{{baseUrl}}/api/admin/leads"
           }
         },
@@ -430,10 +799,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"date\":\"2026-10-31\",\"check_in\":\"09:05 AM\",\"check_out\":\"06:10 PM\",\"status\":\"COMPLETED\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"date\":\"2026-10-31\",\"check_in\":\"09:05 AM\",\"check_out\":\"06:10 PM\",\"status\":\"COMPLETED\"}"
+            },
             "url": "{{baseUrl}}/api/admin/attendance"
           }
         },
@@ -442,10 +820,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"title\":\"Visit 5 colleges\",\"description\":\"Ernakulam zone\",\"assigned_to\":\"Vishnu Mohan\",\"priority\":\"high\",\"status\":\"pending\",\"due_date\":\"2026-11-05\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Visit 5 colleges\",\"description\":\"Ernakulam zone\",\"assigned_to\":\"Vishnu Mohan\",\"priority\":\"high\",\"status\":\"pending\",\"due_date\":\"2026-11-05\"}"
+            },
             "url": "{{baseUrl}}/api/admin/tasks"
           }
         },
@@ -454,10 +841,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"title\":\"Daily 5 college visits\",\"description\":\"Visit five colleges per day\",\"designation\":\"Business Development Executive\",\"priority\":\"high\",\"points\":10,\"is_active\":true}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Daily 5 college visits\",\"description\":\"Visit five colleges per day\",\"designation\":\"Business Development Executive\",\"priority\":\"high\",\"points\":10,\"is_active\":true}"
+            },
             "url": "{{baseUrl}}/api/admin/taskTemplates"
           }
         },
@@ -466,10 +862,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"task_template\":\"Daily Lead Generation\",\"period_start\":\"2026-11-01\",\"period_end\":\"2026-11-30\",\"total_target\":15,\"achieved\":0,\"is_completed\":false,\"metric_type\":\"Leads Generated\",\"notes\":\"\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"task_template\":\"Daily Lead Generation\",\"period_start\":\"2026-11-01\",\"period_end\":\"2026-11-30\",\"total_target\":15,\"achieved\":0,\"is_completed\":false,\"metric_type\":\"Leads Generated\",\"notes\":\"\"}"
+            },
             "url": "{{baseUrl}}/api/admin/employeeTasks"
           }
         },
@@ -478,10 +883,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"balance\":0,\"total_earned\":0,\"total_paid\":0,\"currency\":\"INR\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"balance\":0,\"total_earned\":0,\"total_paid\":0,\"currency\":\"INR\"}"
+            },
             "url": "{{baseUrl}}/api/admin/wallets"
           }
         },
@@ -490,10 +904,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"amount\":1000,\"status\":\"Submitted to ASM\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee\":\"Vishnu Mohan\",\"employee_id\":\"{{bdeEmployeeId}}\",\"amount\":1000,\"status\":\"Submitted to ASM\"}"
+            },
             "url": "{{baseUrl}}/api/admin/wallet-withdraw-requests"
           }
         },
@@ -502,10 +925,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"employee\":\"Vishnu Mohan\",\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Personal\",\"status\":\"Pending\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"employee\":\"Vishnu Mohan\",\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Personal\",\"status\":\"Pending\"}"
+            },
             "url": "{{baseUrl}}/api/admin/leaves"
           }
         },
@@ -514,10 +946,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Accounts\",\"guard_name\":\"web\",\"description\":\"Finance team\",\"permissions\":[]}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Accounts\",\"guard_name\":\"web\",\"description\":\"Finance team\",\"permissions\":[]}"
+            },
             "url": "{{baseUrl}}/api/admin/roles"
           }
         },
@@ -526,10 +967,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Incentive amount\",\"key\":\"incentive_amount\",\"value\":1000,\"description\":\"INR per admission\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Incentive amount\",\"key\":\"incentive_amount\",\"value\":1000,\"description\":\"INR per admission\"}"
+            },
             "url": "{{baseUrl}}/api/admin/settings"
           }
         },
@@ -538,10 +988,19 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"id\":\"{{recordId}}\",\"name\":\"Updated Name\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"{{recordId}}\",\"name\":\"Updated Name\"}"
+            },
             "url": "{{baseUrl}}/api/admin/employees"
           }
         },
@@ -549,7 +1008,12 @@
           "name": "Delete Employee (DELETE)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/admin/employees?id={{recordId}}"
           }
         },
@@ -557,7 +1021,12 @@
           "name": "Incentives",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/incentives?bde_id={{bdeEmployeeId}}"
           }
         },
@@ -565,7 +1034,12 @@
           "name": "Salary Requests (dedicated route)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/salary/requests"
           }
         }
@@ -578,7 +1052,12 @@
           "name": "Home",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/home"
           }
         },
@@ -586,7 +1065,12 @@
           "name": "Attendance Status",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/attendance/status"
           }
         },
@@ -595,22 +1079,40 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"latitude\":9.9816,\"longitude\":76.2999,\"address\":\"Kochi, Ernakulam\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"latitude\":9.9816,\"longitude\":76.2999,\"address\":\"Kochi, Ernakulam\"}"
+            },
             "url": "{{baseUrl}}/api/attendance/check-in"
           }
         },
         {
-          "name": "Check Out (currently 500 - enum bug)",
+          "name": "Check Out",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"notes\":\"Day completed\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"notes\":\"Day completed\"}"
+            },
             "url": "{{baseUrl}}/api/attendance/check-out"
           }
         },
@@ -618,7 +1120,12 @@
           "name": "Attendance History",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/attendance/history?month=2026-10"
           }
         }
@@ -631,7 +1138,12 @@
           "name": "List Leads",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/leads?status=&search=&district=Ernakulam&course=Flutter&interest=&employee="
           }
         },
@@ -651,7 +1163,12 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/leads/next-student-id"
           }
         },
@@ -659,7 +1176,12 @@
           "name": "Lead Create Schema",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/leads/create"
           }
         },
@@ -680,10 +1202,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"whatsapp_number\":\"9847123456\",\"district\":\"Ernakulam\",\"place\":\"Aluva, Kochi\",\"age\":21,\"qualification\":\"B.Tech Computer Science\",\"college_name\":\"SCMS School of Engineering\",\"current_year\":\"Passout\",\"interested_areas\":\"Mobile Apps & Backend\",\"interested_course\":\"Flutter\",\"lead_source\":\"College Visit\",\"admission_status\":\"New\",\"notes\":\"Looking for placement guarantee\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Arjun Menon\",\"contact_number\":\"9847123456\",\"whatsapp_number\":\"9847123456\",\"district\":\"Ernakulam\",\"place\":\"Aluva, Kochi\",\"age\":21,\"qualification\":\"B.Tech Computer Science\",\"college_name\":\"SCMS School of Engineering\",\"current_year\":\"Passout\",\"interested_areas\":\"Mobile Apps & Backend\",\"interested_course\":\"Flutter\",\"lead_source\":\"College Visit\",\"admission_status\":\"New\",\"notes\":\"Looking for placement guarantee\"}"
+            },
             "url": "{{baseUrl}}/api/leads/create"
           }
         },
@@ -692,10 +1223,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"Meera Nair\",\"contact_number\":\"9847000111\",\"district\":\"Ernakulam\",\"interested_course\":\"Flutter\",\"lead_source\":\"Referral\",\"admission_status\":\"New\",\"employee\":\"Vishnu Mohan\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Meera Nair\",\"contact_number\":\"9847000111\",\"district\":\"Ernakulam\",\"interested_course\":\"Flutter\",\"lead_source\":\"Referral\",\"admission_status\":\"New\",\"employee\":\"Vishnu Mohan\"}"
+            },
             "url": "{{baseUrl}}/api/leads"
           }
         },
@@ -704,10 +1244,19 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"id\":\"{{leadDocId}}\",\"remarks\":\"Called again, still interested\",\"student_interest\":\"Hot\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"{{leadDocId}}\",\"remarks\":\"Called again, still interested\",\"student_interest\":\"Hot\"}"
+            },
             "url": "{{baseUrl}}/api/leads"
           }
         },
@@ -715,7 +1264,12 @@
           "name": "Delete Lead",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/leads?id={{leadDocId}}"
           }
         },
@@ -724,10 +1278,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"lead_source\":\"College Visit\",\"student_interest\":\"Hot\",\"next_followup_date\":\"2026-11-02\",\"remarks\":\"Student interested in weekend Flutter batch\",\"admission_status\":\"Follow-up\",\"payment_verification\":\"Pending\",\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"followup_date\":\"2026-10-31\",\"proof_url\":\"\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"lead_source\":\"College Visit\",\"student_interest\":\"Hot\",\"next_followup_date\":\"2026-11-02\",\"remarks\":\"Student interested in weekend Flutter batch\",\"admission_status\":\"Follow-up\",\"payment_verification\":\"Pending\",\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"followup_date\":\"2026-10-31\",\"proof_url\":\"\"}"
+            },
             "url": "{{baseUrl}}/api/leads/{{leadDocId}}/followup"
           }
         },
@@ -736,10 +1299,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"student_interest\":\"Warm\",\"next_followup_date\":\"2026-11-03\",\"remarks\":\"Alias route test\",\"student_id\":\"{{studentId}}\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"student_interest\":\"Warm\",\"next_followup_date\":\"2026-11-03\",\"remarks\":\"Alias route test\",\"student_id\":\"{{studentId}}\"}"
+            },
             "url": "{{baseUrl}}/api/leads/{{leadDocId}}/follow-up"
           }
         },
@@ -748,10 +1320,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"payment\":20000,\"payment_verification\":\"Verified\",\"remarks\":\"Admission confirmed; first installment received via UPI\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"student_id\":\"{{studentId}}\",\"course\":\"Flutter\",\"payment\":20000,\"payment_verification\":\"Verified\",\"remarks\":\"Admission confirmed; first installment received via UPI\"}"
+            },
             "url": "{{baseUrl}}/api/leads/{{leadDocId}}/close"
           }
         },
@@ -759,10 +1340,21 @@
           "name": "Import Leads (CSV)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
-              "formdata": [{ "key": "file", "type": "file", "src": [] }]
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
             },
             "url": "{{baseUrl}}/api/leads/import"
           }
@@ -771,7 +1363,12 @@
           "name": "Follow-up Pipeline",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/followups?due=today"
           }
         }
@@ -784,7 +1381,12 @@
           "name": "List Institutes",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{asmToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/institutes?district=Ernakulam&search="
           }
         },
@@ -805,10 +1407,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"XYZ College of Arts & Science\",\"type\":\"College\",\"district\":\"Ernakulam\",\"address\":\"Kakkanad, Kochi\",\"contact_person\":\"Dr. Rajesh Kumar\",\"contact_phone\":\"9847123456\",\"email\":\"principal@xyz.edu\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"XYZ College of Arts & Science\",\"type\":\"College\",\"district\":\"Ernakulam\",\"address\":\"Kakkanad, Kochi\",\"contact_person\":\"Dr. Rajesh Kumar\",\"contact_phone\":\"9847123456\",\"email\":\"principal@xyz.edu\"}"
+            },
             "url": "{{baseUrl}}/api/institutes"
           }
         },
@@ -817,10 +1428,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"name\":\"ABC Institute\",\"type\":\"Institute\",\"district\":\"Ernakulam\",\"address\":\"Kochi\",\"contact_person\":\"Jane Doe\",\"contact_phone\":\"9847000000\",\"email\":\"jane@abc.edu\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"ABC Institute\",\"type\":\"Institute\",\"district\":\"Ernakulam\",\"address\":\"Kochi\",\"contact_person\":\"Jane Doe\",\"contact_phone\":\"9847000000\",\"email\":\"jane@abc.edu\"}"
+            },
             "url": "{{baseUrl}}/api/institutes/create"
           }
         },
@@ -828,7 +1448,12 @@
           "name": "Delete Institute",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/institutes/{{recordId}}"
           }
         },
@@ -836,7 +1461,12 @@
           "name": "List Tasks",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/tasks"
           }
         },
@@ -844,7 +1474,12 @@
           "name": "List Leaves",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/leaves"
           }
         },
@@ -853,10 +1488,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Family function\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"leave_type\":\"Casual Leave\",\"start_date\":\"2026-11-05\",\"end_date\":\"2026-11-06\",\"reason\":\"Family function\"}"
+            },
             "url": "{{baseUrl}}/api/leaves/apply"
           }
         }
@@ -869,7 +1513,12 @@
           "name": "Wallet Balance",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/wallet/balance"
           }
         },
@@ -890,10 +1539,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"amount\":1000,\"remarks\":\"October incentive withdrawal\",\"upi_id\":\"vishnu@okaxis\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\":1000,\"remarks\":\"October incentive withdrawal\",\"upi_id\":\"vishnu@okaxis\"}"
+            },
             "url": "{{baseUrl}}/api/wallet/withdraw"
           }
         },
@@ -902,10 +1560,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"Verified closed admissions\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"Verified closed admissions\"}"
+            },
             "url": "{{baseUrl}}/api/wallet/workflow"
           }
         },
@@ -914,10 +1581,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{smToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"Approved by SM\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"Approved by SM\"}"
+            },
             "url": "{{baseUrl}}/api/wallet/workflow"
           }
         },
@@ -926,10 +1602,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"sanction\",\"remarks\":\"Sanctioned by accounts\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"sanction\",\"remarks\":\"Sanctioned by accounts\"}"
+            },
             "url": "{{baseUrl}}/api/wallet/workflow"
           }
         },
@@ -938,10 +1623,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"pay\",\"transaction_reference\":\"TXN987654\",\"remarks\":\"Paid via UPI\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{wdrId}}\",\"action\":\"pay\",\"transaction_reference\":\"TXN987654\",\"remarks\":\"Paid via UPI\"}"
+            },
             "url": "{{baseUrl}}/api/wallet/workflow"
           }
         }
@@ -967,10 +1661,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{bdeToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"amount\":5000,\"period\":\"October 2026\",\"attendance_days\":28,\"remarks\":\"Monthly minimum salary request\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\":5000,\"period\":\"October 2026\",\"attendance_days\":28,\"remarks\":\"Monthly minimum salary request\"}"
+            },
             "url": "{{baseUrl}}/api/salary/request"
           }
         },
@@ -978,7 +1681,12 @@
           "name": "List Salary Requests",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{bdeToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bdeToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/salary/requests"
           }
         },
@@ -987,10 +1695,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{asmToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{asmToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"28 days attendance verified\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_sm\",\"remarks\":\"28 days attendance verified\"}"
+            },
             "url": "{{baseUrl}}/api/salary/workflow"
           }
         },
@@ -999,10 +1716,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{smToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{smToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"SM approval granted\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"forward_to_accounts\",\"remarks\":\"SM approval granted\"}"
+            },
             "url": "{{baseUrl}}/api/salary/workflow"
           }
         },
@@ -1011,10 +1737,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"sanction\",\"remarks\":\"Payment sanctioned\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"sanction\",\"remarks\":\"Payment sanctioned\"}"
+            },
             "url": "{{baseUrl}}/api/salary/workflow"
           }
         },
@@ -1023,10 +1758,19 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"pay\",\"transaction_reference\":\"SBIN002918239102\",\"remarks\":\"Salary disbursed via NEFT\"}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"request_id\":\"{{salId}}\",\"action\":\"pay\",\"transaction_reference\":\"SBIN002918239102\",\"remarks\":\"Salary disbursed via NEFT\"}"
+            },
             "url": "{{baseUrl}}/api/salary/workflow"
           }
         }

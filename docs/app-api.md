@@ -2,6 +2,11 @@
 
 Base URL: `https://lms-application-pi.vercel.app/api`
 
+> Full role-by-role API reference (Admin / SM / ASM / BDE) with every URL,
+> body and token requirement: [`API_REFERENCE_BY_ROLE.md`](./API_REFERENCE_BY_ROLE.md).
+> Importable Postman collection:
+> [`postman/KIDE_API_BY_ROLE.postman_collection.json`](./postman/KIDE_API_BY_ROLE.postman_collection.json).
+
 All authenticated calls need this header:
 
 ```
