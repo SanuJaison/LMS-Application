@@ -1041,11 +1041,11 @@ https://lms-application-pi.vercel.app/api/home
     "eod_sync": {
       "tasks_completed": 1,
       "total_tasks": 15,
-      "completion_percentage": 7
+      "completion_percentage": 100
     },
     "operational_overview": {
-      "assigned_leads": 5,
-      "follow_up_leads": 2,
+      "assigned_leads": 1,
+      "follow_up_leads": 0,
       "closed_leads": 1,
       "incentives_earned": 1000
     },
@@ -1067,10 +1067,10 @@ https://lms-application-pi.vercel.app/api/home
       "completion_percentage": 0
     },
     "team_metrics": {
-      "team_leads": 5,
+      "team_leads": 1,
       "team_admissions": 1,
-      "team_conversion": "20%",
-      "visits_pending": 2
+      "team_conversion": "100%",
+      "visits_pending": 0
     },
     "team_subordinate_status": {
       "bdes": [
@@ -2482,10 +2482,10 @@ https://lms-application-pi.vercel.app/api/home
       "completion_percentage": 0
     },
     "operational_overview": {
-      "assigned_leads": 4,
-      "follow_up_leads": 2,
-      "closed_leads": 1,
-      "incentives_earned": 1000
+      "assigned_leads": 0,
+      "follow_up_leads": 0,
+      "closed_leads": 0,
+      "incentives_earned": 0
     }
   }
 }
@@ -2963,10 +2963,10 @@ https://lms-application-pi.vercel.app/api/home
       "location_lng": 76.3419
     },
     "operational_overview": {
-      "assigned_leads": 4,
-      "follow_up_leads": 2,
-      "closed_leads": 1,
-      "incentives_earned": 1000
+      "assigned_leads": 0,
+      "follow_up_leads": 0,
+      "closed_leads": 0,
+      "incentives_earned": 0
     },
     "targets": {
       "daily_target": 15,
@@ -2986,10 +2986,10 @@ https://lms-application-pi.vercel.app/api/home
       "completion_percentage": 0
     },
     "team_metrics": {
-      "team_leads": 4,
-      "team_admissions": 1,
-      "team_conversion": "25%",
-      "visits_pending": 2
+      "team_leads": 0,
+      "team_admissions": 0,
+      "team_conversion": "0%",
+      "visits_pending": 0
     },
     "team_subordinate_status": {
       "bdes": [],
@@ -3220,7 +3220,7 @@ https://lms-application-pi.vercel.app/api/leads
 ```json
 {
   "success": true,
-  "count": 4,
+  "count": 1,
   "data": [
     {
       "id": 128,

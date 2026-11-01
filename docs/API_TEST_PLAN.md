@@ -38,7 +38,7 @@ SM001 (Sanu)
     └── BDE001 (Vishnu Mohan)
 ```
 
-Current data: 5 leads — 4 under BDE001, 1 under SM001.
+Current data: 1 lead — LD-7310 (Sanu Jaison, Admitted) under SM001. BDE001 currently has no leads.
 
 ## 2. Get a token
 
@@ -104,7 +104,7 @@ Content-Type: application/json
 
 | # | Method | Path | Who | Expected |
 |---|---|---|---|---|
-| 5.1 | GET | `/api/home` | BDE | `200`, `dashboard_type: "bde"`, `scope.visible_employees: 1`, `assigned_leads: 4` |
+| 5.1 | GET | `/api/home` | BDE | `200`, `dashboard_type: "bde"`, `scope.visible_employees: 1`, `assigned_leads: 0` |
 | 5.2 | GET | `/api/home` | ASM | `200`, `"asm"`, `visible_employees: 2`, 1 BDE |
 | 5.3 | GET | `/api/home` | SM | `200`, `"sm"`, `visible_employees: 3` |
 | 5.4 | GET | `/api/home` | admin | `403` (employee-only) |
@@ -116,10 +116,10 @@ Content-Type: application/json
 
 | # | Method | Path | Who | Body / Query | Expected |
 |---|---|---|---|---|---|
-| 6.1 | GET | `/api/leads` | BDE | — | `200`, `count: 4` |
-| 6.2 | GET | `/api/leads` | ASM | — | `200`, `count: 4` |
-| 6.3 | GET | `/api/leads` | SM | — | `200`, `count: 5` |
-| 6.4 | GET | `/api/leads` | admin | — | `200`, `count: 5` |
+| 6.1 | GET | `/api/leads` | BDE | — | `200`, `count: 0` |
+| 6.2 | GET | `/api/leads` | ASM | — | `200`, `count: 0` |
+| 6.3 | GET | `/api/leads` | SM | — | `200`, `count: 1` |
+| 6.4 | GET | `/api/leads` | admin | — | `200`, `count: 1` |
 | 6.5 | GET | `/api/leads?lead_id=LD-7310` | SM | — | `200` own lead |
 | 6.6 | GET | `/api/leads?lead_id=LD-7310` | BDE / ASM | — | `403` outside hierarchy |
 | 6.7 | GET | `/api/leads?employee=Sanu%20Jaison` | BDE | — | `403` |
