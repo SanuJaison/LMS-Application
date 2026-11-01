@@ -1027,7 +1027,7 @@ https://lms-application-pi.vercel.app/api/home
     "scope": {
       "role": "SM",
       "visible_employees": 3,
-      "visible_bdes": 2,
+      "visible_bdes": 1,
       "visible_asms": 1
     },
     "attendance": {
@@ -1061,10 +1061,10 @@ https://lms-application-pi.vercel.app/api/home
       "period": "2026-11"
     },
     "tasks": {
-      "total": 3,
-      "completed": 1,
-      "pending": 2,
-      "completion_percentage": 33
+      "total": 0,
+      "completed": 0,
+      "pending": 0,
+      "completion_percentage": 0
     },
     "team_metrics": {
       "team_leads": 5,
@@ -1421,7 +1421,8 @@ https://lms-application-pi.vercel.app/api/teams
 
 `members` is built from the live reporting hierarchy (`Employee.team`), so an
 ASM/BDE only ever sees its own team. The SM sees the teams whose `team_lead` is
-inside its subtree; an admin sees all 8.
+inside its subtree; an admin sees every team that exists (all 8 once the SM has
+created the seven regional ASMs and the Office Team lead).
 
 ---
 
@@ -2475,10 +2476,10 @@ https://lms-application-pi.vercel.app/api/home
       "period": "2026-11"
     },
     "tasks": {
-      "total": 3,
-      "completed": 1,
-      "pending": 2,
-      "completion_percentage": 33
+      "total": 0,
+      "completed": 0,
+      "pending": 0,
+      "completion_percentage": 0
     },
     "operational_overview": {
       "assigned_leads": 4,
@@ -2979,10 +2980,10 @@ https://lms-application-pi.vercel.app/api/home
       "period": "2026-11"
     },
     "tasks": {
-      "total": 2,
-      "completed": 1,
-      "pending": 1,
-      "completion_percentage": 50
+      "total": 0,
+      "completed": 0,
+      "pending": 0,
+      "completion_percentage": 0
     },
     "team_metrics": {
       "team_leads": 4,

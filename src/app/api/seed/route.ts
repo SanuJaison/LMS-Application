@@ -10,7 +10,6 @@ import {
   Attendance,
   Course,
   Team,
-  Task,
   Wallet,
 } from '@/models';
 import {
@@ -21,7 +20,6 @@ import {
   mockLiveAttendance,
   mockCourses,
   mockTeams,
-  mockTasks,
   mockWallets,
 } from '@/data/mockData';
 
@@ -141,22 +139,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 9. Tasks
-    const taskCount = await Task.countDocuments();
-    if (taskCount === 0) {
-      await Task.insertMany(
-        mockTasks.map((t) => ({
-          title: t.title,
-          description: t.description,
-          assigned_to: t.assigned_to,
-          priority: t.priority,
-          status: t.status,
-          due_date: t.due_date,
-        }))
-      );
-    }
-
-    // 10. Wallets
+    // 9. Wallets
     const walletCount = await Wallet.countDocuments();
     if (walletCount === 0) {
       await Wallet.insertMany(
