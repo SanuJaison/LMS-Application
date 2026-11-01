@@ -32,10 +32,22 @@ const TaskSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
+    // Human-readable assignee (employee name or team name).
     assigned_to: { type: String, default: 'Unassigned' },
+    // Machine-readable assignee (employee_id when known).
+    assigned_to_id: { type: String, default: '', index: true },
+    // Who created the task: SM, ASM/BDM or admin.
+    assigned_by: { type: String, default: '' },
+    assigned_by_id: { type: String, default: '', index: true },
+    assigned_by_role: { type: String, default: '' },
+    // Team the task belongs to (e.g. "EKM Team", "Office Team").
+    team: { type: String, default: '' },
     priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
     status: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
     due_date: { type: String, default: '' },
+    target_count: { type: Number, default: 0 },
+    completed_count: { type: Number, default: 0 },
+    notes: { type: String, default: '' },
   },
   { timestamps: true }
 );

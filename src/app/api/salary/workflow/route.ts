@@ -8,6 +8,7 @@ import {
   getScope,
   requireAuth,
 } from '@/lib/apiAuth';
+import { displayStatus, transitionProblem } from '@/lib/workflowStatus';
 
 /**
  * POST /api/salary/workflow
@@ -92,6 +93,14 @@ export async function POST(req: Request) {
     const actorName = auth.name || 'Administrator';
     const actorRole = auth.role;
 
+    const problem = transitionProblem(normalizedAction, request.status);
+    if (problem) {
+      return NextResponse.json(
+        { success: false, message: problem, status: request.status },
+        { status: 400 }
+      );
+    }
+
     let nextStatus = request.status;
     let stepDescription = '';
 
@@ -153,7 +162,11 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `Salary request ${request.request_id} status updated to "${nextStatus}".`,
-      data: request,
+      data: {
+        ...request.toObject(),
+        status: nextStatus,
+        status_label: displayStatus(nextStatus),
+      },
     });
   } catch (error: any) {
     console.error('POST /api/salary/workflow error:', error);

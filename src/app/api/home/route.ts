@@ -3,7 +3,8 @@ import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Lead } from '@/models/lead';
 import { Attendance } from '@/models/attendence';
-import { Wallet } from '@/models';
+import { EmployeeTask } from '@/models/employeeTask';
+import { Task, Wallet } from '@/models';
 import { hierarchyRole } from '@/lib/hierarchy';
 import { numericId, todayKey } from '@/lib/employeeAuth';
 import {
@@ -63,6 +64,51 @@ export async function GET(req: Request) {
         { employee: new RegExp(`^${escape(employeeName)}$`, 'i') },
       ],
     }).lean();
+
+    // ------------------------------------------------- targets + assigned tasks
+    const todayIso = todayKey();
+    const monthKey = todayIso.slice(0, 7); // YYYY-MM
+    const visibleIds = scope.ids;
+    const visibleNames = scope.names;
+
+    const [targetRows, taskRows] = await Promise.all([
+      EmployeeTask.find({
+        $or: [
+          ...(visibleIds.length > 0 ? [{ employee_id: { $in: visibleIds } }] : []),
+          ...visibleNames.map((n) => ({
+            employee: new RegExp(`^${escape(n)}$`, 'i'),
+          })),
+        ],
+        period_start: new RegExp(`^${escape(monthKey)}`),
+      }).lean(),
+      Task.find({
+        $or: [
+          ...(visibleIds.length > 0 ? [{ assigned_to_id: { $in: visibleIds } }] : []),
+          ...visibleNames.map((n) => ({
+            assigned_to: new RegExp(`^${escape(n)}$`, 'i'),
+          })),
+        ],
+      }).lean(),
+    ]);
+
+    const dailyTarget = 15;
+    const dailyAchieved = ownLeads.filter((lead) => {
+      const created = lead.createdAt ? new Date(lead.createdAt) : null;
+      return created && created.toISOString().slice(0, 10) === todayIso;
+    }).length;
+
+    const monthlyTarget =
+      (targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
+      dailyTarget * 26;
+    const monthlyAchieved = ownLeads.filter((lead) => {
+      const created = lead.createdAt ? new Date(lead.createdAt) : null;
+      return created && created.toISOString().slice(0, 7) === monthKey;
+    }).length;
+
+    const tasksTotal = (taskRows as any[]).length;
+    const tasksCompleted = (taskRows as any[]).filter(
+      (t) => t.status === 'completed'
+    ).length;
 
     // ------------------------------------------------------- role-scoped data
     // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs.
@@ -159,6 +205,32 @@ export async function GET(req: Request) {
         follow_up_leads: followUpLeads,
         closed_leads: closedLeads,
         incentives_earned: incentivesEarned,
+      },
+      targets: {
+        daily_target: dailyTarget,
+        daily_achieved: dailyAchieved,
+        daily_remaining: Math.max(0, dailyTarget - dailyAchieved),
+        daily_percentage:
+          dailyTarget > 0
+            ? Math.min(100, Math.round((dailyAchieved / dailyTarget) * 100))
+            : 0,
+        monthly_target: monthlyTarget,
+        monthly_achieved: monthlyAchieved,
+        monthly_remaining: Math.max(0, monthlyTarget - monthlyAchieved),
+        monthly_percentage:
+          monthlyTarget > 0
+            ? Math.min(100, Math.round((monthlyAchieved / monthlyTarget) * 100))
+            : 0,
+        period: monthKey,
+      },
+      tasks: {
+        total: tasksTotal,
+        completed: tasksCompleted,
+        pending: tasksTotal - tasksCompleted,
+        completion_percentage:
+          tasksTotal > 0
+            ? Math.round((tasksCompleted / tasksTotal) * 100)
+            : 0,
       },
       team_metrics: {
         team_leads: assignedLeads,

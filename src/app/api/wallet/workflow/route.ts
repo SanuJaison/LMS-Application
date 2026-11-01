@@ -8,19 +8,28 @@ import {
   getScope,
   requireAuth,
 } from '@/lib/apiAuth';
+import {
+  displayStatus,
+  transitionProblem,
+} from '@/lib/workflowStatus';
 
 /**
  * POST /api/wallet/workflow
  * Moves an incentive withdrawal request through the approval route:
- * BDE -> ASM -> SM -> Accounts -> Payment
+ * BDE -> ASM -> SM -> Admin/Accounts -> Payment
  *
  * Authorization per action:
  *   forward_to_sm / asm_approve        -> ASM / BDM / SM / admin
  *   forward_to_accounts / sm_approve   -> SM / admin
- *   sanction / approve / pay           -> admin only
+ *   sanction / approve / accounts_approve -> admin only
+ *   pay / mark_paid                    -> admin only
  *   reject                             -> ASM / BDM / SM / admin
  *
- * Non-admin callers can only act on requests inside their own hierarchy.
+ * Non-admin callers can only act on requests inside their own hierarchy, and a
+ * request only moves one step at a time. Every response carries both the raw
+ * stage (`status`) and the dashboard label (`status_label`): Pending while the
+ * request is in the chain, Approved once Admin sanctions it, Paid after
+ * disbursement, Rejected if refused.
  */
 export async function POST(req: Request) {
   try {
@@ -90,6 +99,14 @@ export async function POST(req: Request) {
       }
     }
 
+    const problem = transitionProblem(normalizedAction, request.status);
+    if (problem) {
+      return NextResponse.json(
+        { success: false, message: problem, status: request.status },
+        { status: 400 }
+      );
+    }
+
     const actorName = auth.name || 'Administrator';
     const actorRole = auth.role;
 
@@ -100,42 +117,55 @@ export async function POST(req: Request) {
       case 'forward_to_sm':
       case 'asm_approve':
         nextStatus = 'Forwarded to SM';
-        stepDescription = 'Step 2 – ASM Review: Forwarded to SM';
+        stepDescription = 'Step 2 - ASM Review: Forwarded to SM';
         break;
 
       case 'forward_to_accounts':
       case 'sm_approve':
         nextStatus = 'Forwarded to Accounts';
-        stepDescription = 'Step 3 – SM Review: Forwarded to Accounts';
+        stepDescription = 'Step 3 - SM Review: Forwarded to Accounts';
         break;
 
       case 'sanction':
       case 'approve':
       case 'accounts_approve':
         nextStatus = 'Approved';
-        stepDescription = 'Step 4 – Accounts: Incentive withdrawal sanctioned';
+        stepDescription = 'Step 4 - Accounts: Incentive withdrawal sanctioned';
+        // Admin approval releases the money to the BDE. The balance was
+        // already reserved when the request was submitted, so we only record
+        // the payout here.
+        request.payment_date = request.payment_date || new Date();
+        request.transaction_reference =
+          request.transaction_reference ||
+          transaction_reference ||
+          `TXN-${Date.now()}`;
+        await Wallet.findOneAndUpdate(
+          {
+            $or: [
+              { employee_id: request.employee_id },
+              {
+                employee: new RegExp(
+                  `^${escapeRegex(request.employee || '')}$`,
+                  'i'
+                ),
+              },
+            ],
+          },
+          { $inc: { total_paid: request.amount || 0 } }
+        );
         break;
 
       case 'pay':
       case 'mark_paid':
         nextStatus = 'Paid';
-        stepDescription = 'Step 4 – Accounts: Incentive payment disbursed';
-        request.transaction_reference = transaction_reference || `TXN-${Date.now()}`;
-        request.payment_date = new Date();
-
-        if (request.employee_id || request.employee) {
-          await Wallet.findOneAndUpdate(
-            {
-              $or: [
-                { employee_id: request.employee_id },
-                { employee: new RegExp(`^${escapeRegex(request.employee || '')}$`, 'i') },
-              ],
-            },
-            {
-              $inc: { total_paid: request.amount || 0 },
-            }
-          );
-        }
+        stepDescription = 'Step 4 - Accounts: Incentive payment disbursed';
+        request.transaction_reference =
+          request.transaction_reference ||
+          transaction_reference ||
+          `TXN-${Date.now()}`;
+        request.payment_date = request.payment_date || new Date();
+        // `sanction` already released the amount (total_paid was incremented
+        // there), so paying only records the final status and reference.
         break;
 
       case 'reject':
@@ -147,12 +177,15 @@ export async function POST(req: Request) {
             {
               $or: [
                 { employee_id: request.employee_id },
-                { employee: new RegExp(`^${escapeRegex(request.employee || '')}$`, 'i') },
+                {
+                  employee: new RegExp(
+                    `^${escapeRegex(request.employee || '')}$`,
+                    'i'
+                  ),
+                },
               ],
             },
-            {
-              $inc: { balance: request.amount },
-            }
+            { $inc: { balance: request.amount } }
           );
         }
         break;
@@ -175,7 +208,9 @@ export async function POST(req: Request) {
     await request.save();
 
     await logActivity({
-      description: `Incentive withdrawal request ${request.request_id || request._id} updated to "${nextStatus}" by ${actorName}`,
+      description: `Incentive withdrawal request ${
+        request.request_id || request._id
+      } updated to "${nextStatus}" by ${actorName}`,
       subjectType: 'Incentive Withdrawal',
       causer: causerFromRequest(req),
     });
@@ -183,7 +218,11 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `Withdrawal request status updated to "${nextStatus}".`,
-      data: request,
+      data: {
+        ...request.toObject(),
+        status: nextStatus,
+        status_label: displayStatus(nextStatus),
+      },
     });
   } catch (error: any) {
     console.error('POST /api/wallet/workflow error:', error);

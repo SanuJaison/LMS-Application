@@ -4,6 +4,7 @@ import { Wallet, WalletWithdrawRequest } from '@/models';
 import { Employee } from '@/models/employee';
 import { numericId, toLaravelDate } from '@/lib/employeeAuth';
 import { requireAuth } from '@/lib/apiAuth';
+import { displayStatus, displayStatusNumber } from '@/lib/workflowStatus';
 
 /**
  * GET /api/wallet/balance
@@ -74,15 +75,9 @@ export async function GET(req: Request) {
       id: numericId(r._id) || r.request_id || 1,
       reference_id: r.request_id || `WDR-${numericId(r._id) || 1001}`,
       amount: r.amount || 0,
-      status:
-        r.status === 'Paid'
-          ? 3
-          : r.status === 'Rejected'
-            ? 4
-            : r.status === 'Approved'
-              ? 2
-              : 1, // 1: Pending, 2: Approved, 3: Paid, 4: Rejected
-      status_label: r.status || 'Submitted to ASM',
+      status: displayStatusNumber(r.status),
+      status_label: displayStatus(r.status),
+      stage: r.status || 'Submitted to ASM',
       remarks: r.remarks || r.notes || r.description || '',
       created_at: toLaravelDate(r.createdAt),
     }));

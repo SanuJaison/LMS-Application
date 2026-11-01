@@ -24,6 +24,8 @@ import {
   Role,
   Setting,
 } from '@/models';
+import { Incentive } from '@/models/incentive';
+import { SalaryRequest } from '@/models/salaryRequest';
 
 // Map URL tab names to their Mongoose models
 const models: Record<string, any> = {
@@ -45,6 +47,9 @@ const models: Record<string, any> = {
   walletWithdrawRequests: WalletWithdrawRequest,
   'wallet-withdraw-requests': WalletWithdrawRequest,
   walletWithdrawRequest: WalletWithdrawRequest,
+  incentives: Incentive,
+  salaryRequests: SalaryRequest,
+  'salary-requests': SalaryRequest,
   leaves: Leave,
   activities: ActivityLog,
   roles: Role,
@@ -221,6 +226,43 @@ function isSmEmployee(employee: any): boolean {
 }
 
 /**
+ * The organisation has exactly one Sales Manager. Returns an error message when
+ * a create/update would introduce a second one, or null when it is safe.
+ */
+async function singleSmProblem(
+  employeeId: string,
+  designation: string,
+  ignoreId?: string
+): Promise<string | null> {
+  const id = String(employeeId || '').trim().toUpperCase();
+  const role = String(designation || '').trim().toLowerCase();
+  const looksLikeSm =
+    id.startsWith('SM') ||
+    (role.includes('sales manager') && !role.includes('area sales manager')) ||
+    role.includes('state manager');
+
+  if (!looksLikeSm) return null;
+
+  const query: Record<string, any> = {
+    $or: [
+      { designation: /sales manager/i },
+      { designation: /state manager/i },
+      { employee_id: /^SM/i },
+    ],
+    status: 'active',
+  };
+  if (ignoreId && /^[0-9a-fA-F]{24}$/.test(ignoreId)) {
+    query._id = { $ne: ignoreId };
+  }
+
+  const existing: any = await Employee.findOne(query).lean();
+  if (!existing) return null;
+  if (String(existing.employee_id || '').toUpperCase() === id) return null;
+
+  return `A Sales Manager already exists (${existing.name} / ${existing.employee_id}). The organisation can have only one SM.`;
+}
+
+/**
  * Field teams need exactly 2 districts and an ASM team lead; the office team
  * (no districts) needs no district, no zone, and a Sales Manager (SM) as lead.
  */
@@ -294,6 +336,9 @@ const ACTIVITY_LABELS: Record<string, { noun: string; subject: string }> = {
   walletWithdrawRequests: { noun: 'withdrawal request', subject: 'Wallet' },
   'wallet-withdraw-requests': { noun: 'withdrawal request', subject: 'Wallet' },
   walletWithdrawRequest: { noun: 'withdrawal request', subject: 'Wallet' },
+  incentives: { noun: 'incentive', subject: 'Incentive' },
+  salaryRequests: { noun: 'salary request', subject: 'Salary Request' },
+  'salary-requests': { noun: 'salary request', subject: 'Salary Request' },
   leaves: { noun: 'leave', subject: 'Leave' },
   roles: { noun: 'role', subject: 'Role' },
   settings: { noun: 'setting', subject: 'Setting' },
@@ -378,6 +423,27 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
     const body = await req.json();
     const payload = cleanData(params.tab, body);
 
+    if (params.tab === 'tasks') {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Admin is read-only for tasks. The Sales Manager assigns tasks to the 8 teams and each ASM assigns tasks to its BDEs. Use POST /api/tasks with an SM or ASM token.',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (params.tab === 'employees') {
+      const problem = await singleSmProblem(
+        String(payload.employee_id || ''),
+        String(payload.designation || '')
+      );
+      if (problem) {
+        return NextResponse.json({ success: false, message: problem }, { status: 400 });
+      }
+    }
+
     if (params.tab === 'leads') {
       const assignedEmp = String(payload.employee || payload.assigned_to || '').trim();
       if (!assignedEmp || assignedEmp.toLowerCase() === 'unassigned' || assignedEmp.toLowerCase() === 'aslam') {
@@ -459,6 +525,29 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
 
     const payload = cleanData(params.tab, body);
 
+    if (params.tab === 'tasks') {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Admin is read-only for tasks. Use PUT /api/tasks with the SM/ASM token that created the task.',
+        },
+        { status: 403 }
+      );
+    }
+
+    if (params.tab === 'employees') {
+      const existingEmp: any = await Employee.findById(id).lean();
+      const problem = await singleSmProblem(
+        String(payload.employee_id ?? existingEmp?.employee_id ?? ''),
+        String(payload.designation ?? existingEmp?.designation ?? ''),
+        String(id)
+      );
+      if (problem) {
+        return NextResponse.json({ success: false, message: problem }, { status: 400 });
+      }
+    }
+
     if (params.tab === 'teams') {
       const existing: any = await Team.findById(id).lean();
 
@@ -519,6 +608,17 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
 
     if (!Model) {
       return NextResponse.json({ success: false, message: 'Invalid tab category' }, { status: 400 });
+    }
+
+    if (params.tab === 'tasks') {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Admin is read-only for tasks. Use DELETE /api/tasks with the SM/ASM token that created the task.',
+        },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(req.url);

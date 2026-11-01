@@ -7,6 +7,7 @@ import {
   requireAuth,
   scopeFilter,
 } from '@/lib/apiAuth';
+import { displayStatus } from '@/lib/workflowStatus';
 
 /**
  * GET /api/salary/requests
@@ -37,17 +38,37 @@ export async function GET(req: Request) {
 
     const statusParam = searchParams.get('status');
     if (statusParam) {
-      filters.push({ status: statusParam });
+      const label = statusParam.toLowerCase();
+      if (['pending', 'approved', 'paid', 'rejected'].includes(label)) {
+        if (label === 'pending') {
+          filters.push({
+            status: { $nin: ['Approved', 'Paid', 'Rejected'] },
+          });
+        } else if (label === 'approved') {
+          filters.push({ status: 'Approved' });
+        } else if (label === 'paid') {
+          filters.push({ status: 'Paid' });
+        } else {
+          filters.push({ status: 'Rejected' });
+        }
+      } else {
+        filters.push({ status: statusParam });
+      }
     }
 
     const requests = await SalaryRequest.find(andFilter(...filters))
       .sort({ createdAt: -1 })
       .lean();
 
+    const data = requests.map((r: any) => ({
+      ...r,
+      status_label: displayStatus(r.status),
+    }));
+
     return NextResponse.json({
       success: true,
-      count: requests.length,
-      data: requests,
+      count: data.length,
+      data,
     });
   } catch (error: any) {
     console.error('GET /api/salary/requests error:', error);

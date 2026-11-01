@@ -6,7 +6,12 @@ import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { requireRoles } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 
-// Predefined 7 Regional Teams and their fixed 2 districts
+/**
+ * The seven regional teams and their fixed districts (master workflow §5.2).
+ * `KZD` is the canonical code for team 7 (Kannur + Kasaragod); `KZE` is kept
+ * as an accepted alias so older clients keep working, but both resolve to the
+ * same team and the same two districts.
+ */
 const REGIONAL_TEAMS_CONFIG: Record<
   string,
   { teamName: string; districts: [string, string]; zone: string }
@@ -41,35 +46,69 @@ const REGIONAL_TEAMS_CONFIG: Record<
     districts: ['Kozhikode', 'Wayanad'],
     zone: 'North Zone',
   },
-  KZE: {
-    teamName: 'KZE Team',
-    districts: ['Kannur', 'Kasaragod'],
-    zone: 'North Zone',
-  },
   KZD: {
-    teamName: 'KZE Team',
+    teamName: 'KZD Team',
     districts: ['Kannur', 'Kasaragod'],
     zone: 'North Zone',
   },
 };
 
+/** Accept KZE as an alias for KZD (team 7). */
+function normalizeTeamCode(value: string): string {
+  const code = String(value || '').trim().toUpperCase();
+  if (code === 'KZE') return 'KZD';
+  return code;
+}
+
+function isAsm(employee: any): boolean {
+  const id = String(employee?.employee_id || '').trim().toUpperCase();
+  const designation = String(employee?.designation || '').trim().toLowerCase();
+  return id.startsWith('ASM') || designation.includes('area sales manager');
+}
+
+function isSm(employee: any): boolean {
+  const id = String(employee?.employee_id || '').trim().toUpperCase();
+  const designation = String(employee?.designation || '').trim().toLowerCase();
+  if (designation.includes('area sales manager')) return false;
+  return (
+    id.startsWith('SM') ||
+    designation.includes('sales manager') ||
+    designation.includes('state manager')
+  );
+}
+
+function normalizeDistrict(value: string): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+/** Team leads are stored as "Name (EMPID)" or just "Name". */
+function parseTeamLead(teamLead: string): { name: string; employeeId: string } {
+  const raw = String(teamLead || '').trim();
+  const match = raw.match(/^(.*?)\s*\((.*?)\)\s*$/);
+  if (match) return { name: match[1].trim(), employeeId: match[2].trim() };
+  return { name: raw, employeeId: '' };
+}
+
 /**
  * POST /api/sm/create-asm
- * Enables the Sales Manager (SM) to create an Area Sales Manager (ASM).
+ * Enables the Sales Manager (SM) to create an Area Sales Manager (ASM) for one
+ * of the seven regional teams, or the single Office Team (no districts).
  *
- * Rules:
- * - Only 1 SM in the organization.
- * - Exactly 7 regional ASM teams.
- * - Each ASM has 2 assigned districts.
- * - Once assigned, a district cannot be chosen again by another team.
- * - Once an ASM is assigned with a team, that ASM cannot have another team.
+ * Rules enforced here:
+ * - The organisation has exactly one Sales Manager.
+ * - At most 7 regional ASMs (one per team) + one Office Team lead.
+ * - Each regional team owns exactly 2 districts.
+ * - A district that is already assigned cannot be assigned to another team.
+ * - A team can have only one ASM; an ASM can lead only one team.
+ * - The Office Team covers no districts and can be created only once.
  */
 export async function POST(req: Request) {
   try {
     await connectDB();
 
     const body = await req.json().catch(() => ({}));
-    const { name, email, contact_number, password, team_code, custom_team_name } = body;
+    const { name, email, contact_number, password, team_code, custom_team_name } =
+      body;
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -78,8 +117,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Only an SM (or an admin acting on behalf of an SM) can create an ASM.
-    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    // Only the Sales Manager creates ASMs (master workflow: Admin → SM → ASM).
+    // Admin creates the single SM via POST /api/admin/create-sm and can view
+    // every ASM through GET /api/sm/asms, but does not assign teams.
+    const guard = await requireRoles(req, ['SM', 'MD']);
     if (!guard.ok) return guard.response;
     const { auth } = guard;
 
@@ -96,14 +137,16 @@ export async function POST(req: Request) {
               { designation: /state manager/i },
               { employee_id: /^SM/i },
             ],
+            status: 'active',
           }).lean();
     }
 
-    if (!smEmployee) {
+    if (!smEmployee || !isSm(smEmployee)) {
       return NextResponse.json(
         {
           success: false,
-          message: 'No Sales Manager found. Pass sm_id when calling as an admin.',
+          message:
+            'No Sales Manager found. Admin must create the single SM first (POST /api/admin/create-sm).',
         },
         { status: 400 }
       );
@@ -112,51 +155,111 @@ export async function POST(req: Request) {
     const smId = smEmployee.employee_id;
     const smName = smEmployee.name || 'Sales Manager';
 
-    // Normalize team code (e.g. TVM, PTM, KTM, EKM, PKD, CLT, KZE / KZD)
-    const normalizedCode = String(team_code || '').trim().toUpperCase();
+    // Normalize team code (TVM, PTM, KTM, EKM, PKD, CLT, KZD / KZE, OFFICE).
+    const normalizedCode = normalizeTeamCode(team_code);
+    const isOffice = normalizedCode === 'OFFICE';
     const teamConfig = REGIONAL_TEAMS_CONFIG[normalizedCode];
 
-    if (!teamConfig && normalizedCode !== 'OFFICE') {
+    if (!teamConfig && !isOffice) {
       return NextResponse.json(
         {
           success: false,
-          message: `Invalid team selection "${team_code}". Allowed regional teams are: TVM, PTM, KTM, EKM, PKD, CLT, KZE (or OFFICE).`,
+          message: `Invalid team selection "${team_code}". Allowed teams are: TVM, PTM, KTM, EKM, PKD, CLT, KZD (KZE accepted as an alias) or OFFICE.`,
         },
         { status: 400 }
       );
     }
 
-    const assignedTeamName =
-      normalizedCode === 'OFFICE'
-        ? 'Office Team'
-        : custom_team_name || teamConfig.teamName;
-    const assignedDistricts =
-      normalizedCode === 'OFFICE' ? [] : teamConfig.districts;
-    const assignedZone =
-      normalizedCode === 'OFFICE' ? 'Central Zone' : teamConfig.zone;
+    const assignedTeamName = isOffice
+      ? 'Office Team'
+      : custom_team_name || teamConfig.teamName;
+    const assignedDistricts: string[] = isOffice ? [] : teamConfig.districts;
+    const assignedZone = isOffice ? 'Central Zone' : teamConfig.zone;
 
-    // Rule: Once a team has an ASM, another ASM cannot be assigned to that same team
-    const existingTeamLeader = await Employee.findOne({
-      team: assignedTeamName,
-      $or: [
-        { designation: /area sales manager/i },
-        { employee_id: /^ASM/i },
-      ],
-      status: 'active',
-    });
+    // Rule: The Office Team can exist only once.
+    if (isOffice) {
+      const existingOffice = await Team.findOne({ is_office: true }).lean();
+      const existingOfficeLead = await Employee.findOne({
+        $or: [
+          { team: 'Office Team' },
+          { designation: /office team lead/i },
+        ],
+        status: 'active',
+      }).lean();
+      if (existingOffice || existingOfficeLead) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'The Office Team already exists. Only one Office Team can be created.',
+          },
+          { status: 400 }
+        );
+      }
+    }
 
-    if (existingTeamLeader) {
+    // Rule: A team can have only one ASM. The Teams collection is the source of
+    // truth for the current lead (the employee.team field can be stale).
+    const existingTeamDoc: any = await Team.findOne({
+      name: new RegExp(`^${escapeRegex(assignedTeamName)}$`, 'i'),
+    }).lean();
+
+    if (existingTeamDoc && String(existingTeamDoc.team_lead || '').trim()) {
+      const lead = parseTeamLead(existingTeamDoc.team_lead);
+      const leadEmployee: any = lead.employeeId
+        ? await Employee.findOne({ employee_id: lead.employeeId }).lean()
+        : lead.name
+          ? await Employee.findOne({
+              name: new RegExp(`^${escapeRegex(lead.name)}$`, 'i'),
+            }).lean()
+          : null;
+
       return NextResponse.json(
         {
           success: false,
-          message: `Team "${assignedTeamName}" is already assigned to Area Sales Manager ${existingTeamLeader.name} (${existingTeamLeader.employee_id}). An ASM team can only have one assigned ASM.`,
+          message: `Team "${assignedTeamName}" is already assigned to Area Sales Manager ${
+            leadEmployee?.name || lead.name || existingTeamDoc.team_lead
+          }${
+            lead.employeeId ? ` (${lead.employeeId})` : ''
+          }. An ASM team can only have one assigned ASM.`,
         },
         { status: 400 }
       );
     }
 
-    // Rule: Count total active ASMs (max 7 regional ASMs)
-    if (normalizedCode !== 'OFFICE') {
+    // Rule: A district can belong to only one team. The Teams collection is the
+    // source of truth; create-asm always writes the districts there.
+    if (assignedDistricts.length > 0) {
+      const takenBy = new Map<string, string>();
+
+      const teams: any[] = await Team.find({}).lean();
+      for (const team of teams) {
+        const districts = [
+          ...(Array.isArray(team.districts) ? team.districts : []),
+          team.district || '',
+        ];
+        for (const district of districts) {
+          const key = normalizeDistrict(district);
+          if (key) takenBy.set(key, team.name || 'another team');
+        }
+      }
+
+      for (const district of assignedDistricts) {
+        const owner = takenBy.get(normalizeDistrict(district));
+        if (owner) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `${district} is already assigned to "${owner}". A district can belong to only one team.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Rule: Count total active regional ASMs (max 7).
+    if (!isOffice) {
       const activeAsmCount = await Employee.countDocuments({
         $or: [
           { designation: /area sales manager/i },
@@ -177,10 +280,29 @@ export async function POST(req: Request) {
       }
     }
 
-    // Generate next sequential ASM ID (ASM001, ASM002...)
-    const existingAsms = await Employee.find({
-      employee_id: /^ASM/i,
-    })
+    // Rule: An ASM can lead only one team. Reject a duplicate identity.
+    const trimmedName = String(name).trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const duplicate = await Employee.findOne({
+      $or: [
+        { name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
+        ...(normalizedEmail
+          ? [{ email: normalizedEmail }]
+          : []),
+      ],
+    }).lean();
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `An employee named "${duplicate.name}" (${duplicate.employee_id}) already exists. An ASM can only be assigned once.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Generate next sequential ASM ID (ASM001, ASM002...).
+    const existingAsms = await Employee.find({ employee_id: /^ASM/i })
       .select('employee_id')
       .lean();
 
@@ -196,20 +318,16 @@ export async function POST(req: Request) {
     while (usedNumbers.has(nextNum)) nextNum += 1;
     const newAsmId = `ASM${String(nextNum).padStart(3, '0')}`;
 
-    // Hash password
     const rawPassword = password || 'kide1234';
     const hashedPassword = bcrypt.hashSync(rawPassword, 10);
 
     const newAsm = await Employee.create({
       employee_id: newAsmId,
-      name: name.trim(),
+      name: trimmedName,
       email: (email || `${newAsmId.toLowerCase()}@kide.com`).trim().toLowerCase(),
       contact_number: contact_number || '',
       password: hashedPassword,
-      designation:
-        normalizedCode === 'OFFICE'
-          ? 'Office Team Lead'
-          : 'Area Sales Manager',
+      designation: isOffice ? 'Office Team Lead' : 'Area Sales Manager',
       zone: assignedZone,
       district: assignedDistricts[0] || '',
       team: assignedTeamName,
@@ -217,7 +335,7 @@ export async function POST(req: Request) {
       status: 'active',
     });
 
-    // Update or create Team document
+    // Create or update the Team document.
     await Team.findOneAndUpdate(
       { name: assignedTeamName },
       {
@@ -227,8 +345,10 @@ export async function POST(req: Request) {
           district: assignedDistricts[0] || '',
           zone: assignedZone,
           team_lead: `${newAsm.name} (${newAsm.employee_id})`,
-          is_office: normalizedCode === 'OFFICE',
-          description: `${assignedTeamName} managing ${assignedDistricts.join(', ') || 'Office operations'}`,
+          is_office: isOffice,
+          description: `${assignedTeamName} managing ${
+            assignedDistricts.join(', ') || 'Office operations'
+          }`,
         },
       },
       { upsert: true, new: true }
@@ -243,7 +363,9 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) created successfully for ${assignedTeamName}. Assigned districts: ${assignedDistricts.join(', ') || 'None (Office)'}`,
+        message: `Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) created successfully for ${assignedTeamName}. Assigned districts: ${
+          assignedDistricts.join(', ') || 'None (Office)'
+        }`,
         data: {
           id: newAsm._id.toString(),
           employee_id: newAsm.employee_id,
@@ -264,4 +386,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

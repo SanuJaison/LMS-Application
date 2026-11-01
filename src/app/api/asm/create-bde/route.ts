@@ -100,11 +100,73 @@ export async function POST(req: Request) {
       );
     }
 
+    const asmDesignation = String(asmEmployee.designation || '').toLowerCase();
+    const asmIdValue = String(asmEmployee.employee_id || '').toUpperCase();
+    const isRealAsm =
+      asmIdValue.startsWith('ASM') || asmDesignation.includes('area sales manager');
+    if (!isRealAsm) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Validation failed: ${asmEmployee.name} (${asmEmployee.employee_id}) is not an Area Sales Manager.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Identity must be unique.
+    const trimmedName = String(name).trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const duplicate = await Employee.findOne({
+      $or: [
+        { name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+      ],
+    }).lean();
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `An employee named "${duplicate.name}" (${duplicate.employee_id}) already exists.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const assignedAsmId = asmEmployee.employee_id;
     const assignedAsmName = asmEmployee.name;
     const assignedTeam = asmEmployee.team || '';
     const assignedZone = asmEmployee.zone || 'Central Zone';
-    const assignedDistrict = district || asmEmployee.district || 'Ernakulam';
+
+    // A BDE must sit in one of the districts owned by its ASM's team.
+    const teamDoc: any = assignedTeam
+      ? await Team.findOne({
+          name: new RegExp(`^${escapeRegex(assignedTeam)}$`, 'i'),
+        }).lean()
+      : null;
+    const teamDistricts: string[] = Array.isArray(teamDoc?.districts)
+      ? teamDoc.districts.map((d: any) => String(d || '').trim()).filter(Boolean)
+      : [];
+
+    let assignedDistrict = String(district || '').trim();
+    if (assignedDistrict && teamDistricts.length > 0) {
+      const match = teamDistricts.find(
+        (d) => d.toLowerCase() === assignedDistrict.toLowerCase()
+      );
+      if (!match) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Validation failed: ${assignedDistrict} is not part of ${assignedTeam}. Allowed districts: ${teamDistricts.join(', ')}.`,
+          },
+          { status: 400 }
+        );
+      }
+      assignedDistrict = match;
+    }
+    if (!assignedDistrict) {
+      assignedDistrict = teamDistricts[0] || asmEmployee.district || 'Ernakulam';
+    }
 
     // Generate next sequential BDE ID (BDE001, BDE002...)
     const existingBdes = await Employee.find({
@@ -192,4 +254,8 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
