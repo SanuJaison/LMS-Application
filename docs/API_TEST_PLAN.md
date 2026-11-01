@@ -1,7 +1,20 @@
 # KIDE API — End-to-End Test Plan
 
-Post security refactor (commit `9ec3608`). Every app route now requires a
-Bearer token and scopes data downward through `reports_to`.
+Post security refactor (`9ec3608`) and the master-workflow update: every app
+route requires a Bearer token and scopes data downward through `reports_to`.
+
+This plan covers the full master workflow:
+
+```
+Admin → SM → ASM → BDE
+```
+
+- Admin creates the **single SM**.
+- The SM creates **7 regional ASMs** (2 exclusive districts each) plus **1 Office Team**.
+- The ASM creates **unlimited BDEs**.
+- The SM assigns tasks to the **8 teams**; the ASM assigns tasks to **its BDEs**.
+- Every closed admission credits **₹1,000** to the closing BDE.
+- Withdrawals are **max ₹5,000**, approved **BDE → ASM → SM → Admin**.
 
 ## 1. Environments & accounts
 
@@ -164,17 +177,44 @@ Content-Type: application/json
 
 ---
 
-## 9. Tasks, team, operations
+## 9. Tasks, teams, operations
+
+Task ownership follows the master workflow: the **SM assigns tasks to the 8
+teams**, each **ASM assigns tasks to its BDEs**, the **BDE updates its own
+progress**, and the **Admin is read-only**.
 
 | # | Method | Path | Who | Body / Query | Expected |
 |---|---|---|---|---|---|
-| 9.1 | GET | `/api/tasks` | BDE | — | `200`, own tasks |
+| 9.1 | GET | `/api/tasks` | BDE | — | `200`, only tasks assigned to BDE001 |
 | 9.2 | GET | `/api/tasks` | ASM / SM | — | `200`, own subtree |
 | 9.3 | GET | `/api/tasks?assigned_to=Sanu%20Jaison` | BDE | — | `403` |
-| 9.4 | GET | `/api/team` | BDE | — | `200`, `members: []` |
-| 9.5 | GET | `/api/team` | ASM | — | `200`, 1 member (BDE001) |
-| 9.6 | GET | `/api/team?scope=all` | SM | — | `200`, 2 members |
-| 9.7 | GET | `/api/operations` | employee | — | `200`; admin `403` |
+| 9.4 | GET | `/api/tasks?mine=1` | employee | — | `200`, only tasks assigned to the caller |
+| 9.5 | POST | `/api/tasks` | SM | `{ "title": "Verify EKM reports", "team": "EKM Team", "priority": "high", "target_count": 25 }` | `201`, assignee is the team lead (ASM001) |
+| 9.6 | POST | `/api/tasks` | SM | `{ "title": "Monthly review", "assigned_to": "ASM001" }` | `201` |
+| 9.7 | POST | `/api/tasks` | ASM | `{ "title": "Call 10 leads", "assigned_to": "BDE001", "target_count": 10 }` | `201`, `assigned_by_role: "ASM"` |
+| 9.8 | POST | `/api/tasks` | ASM | `{ "title": "x", "assigned_to": "SM001" }` | `403` (not a direct report) |
+| 9.9 | POST | `/api/tasks` | ASM | `{ "title": "x", "team": "EKM Team" }` | `403` (only SM assigns teams) |
+| 9.10 | POST | `/api/tasks` | BDE | `{ "title": "x", "assigned_to": "BDE001" }` | `403` |
+| 9.11 | POST | `/api/tasks` | admin | `{ "title": "x", "assigned_to": "BDE001" }` | `403` (admin read-only) |
+| 9.12 | POST | `/api/tasks` | SM | `{ "assigned_to": "ASM001" }` (no title) | `400` |
+| 9.13 | PUT | `/api/tasks` | creator (SM/ASM) | `{ "id": "<task>", "priority": "medium", "notes": "Reviewed" }` | `200` |
+| 9.14 | PUT | `/api/tasks` | BDE assignee | `{ "id": "<own task>", "status": "in_progress", "completed_count": 3, "notes": "Called 3" }` | `200` |
+| 9.15 | PUT | `/api/tasks` | BDE assignee | `{ "id": "<own task>", "assigned_to": "BDE002" }` | `403` (assignee may only change status/count/notes) |
+| 9.16 | PUT | `/api/tasks` | BDE | `{ "id": "<someone else's task>", "status": "completed" }` | `403` |
+| 9.17 | PUT | `/api/tasks` | employee | `{ "id": "<task>", "priority": "urgent" }` | `400` (low / medium / high only) |
+| 9.18 | DELETE | `/api/tasks?id=<task>` | creator / manager | — | `200` |
+| 9.19 | DELETE | `/api/tasks?id=<task>` | BDE assignee | — | `403` (only creator/manager deletes) |
+| 9.20 | GET | `/api/teams` | SM | — | `200`, the teams led by its ASMs |
+| 9.21 | GET | `/api/teams` | ASM / BDE | — | `200`, own team only |
+| 9.22 | GET | `/api/teams` | admin | — | `200`, all 8 teams |
+| 9.23 | GET | `/api/team` | BDE | — | `200`, `members: []` |
+| 9.24 | GET | `/api/team` | ASM | — | `200`, 1 member (BDE001) |
+| 9.25 | GET | `/api/team?scope=all` | SM | — | `200`, 2 members |
+| 9.26 | GET | `/api/operations` | employee | — | `200`; admin `403` |
+
+`GET /api/tasks` returns
+`{ success, count, data: { total, completed, pending, tasks, list } }` where
+`list` is the same array as `tasks`.
 
 ---
 
@@ -190,26 +230,48 @@ Content-Type: application/json
 
 ---
 
-## 11. Wallet & salary
+## 11. Wallet & salary (4-step approval)
+
+Withdrawal chain: **BDE → ASM → SM → Admin**. Every dashboard reads the shared
+`status_label`: `Pending`, `Approved`, `Paid`, `Rejected`. Admin `sanction`
+releases the money; `pay` only records the transaction.
 
 | # | Method | Path | Who | Body / Query | Expected |
 |---|---|---|---|---|---|
 | 11.1 | GET | `/api/wallet/balance` | BDE | — | `200`, own wallet + own requests only |
-| 11.2 | GET | `/api/wallet/balance?employee_id=BDE001` | another employee | — | ignored / own data only |
-| 11.3 | POST | `/api/wallet/withdraw` | employee | `{ "amount": 100, "upi_id": "x@upi", "remarks": "Test" }` | `200` request created for caller |
-| 11.4 | POST | `/api/wallet/withdraw` | employee | `{ "amount": 0 }` | `400` |
-| 11.5 | POST | `/api/wallet/workflow` | ASM | `{ "request_id": "<id>", "action": "forward_to_sm" }` | `200` |
-| 11.6 | POST | `/api/wallet/workflow` | BDE | `{ "request_id": "<id>", "action": "forward_to_sm" }` | `403` |
-| 11.7 | POST | `/api/wallet/workflow` | ASM | `{ "action": "sanction" }` | `403` (admin only) |
-| 11.8 | GET | `/api/salary/requests` | BDE | — | `200`, own only |
-| 11.9 | GET | `/api/salary/requests` | ASM / SM | — | `200`, own subtree |
-| 11.10 | POST | `/api/salary/request` | employee | `{ "amount": 5000, "period": "2026-10" }` | `200` |
-| 11.11 | POST | `/api/salary/workflow` | SM | `{ "request_id": "<id>", "action": "forward_to_accounts" }` | `200` |
-| 11.12 | POST | `/api/salary/workflow` | BDE | `{ "action": "forward_to_sm" }` | `403` |
+| 11.2 | GET | `/api/wallet/balance?employee_id=BDE001` | another employee | — | query ignored, own data only |
+| 11.3 | GET | `/api/wallet/balance` | admin | no `employee_id` | `400` (`?employee_id=` or `?employee=` required) |
+| 11.4 | GET | `/api/wallet/balance?employee_id=BDE001` | admin | — | `200`, that employee's wallet |
+| 11.5 | POST | `/api/wallet/withdraw` | BDE | `{ "amount": 500, "upi_id": "x@upi", "remarks": "Test" }` | `200`, `status: "Submitted to ASM"`, wallet debited |
+| 11.6 | POST | `/api/wallet/withdraw` | employee | `{ "amount": 0 }` | `400` |
+| 11.7 | POST | `/api/wallet/withdraw` | employee | `{ "amount": 6000 }` | `400` (max ₹5,000 per request) |
+| 11.8 | POST | `/api/wallet/withdraw` | employee | `{ "amount": <balance + 1> }` | `400` insufficient balance |
+| 11.9 | GET | `/api/wallet/requests` | BDE | — | `200`, own requests + `status_label` |
+| 11.10 | GET | `/api/wallet/requests` | ASM | — | `200`, requests from direct BDEs only |
+| 11.11 | GET | `/api/wallet/requests?status=pending` | SM | — | `200`, only `status_label: "Pending"` |
+| 11.12 | GET | `/api/wallet/requests` | admin | — | `200`, every request |
+| 11.13 | POST | `/api/wallet/workflow` | ASM | `{ "request_id": "<id>", "action": "forward_to_sm" }` | `200`, `status_label: "Pending"` |
+| 11.14 | POST | `/api/wallet/workflow` | SM | `{ "request_id": "<id>", "action": "forward_to_accounts" }` | `200`, `Forwarded to Accounts` |
+| 11.15 | POST | `/api/wallet/workflow` | admin | `{ "request_id": "<id>", "action": "sanction" }` | `200`, `status_label: "Approved"`, `total_paid` incremented |
+| 11.16 | POST | `/api/wallet/workflow` | admin | `{ "request_id": "<id>", "action": "pay", "transaction_reference": "TXN-1" }` | `200`, `status_label: "Paid"`, no double credit |
+| 11.17 | POST | `/api/wallet/workflow` | BDE | `{ "request_id": "<id>", "action": "forward_to_sm" }` | `403` |
+| 11.18 | POST | `/api/wallet/workflow` | ASM | `{ "request_id": "<id>", "action": "sanction" }` | `403` (admin only) |
+| 11.19 | POST | `/api/wallet/workflow` | SM | `{ "request_id": "<id>", "action": "forward_to_accounts" }` before ASM forwards | `400` (out-of-order transition) |
+| 11.20 | POST | `/api/wallet/workflow` | ASM / SM | `{ "request_id": "<id>", "action": "reject" }` | `200`, `Rejected`, amount refunded to wallet |
+| 11.21 | GET | `/api/salary/requests` | BDE | — | `200`, own only + `status_label` |
+| 11.22 | GET | `/api/salary/requests` | ASM / SM | — | `200`, own subtree |
+| 11.23 | POST | `/api/salary/request` | employee | `{ "amount": 5000, "period": "2026-11" }` | `200`, `Submitted to ASM` |
+| 11.24 | POST | `/api/salary/request` | employee | duplicate period | `400` |
+| 11.25 | POST | `/api/salary/workflow` | ASM | `{ "request_id": "<id>", "action": "forward_to_sm" }` | `200` |
+| 11.26 | POST | `/api/salary/workflow` | SM | `{ "request_id": "<id>", "action": "forward_to_accounts" }` | `200` |
+| 11.27 | POST | `/api/salary/workflow` | admin | `{ "request_id": "<id>", "action": "sanction" }` | `200`, `Approved` |
+| 11.28 | POST | `/api/salary/workflow` | BDE | `{ "action": "forward_to_sm" }` | `403` |
 
 Workflow actions: `forward_to_sm`, `asm_approve` (ASM/BDM/SM/ADMIN),
 `forward_to_accounts`, `sm_approve` (SM/ADMIN), `sanction`, `approve`,
 `accounts_approve`, `pay`, `mark_paid` (ADMIN), `reject` (ASM/BDM/SM/ADMIN).
+Only one step at a time is allowed; `Approved` is terminal except for
+`pay` / `mark_paid`.
 
 ---
 
@@ -225,25 +287,40 @@ Workflow actions: `forward_to_sm`, `asm_approve` (ASM/BDM/SM/ADMIN),
 
 ---
 
-## 13. Hierarchy management
+## 13. Hierarchy management (Admin → SM → ASM → BDE)
 
 | # | Method | Path | Who | Body / Query | Expected |
 |---|---|---|---|---|---|
-| 13.1 | GET | `/api/sm/asms` | SM | — | `200`, `count: 1` |
-| 13.2 | GET | `/api/sm/asms` | admin | — | `200`, all ASMs |
-| 13.3 | GET | `/api/sm/asms` | ASM / BDE | — | `403` |
-| 13.4 | GET | `/api/sm/asms/ASM001` | SM | — | `200`; another SM's ASM `404`/`403` |
-| 13.5 | POST | `/api/sm/create-asm` | SM | `{ "name": "Test ASM", "email": "t@kide.com", "password": "test1234", "team_code": "TVM" }` | `201` |
-| 13.6 | POST | `/api/sm/create-asm` | ASM / BDE | — | `403` |
-| 13.7 | GET | `/api/asm/bdes` | ASM | — | `200`, `count: 1` |
-| 13.8 | GET | `/api/asm/bdes` | SM | — | `200`, subtree BDEs |
-| 13.9 | GET | `/api/asm/bdes` | admin | — | `200`, all |
-| 13.10 | GET | `/api/asm/bdes` | BDE | — | `403` |
-| 13.11 | GET | `/api/asm/bdes/BDE001` | ASM | — | `200` |
-| 13.12 | POST | `/api/asm/create-bde` | ASM | `{ "name": "Test BDE", "password": "test1234", "asm_id": "ASM999" }` | `201`, forced under ASM001 |
-| 13.13 | POST | `/api/asm/create-bde` | SM | `{ "name": "Test BDE 2", "asm_id": "ASM001" }` | `201`; without `asm_id` `400` |
-| 13.14 | POST | `/api/asm/create-bde` | BDE | — | `403` |
-| 13.15 | POST | `/api/asm/create-bde` | SM | `{ "asm_id": "<ASM outside subtree>" }` | `403` |
+| 13.1 | GET | `/api/admin/create-sm` | admin | — | `200`, `exists: true`, the single SM |
+| 13.2 | POST | `/api/admin/create-sm` | admin | `{ "name": "SM Two", "password": "test1234" }` while an SM exists | `400` (only one SM allowed) |
+| 13.3 | POST | `/api/admin/create-sm` | employee | — | `403` |
+| 13.4 | POST | `/api/admin/employees` | admin | a second employee with designation `Sales Manager` | `400` (single-SM guard) |
+| 13.5 | GET | `/api/sm/asms` | SM | — | `200`, its ASMs |
+| 13.6 | GET | `/api/sm/asms` | admin | — | `200`, all ASMs |
+| 13.7 | GET | `/api/sm/asms` | ASM / BDE | — | `403` |
+| 13.8 | GET | `/api/sm/asms/ASM001` | SM | — | `200`; another SM's ASM `404` |
+| 13.9 | POST | `/api/sm/create-asm` | SM | `{ "name": "Test ASM", "email": "t@kide.com", "password": "test1234", "team_code": "TVM" }` | `201`, ASM001… assigned TVM Team |
+| 13.10 | POST | `/api/sm/create-asm` | SM | same `team_code: "TVM"` again | `400` (team already has an ASM) |
+| 13.11 | POST | `/api/sm/create-asm` | SM | a district already owned by another team | `400` (district exclusivity) |
+| 13.12 | POST | `/api/sm/create-asm` | SM | `{ "team_code": "OFFICE" }` | `201`, the one Office Team (no districts) |
+| 13.13 | POST | `/api/sm/create-asm` | SM | `{ "team_code": "OFFICE" }` again | `400` (Office Team already exists) |
+| 13.14 | POST | `/api/sm/create-asm` | SM | `{ "team_code": "ZZZ" }` | `400` invalid team code |
+| 13.15 | POST | `/api/sm/create-asm` | admin / ASM / BDE | — | `403` |
+| 13.16 | GET | `/api/asm/bdes` | ASM | — | `200`, its BDEs only |
+| 13.17 | GET | `/api/asm/bdes` | SM | — | `200`, subtree BDEs |
+| 13.18 | GET | `/api/asm/bdes` | admin | — | `200`, all |
+| 13.19 | GET | `/api/asm/bdes` | BDE | — | `403` |
+| 13.20 | GET | `/api/asm/bdes/BDE001` | ASM | — | `200` |
+| 13.21 | POST | `/api/asm/create-bde` | ASM | `{ "name": "Test BDE", "email": "tb@kide.com", "password": "test1234", "district": "Ernakulam" }` | `201`, under ASM001 |
+| 13.22 | POST | `/api/asm/create-bde` | ASM | `{ "name": "Test BDE 2", "district": "Kollam" }` (not in the ASM's team) | `400` district not in team |
+| 13.23 | POST | `/api/asm/create-bde` | ASM | duplicate name / email | `400` |
+| 13.24 | POST | `/api/asm/create-bde` | SM | `{ "name": "Test BDE 3", "asm_id": "ASM001" }` | `201`; without `asm_id` `400` |
+| 13.25 | POST | `/api/asm/create-bde` | SM | `{ "asm_id": "<ASM outside subtree>" }` | `403` |
+| 13.26 | POST | `/api/asm/create-bde` | BDE | — | `403` |
+
+Canonical teams: `TVM`, `PTM`, `KTM`, `EKM`, `PKD`, `CLT`, `KZD` (alias `KZE`)
+plus `OFFICE`. Each regional team owns exactly 2 districts, and a district can
+belong to only one team.
 
 Clean up test accounts with `DELETE /api/admin/employees?id=<mongo id>` and
 `DELETE /api/admin/wallets?id=<mongo id>` (admin token).
@@ -305,32 +382,40 @@ All require `Authorization: Bearer <admin token>` or `x-admin-key`.
 | 15.5 | GET | `/api/admin/attendance` | — | `200` |
 | 15.6 | GET | `/api/admin/leaves` | — | `200` |
 | 15.7 | GET | `/api/admin/wallet-withdraw-requests` | — | `200` |
-| 15.8 | GET | `/api/admin/activity-logs` | — | `200` |
-| 15.9 | POST | `/api/admin/leads` | `{ ...lead fields }` | `201` |
-| 15.10 | PUT | `/api/admin/leads` | `{ "id": "<id>", ... }` | `200` |
-| 15.11 | DELETE | `/api/admin/leads?id=<id>` | — | `200` |
-| 15.12 | POST | `/api/admin/leads/create` | `{ "name": "...", "phone": "...", "employee_id": "BDE001" }` | `201`; employee token `403` |
-| 15.13 | GET | `/api/admin/stats` | `?zone=&district=` | `200` |
-| 15.14 | GET | `/api/admin/:tab` | any tab in the model map | `200` |
-| 15.15 | POST | `/api/admin/:tab` | tab-specific body | `201` |
-| 15.16 | PUT | `/api/admin/:tab` | `{ "id": "...", ... }` | `200` |
-| 15.17 | DELETE | `/api/admin/:tab?id=<id>` | — | `200` |
-| 15.18 | GET | `/api/employee-tasks` | `?search=` | `200` |
-| 15.19 | POST | `/api/employee-tasks` | `{ employee, task_template, period_start, period_end, total_target }` | `201` |
-| 15.20 | PUT | `/api/employee-tasks` | `{ id, achieved, total_target }` | `200` |
-| 15.21 | DELETE | `/api/employee-tasks?id=<id>` | — | `200` |
-| 15.22 | GET | `/api/task-templates` | `?search=` | `200` |
-| 15.23 | POST | `/api/task-templates` | `{ title, metric_type, designation, frequency, target_count }` | `201` |
-| 15.24 | PUT | `/api/task-templates` | `{ id, ... }` | `200` |
-| 15.25 | DELETE | `/api/task-templates?id=<id>` | — | `200` |
-| 15.26 | POST | `/api/task-templates/generate` | `{ "template_ids": ["<id>"] }` | `200` |
-| 15.27 | GET | `/api/seed` | — | `200` (idempotent seed) |
-| 15.28 | GET | `/api/test` | — | `200`, DB connection status |
+| 15.8 | GET | `/api/admin/activities` | — | `200` (`/api/admin/activity-logs` returns `400`) |
+| 15.9 | GET | `/api/admin/incentives` | — | `200` |
+| 15.10 | GET | `/api/admin/salary-requests` | — | `200` |
+| 15.11 | GET | `/api/admin/create-sm` | — | `200`, `exists: true/false` |
+| 15.12 | POST | `/api/admin/create-sm` | `{ "name": "...", "password": "..." }` | `201` only when no SM exists, else `400` |
+| 15.13 | POST | `/api/admin/leads` | `{ ...lead fields }` | `201` |
+| 15.14 | PUT | `/api/admin/leads` | `{ "id": "<id>", ... }` | `200` |
+| 15.15 | DELETE | `/api/admin/leads?id=<id>` | — | `200` |
+| 15.16 | POST | `/api/admin/leads/create` | `{ "name": "...", "phone": "...", "employee_id": "BDE001" }` | `201`; employee token `403` |
+| 15.17 | GET | `/api/admin/stats` | `?zone=&district=` | `200` |
+| 15.18 | GET | `/api/admin/:tab` | any tab in the model map | `200` |
+| 15.19 | POST | `/api/admin/:tab` | tab-specific body | `201` |
+| 15.20 | PUT | `/api/admin/:tab` | `{ "id": "...", ... }` | `200` |
+| 15.21 | DELETE | `/api/admin/:tab?id=<id>` | — | `200` |
+| 15.22 | POST | `/api/admin/tasks` | `{ "title": "Admin task", "assigned_to": "BDE001" }` | `403` (admin is read-only for tasks) |
+| 15.23 | PUT | `/api/admin/tasks` | `{ "id": "<task>" }` | `403` |
+| 15.24 | DELETE | `/api/admin/tasks?id=<task>` | — | `403` |
+| 15.25 | GET | `/api/employee-tasks` | `?search=` | `200` |
+| 15.26 | POST | `/api/employee-tasks` | `{ employee, task_template, period_start, period_end, total_target }` | `201` |
+| 15.27 | PUT | `/api/employee-tasks` | `{ id, achieved, total_target }` | `200` |
+| 15.28 | DELETE | `/api/employee-tasks?id=<id>` | — | `200` |
+| 15.29 | GET | `/api/task-templates` | `?search=` | `200` |
+| 15.30 | POST | `/api/task-templates` | `{ title, metric_type, designation, frequency, target_count }` | `201` |
+| 15.31 | PUT | `/api/task-templates` | `{ id, ... }` | `200` |
+| 15.32 | DELETE | `/api/task-templates?id=<id>` | — | `200` |
+| 15.33 | POST | `/api/task-templates/generate` | `{ "template_ids": ["<id>"] }` | `200` |
+| 15.34 | GET | `/api/seed` | — | `200` (idempotent seed) |
+| 15.35 | GET | `/api/test` | — | `200`, DB connection status |
 
 `/api/admin/:tab` model keys: `leads`, `employees`, `attendance`,
 `attendanceRecords`, `zones`, `districts`, `courses`, `designations`, `teams`,
-`tasks`, `taskTemplates`/`task-templates`, `employeeTasks`/`employee-tasks`,
-`wallets`/`wallet`, `walletWithdrawRequests`, `leaves`, `activityLogs`,
+`tasks` (read-only), `taskTemplates`/`task-templates`,
+`employeeTasks`/`employee-tasks`, `wallets`, `walletWithdrawRequests`,
+`incentives`, `salaryRequests`/`salary-requests`, `leaves`, `activities`/`activityLogs`,
 `roles`, `settings`.
 
 ---
@@ -343,26 +428,33 @@ All require `Authorization: Bearer <admin token>` or `x-admin-key`.
 | 16.2 | `GET /api/leads` no token | `401` |
 | 16.3 | `GET /api/leaves` no token | `401` |
 | 16.4 | `GET /api/tasks` no token | `401` |
-| 16.5 | `GET /api/attendance/history` no token | `401` |
-| 16.6 | `GET /api/wallet/balance` no token | `401` |
-| 16.7 | `GET /api/sm/asms` no token | `401` |
-| 16.8 | `GET /api/asm/bdes` no token | `401` |
-| 16.9 | `GET /api/zones` no token | `401` |
-| 16.10 | `POST /api/set-password` no token | `401` |
-| 16.11 | `GET /api/seed` no token | `401` |
-| 16.12 | `GET /api/test` no token | `401` |
-| 16.13 | `GET /api/admin/employees` no token | `401` |
-| 16.14 | `POST /api/sm/create-asm` as ASM | `403` |
-| 16.15 | `POST /api/asm/create-bde` as BDE | `403` |
-| 16.16 | `GET /api/sm/asms` as ASM | `403` |
-| 16.17 | `GET /api/asm/bdes` as BDE | `403` |
-| 16.18 | `POST /api/attendance/check-in` as admin | `403` |
-| 16.19 | `GET /api/home` as admin | `403` |
-| 16.20 | `GET /api/leads?lead_id=LD-7310` as BDE | `403` |
-| 16.21 | `DELETE /api/leads?id=LD-7310` as BDE | `403` |
-| 16.22 | `POST /api/leads/create` as BDE with `employee: "Sanu Jaison"` | lead assigned to BDE001, not SM001 |
-| 16.23 | `GET /api/incentives?bde_id=BDE999` as BDE | own data only |
-| 16.24 | `POST /api/auth/refresh-token` with garbage token | `401` |
+| 16.5 | `GET /api/teams` no token | `401` |
+| 16.6 | `GET /api/wallet/requests` no token | `401` |
+| 16.7 | `GET /api/attendance/history` no token | `401` |
+| 16.8 | `GET /api/wallet/balance` no token | `401` |
+| 16.9 | `GET /api/sm/asms` no token | `401` |
+| 16.10 | `GET /api/asm/bdes` no token | `401` |
+| 16.11 | `GET /api/zones` no token | `401` |
+| 16.12 | `POST /api/set-password` no token | `401` |
+| 16.13 | `GET /api/seed` no token | `401` |
+| 16.14 | `GET /api/test` no token | `401` |
+| 16.15 | `GET /api/admin/employees` no token | `401` |
+| 16.16 | `POST /api/sm/create-asm` as ASM | `403` |
+| 16.17 | `POST /api/sm/create-asm` as admin | `403` |
+| 16.18 | `POST /api/asm/create-bde` as BDE | `403` |
+| 16.19 | `GET /api/sm/asms` as ASM | `403` |
+| 16.20 | `GET /api/asm/bdes` as BDE | `403` |
+| 16.21 | `POST /api/attendance/check-in` as admin | `403` |
+| 16.22 | `GET /api/home` as admin | `403` |
+| 16.23 | `POST /api/tasks` as admin | `403` |
+| 16.24 | `POST /api/admin/tasks` as admin | `403` |
+| 16.25 | `POST /api/tasks` as BDE | `403` |
+| 16.26 | `PUT /api/tasks` as BDE reassigning own task | `403` |
+| 16.27 | `GET /api/leads?lead_id=LD-7310` as BDE | `403` |
+| 16.28 | `DELETE /api/leads?id=LD-7310` as BDE | `403` |
+| 16.29 | `POST /api/leads/create` as BDE with `employee: "Sanu Jaison"` | lead assigned to BDE001, not SM001 |
+| 16.30 | `GET /api/incentives?bde_id=BDE999` as BDE | own data only |
+| 16.31 | `POST /api/auth/refresh-token` with garbage token | `401` |
 
 ---
 
