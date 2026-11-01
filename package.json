@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node seed.mjs",
+    "seed:catalogs": "node scripts/seed-catalogs.mjs",
     "backfill:hierarchy": "node scripts/backfill-reports-to.mjs"
   },
   "dependencies": {

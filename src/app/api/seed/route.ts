@@ -9,12 +9,14 @@ import {
   Lead,
   Attendance,
   Course,
+  Designation,
   Team,
   Wallet,
 } from '@/models';
 import {
   mockZones,
   mockDistricts,
+  mockDesignations,
   mockEmployees,
   mockLeads,
   mockLiveAttendance,
@@ -59,7 +61,15 @@ export async function GET(req: Request) {
       await District.insertMany(mockDistricts.map((d) => ({ name: d.name, zone: d.zoneName })));
     }
 
-    // 4. Employees
+    // 4. Designations
+    const designationCount = await Designation.countDocuments();
+    if (designationCount === 0) {
+      await Designation.insertMany(
+        mockDesignations.map((d) => ({ name: d.name, prefix: d.prefix }))
+      );
+    }
+
+    // 5. Employees
     const empCount = await Employee.countDocuments();
     if (empCount === 0) {
       await Employee.insertMany(
@@ -77,7 +87,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 5. Leads
+    // 6. Leads
     const leadCount = await Lead.countDocuments();
     if (leadCount === 0) {
       await Lead.insertMany(
@@ -95,7 +105,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 6. Attendance
+    // 7. Attendance
     const attCount = await Attendance.countDocuments();
     if (attCount === 0) {
       await Attendance.insertMany(
@@ -112,7 +122,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 7. Courses
+    // 8. Courses
     const courseCount = await Course.countDocuments();
     if (courseCount === 0) {
       await Course.insertMany(
@@ -125,7 +135,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 8. Teams
+    // 9. Teams
     const teamCount = await Team.countDocuments();
     if (teamCount === 0) {
       await Team.insertMany(
@@ -139,7 +149,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 9. Wallets
+    // 10. Wallets
     const walletCount = await Wallet.countDocuments();
     if (walletCount === 0) {
       await Wallet.insertMany(
