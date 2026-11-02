@@ -8,17 +8,19 @@ import bcrypt from 'bcryptjs';
 
 /**
  * POST /api/asm/create-bde
- * Enables an Area Sales Manager (ASM) to create a Business Development Executive (BDE).
+ * Enables an Area Sales Manager (ASM) or Office Team Lead to create a
+ * Business Development Executive (BDE) or Tele-caller.
  *
  * Rules:
- * - BDE is automatically assigned under the creating ASM (reports_to = asm.employee_id).
+ * - BDE / Tele-caller is automatically assigned under the creating ASM / Office Lead (reports_to = asm.employee_id).
  * - Inherits the ASM's team, zone, and district.
- * - BDE count is unlimited.
- * - Visible in both ASM side and Admin side.
+ * - If created by the Office Team Lead, designation defaults to "Tele-caller" and ID prefix is "TC".
+ * - BDE / Tele-caller count is unlimited.
+ * - Visible in ASM/Office side and Admin side.
  *
  * Authorization:
- * - ASM / BDM -> always creates under themselves; `asm_id` in the body is ignored.
- * - SM / admin -> may target an ASM via `asm_id` (SM only within its own subtree).
+ * - ASM / BDM / Office Lead -> always creates under themselves; `asm_id` in the body is ignored.
+ * - SM / admin -> may target an ASM / Office Lead via `asm_id` (SM only within its own subtree).
  */
 export async function POST(req: Request) {
   try {
@@ -29,20 +31,20 @@ export async function POST(req: Request) {
 
     const { auth } = guard;
     const body = await req.json().catch(() => ({}));
-    const { name, email, contact_number, password, district, asm_id } = body;
+    const { name, email, contact_number, password, district, asm_id, designation } = body;
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
-        { success: false, message: 'BDE name is required' },
+        { success: false, message: 'Name is required' },
         { status: 400 }
       );
     }
 
-    // Resolve the owning ASM.
+    // Resolve the owning ASM / Office Team Lead.
     let asmEmployee: any = null;
 
     if (auth.role === 'ASM' || auth.role === 'BDM') {
-      // Never trust the body: an ASM only creates BDEs under itself.
+      // Never trust the body: an ASM / Office Lead only creates under itself.
       asmEmployee = auth.employee;
     } else {
       const requestedAsm = String(asm_id || body.asm_employee_id || '').trim();
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
           return NextResponse.json(
             {
               success: false,
-              message: `Validation failed: ASM ${requestedAsm} not found.`,
+              message: `Validation failed: Manager ${requestedAsm} not found.`,
             },
             { status: 400 }
           );
@@ -63,19 +65,19 @@ export async function POST(req: Request) {
             return NextResponse.json(
               {
                 success: false,
-                message: 'This ASM is outside your hierarchy.',
+                message: 'This manager is outside your hierarchy.',
               },
               { status: 403 }
             );
           }
         }
       } else if (auth.role === 'SM') {
-        // An SM must name one of its own ASMs.
+        // An SM must name one of its own ASMs or the Office Lead.
         return NextResponse.json(
           {
             success: false,
             message:
-              'Validation failed: asm_id is required. An SM creates BDEs under one of its ASMs.',
+              'Validation failed: asm_id is required. An SM creates subordinates under one of its ASMs or Office Lead.',
           },
           { status: 400 }
         );
@@ -83,6 +85,7 @@ export async function POST(req: Request) {
         asmEmployee = await Employee.findOne({
           $or: [
             { designation: /area sales manager/i },
+            { designation: /office team lead/i },
             { employee_id: /^ASM/i },
           ],
         }).lean();
@@ -94,7 +97,7 @@ export async function POST(req: Request) {
         {
           success: false,
           message:
-            'Validation failed: Creating ASM not found. Please specify a valid Area Sales Manager.',
+            'Validation failed: Creating manager not found. Please specify a valid Area Sales Manager or Office Team Lead.',
         },
         { status: 400 }
       );
@@ -102,13 +105,19 @@ export async function POST(req: Request) {
 
     const asmDesignation = String(asmEmployee.designation || '').toLowerCase();
     const asmIdValue = String(asmEmployee.employee_id || '').toUpperCase();
+    const isOfficeLead =
+      asmDesignation.includes('office team lead') ||
+      String(asmEmployee.team || '').toLowerCase() === 'office team';
     const isRealAsm =
-      asmIdValue.startsWith('ASM') || asmDesignation.includes('area sales manager');
+      asmIdValue.startsWith('ASM') ||
+      asmDesignation.includes('area sales manager') ||
+      isOfficeLead;
+
     if (!isRealAsm) {
       return NextResponse.json(
         {
           success: false,
-          message: `Validation failed: ${asmEmployee.name} (${asmEmployee.employee_id}) is not an Area Sales Manager.`,
+          message: `Validation failed: ${asmEmployee.name} (${asmEmployee.employee_id}) is not an Area Sales Manager or Office Team Lead.`,
         },
         { status: 400 }
       );
@@ -135,49 +144,66 @@ export async function POST(req: Request) {
 
     const assignedAsmId = asmEmployee.employee_id;
     const assignedAsmName = asmEmployee.name;
-    const assignedTeam = asmEmployee.team || '';
+    const assignedTeam = asmEmployee.team || (isOfficeLead ? 'Office Team' : '');
     const assignedZone = asmEmployee.zone || 'Central Zone';
 
     // A BDE must sit in one of the districts owned by its ASM's team.
+    // The Office Team covers central office / statewide operations without district locking.
     const teamDoc: any = assignedTeam
       ? await Team.findOne({
           name: new RegExp(`^${escapeRegex(assignedTeam)}$`, 'i'),
         }).lean()
       : null;
+    const isOfficeTeam = isOfficeLead || teamDoc?.is_office || assignedTeam.toLowerCase() === 'office team';
     const teamDistricts: string[] = Array.isArray(teamDoc?.districts)
       ? teamDoc.districts.map((d: any) => String(d || '').trim()).filter(Boolean)
       : [];
 
     let assignedDistrict = String(district || '').trim();
-    if (assignedDistrict && teamDistricts.length > 0) {
-      const match = teamDistricts.find(
-        (d) => d.toLowerCase() === assignedDistrict.toLowerCase()
-      );
-      if (!match) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Validation failed: ${assignedDistrict} is not part of ${assignedTeam}. Allowed districts: ${teamDistricts.join(', ')}.`,
-          },
-          { status: 400 }
-        );
+    if (isOfficeTeam) {
+      if (!assignedDistrict) {
+        assignedDistrict = asmEmployee.district || 'Ernakulam';
       }
-      assignedDistrict = match;
-    }
-    if (!assignedDistrict) {
-      assignedDistrict = teamDistricts[0] || asmEmployee.district || 'Ernakulam';
+    } else {
+      if (assignedDistrict && teamDistricts.length > 0) {
+        const match = teamDistricts.find(
+          (d) => d.toLowerCase() === assignedDistrict.toLowerCase()
+        );
+        if (!match) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Validation failed: ${assignedDistrict} is not part of ${assignedTeam}. Allowed districts: ${teamDistricts.join(', ')}.`,
+            },
+            { status: 400 }
+          );
+        }
+        assignedDistrict = match;
+      }
+      if (!assignedDistrict) {
+        assignedDistrict = teamDistricts[0] || asmEmployee.district || 'Ernakulam';
+      }
     }
 
-    // Generate next sequential BDE ID (BDE001, BDE002...)
-    const existingBdes = await Employee.find({
-      employee_id: /^BDE/i,
+    // Role / Designation handling
+    const requestedDesignation = String(designation || '').trim();
+    const isTelecaller =
+      isOfficeTeam ||
+      requestedDesignation.toLowerCase().includes('tele');
+    const assignedDesignation =
+      requestedDesignation || (isOfficeTeam ? 'Tele-caller' : 'Business Development Executive');
+
+    // Generate next sequential ID: TC for telecallers, BDE for field executives
+    const prefix = isTelecaller ? 'TC' : 'BDE';
+    const existingEmployees = await Employee.find({
+      employee_id: new RegExp(`^${prefix}`, 'i'),
     })
       .select('employee_id')
       .lean();
 
     const usedNumbers = new Set<number>();
-    existingBdes.forEach((emp: any) => {
-      const match = String(emp.employee_id || '').match(/^BDE(\d+)$/i);
+    existingEmployees.forEach((emp: any) => {
+      const match = String(emp.employee_id || '').match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
       if (match && match[1]) {
         usedNumbers.add(parseInt(match[1], 10));
       }
@@ -185,19 +211,19 @@ export async function POST(req: Request) {
 
     let nextNum = 1;
     while (usedNumbers.has(nextNum)) nextNum += 1;
-    const newBdeId = `BDE${String(nextNum).padStart(3, '0')}`;
+    const newEmpId = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
     // Hash password
     const rawPassword = password || 'kide1234';
     const hashedPassword = bcrypt.hashSync(rawPassword, 10);
 
-    const newBde = await Employee.create({
-      employee_id: newBdeId,
-      name: name.trim(),
-      email: (email || `${newBdeId.toLowerCase()}@kide.com`).trim().toLowerCase(),
+    const newEmployee = await Employee.create({
+      employee_id: newEmpId,
+      name: trimmedName,
+      email: (email || `${newEmpId.toLowerCase()}@kide.com`).trim().toLowerCase(),
       contact_number: contact_number || '',
       password: hashedPassword,
-      designation: 'Business Development Executive',
+      designation: assignedDesignation,
       zone: assignedZone,
       district: assignedDistrict,
       team: assignedTeam,
@@ -205,10 +231,10 @@ export async function POST(req: Request) {
       status: 'active',
     });
 
-    // Create wallet for new BDE
+    // Create wallet for new employee
     await Wallet.create({
-      employee: newBde.name,
-      employee_id: newBde.employee_id,
+      employee: newEmployee.name,
+      employee_id: newEmployee.employee_id,
       balance: 0,
       total_earned: 0,
       total_paid: 0,
@@ -224,7 +250,7 @@ export async function POST(req: Request) {
     }
 
     await logActivity({
-      description: `ASM ${assignedAsmName} (${assignedAsmId}) created BDE ${newBde.name} (${newBde.employee_id}) under team ${assignedTeam}`,
+      description: `${isOfficeTeam ? 'Office Team Lead' : 'ASM'} ${assignedAsmName} (${assignedAsmId}) created ${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) under team ${assignedTeam}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -232,15 +258,15 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Business Development Executive ${newBde.name} (${newBde.employee_id}) created successfully under ASM ${assignedAsmName} (${assignedTeam}).`,
+        message: `${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) created successfully under ${assignedAsmName} (${assignedTeam}).`,
         data: {
-          id: newBde._id.toString(),
-          employee_id: newBde.employee_id,
-          name: newBde.name,
-          designation: newBde.designation,
-          team: newBde.team,
-          district: newBde.district,
-          zone: newBde.zone,
+          id: newEmployee._id.toString(),
+          employee_id: newEmployee.employee_id,
+          name: newEmployee.name,
+          designation: newEmployee.designation,
+          team: newEmployee.team,
+          district: newEmployee.district,
+          zone: newEmployee.zone,
           reports_to: assignedAsmId,
           asm_name: assignedAsmName,
         },
@@ -250,7 +276,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('POST /api/asm/create-bde error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create BDE' },
+      { success: false, message: error.message || 'Failed to create employee' },
       { status: 500 }
     );
   }

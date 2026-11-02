@@ -25,7 +25,13 @@ export function hierarchyRole(employee: any): HierarchyRole {
   const id = String(employee?.employee_id || '').trim().toUpperCase();
   const designation = String(employee?.designation || '').trim().toLowerCase();
 
-  if (id.startsWith('ASM') || designation.includes('area sales manager')) return 'ASM';
+  if (
+    id.startsWith('ASM') ||
+    designation.includes('area sales manager') ||
+    designation.includes('office team lead')
+  ) {
+    return 'ASM';
+  }
   if (
     id.startsWith('BDM') ||
     designation.includes('business development manager') ||
@@ -34,7 +40,15 @@ export function hierarchyRole(employee: any): HierarchyRole {
   ) {
     return 'BDM';
   }
-  if (id.startsWith('BDE') || designation.includes('business development executive')) return 'BDE';
+  if (
+    id.startsWith('BDE') ||
+    id.startsWith('TC') ||
+    designation.includes('business development executive') ||
+    designation.includes('tele-caller') ||
+    designation.includes('telecaller')
+  ) {
+    return 'BDE';
+  }
   if (id.startsWith('SM') || designation.includes('sales manager')) return 'SM';
   if (id.startsWith('MD') || designation.includes('managing director')) return 'MD';
   return 'OTHER';

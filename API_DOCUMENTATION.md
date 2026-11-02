@@ -766,6 +766,68 @@ Based on a comprehensive audit of the Flutter codebase (`keralainstitutesalesapp
 }
 ```
 
+#### 7.5 Office Team Creates Tele-caller
+- **Endpoint**: `POST /api/office/create-telecaller` (also supported via `POST /api/asm/create-bde` by Office Team Lead)
+- **Purpose**: Enables the Office Team Lead, Sales Manager (SM), or Admin to create a Tele-caller under the Office Team.
+- **Rules**: Tele-caller is assigned under the Office Team Lead. Unlimited count. Sequential ID prefix `TC` (`TC001`, `TC002`...).
+- **Who Uses It**: Office Team Lead, SM, Admin.
+- **Request Body**:
+```json
+{
+  "name": "Ananya Nair",
+  "email": "ananya.tc@kide.com",
+  "contact_number": "+91 98471 11223",
+  "password": "password123",
+  "district": "Ernakulam"
+}
+```
+- **Response `201 Created`**:
+```json
+{
+  "success": true,
+  "message": "Tele-caller Ananya Nair (TC001) created successfully under Office Team.",
+  "data": {
+    "employee_id": "TC001",
+    "name": "Ananya Nair",
+    "designation": "Tele-caller",
+    "team": "Office Team",
+    "district": "Ernakulam",
+    "zone": "Central Zone",
+    "reports_to": "ASM008",
+    "supervisor_name": "Office Team Lead"
+  }
+}
+```
+
+#### 7.6 List Office Team Tele-callers
+- **Endpoint**: `GET /api/office/telecallers`
+- **Purpose**: Lists all Tele-callers belonging to the Office Team with assigned leads and closed admissions stats.
+- **Who Uses It**: Office Team Lead, SM, Admin.
+- **Headers**: `Authorization: Bearer <token>`
+- **Response `200 OK`**:
+```json
+{
+  "success": true,
+  "count": 1,
+  "data": [
+    {
+      "employee_id": "TC001",
+      "name": "Ananya Nair",
+      "email": "ananya.tc@kide.com",
+      "designation": "Tele-caller",
+      "team": "Office Team",
+      "zone": "Central Zone",
+      "district": "Ernakulam",
+      "reports_to": "ASM008",
+      "leads_assigned": 45,
+      "admissions_closed": 12,
+      "conversion_rate": "27%",
+      "status": "active"
+    }
+  ]
+}
+```
+
 #### 7.4 List BDEs
 - **Endpoint**: `GET /api/asm/bdes`
 - **Purpose**: Lists BDEs under the ASM or across the institution with conversion stats.

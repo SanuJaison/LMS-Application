@@ -35,7 +35,10 @@ export async function GET(req: Request) {
     const baseFilter = {
       $or: [
         { designation: /business development executive/i },
+        { designation: /tele-caller/i },
+        { designation: /telecaller/i },
         { employee_id: /^BDE/i },
+        { employee_id: /^TC/i },
       ],
     };
 
