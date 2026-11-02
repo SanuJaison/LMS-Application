@@ -4,7 +4,7 @@ import { extractTokenFromHeader, signToken, verifyToken } from '@/lib/jwt';
 
 /**
  * POST /api/auth/refresh-token
- * Issues a fresh 30-day token for a valid, active identity.
+ * Issues a fresh 1-day token for a valid, active identity.
  *
  * Invalid, expired or inactive identities are rejected with 401. The old
  * behaviour of signing `{ role: 'employee' }` for any garbage token is gone.
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     delete (payload as any).iat;
     delete (payload as any).exp;
 
-    const newToken = signToken(payload, '30d');
+    const newToken = signToken(payload, '1d');
 
     return NextResponse.json({
       success: true,
