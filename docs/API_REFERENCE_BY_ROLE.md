@@ -4,7 +4,7 @@
 
 **Local base URL:** `http://localhost:3000`
 
-Last updated: 2026-11-01
+Last updated: 2026-11-02
 
 Every endpoint below is documented with:
 
@@ -674,25 +674,93 @@ An employee token gets `403` here; employees must use `POST /api/leads/create`.
 
 ---
 
-### 5.6 Admin catalog mutations
+### 5.6 Catalog APIs — zones, districts, designations, courses, institutes
 
-**URLs**
+Catalogs have two access levels:
 
-```
-https://lms-application-pi.vercel.app/api/zones
-https://lms-application-pi.vercel.app/api/districts
-https://lms-application-pi.vercel.app/api/designations
-https://lms-application-pi.vercel.app/api/courses
-https://lms-application-pi.vercel.app/api/institutes/{id}
-```
+| Action | Token |
+|---|---|
+| `GET` list / `GET` single | **any valid employee or admin token** |
+| `POST` / `PUT` / `PATCH` / `DELETE` | **admin** (or `x-admin-key`) |
+| `POST /api/institutes`, `POST /api/institutes/create` | **any valid token** |
+| `DELETE /api/institutes/{id}` | **admin** |
 
-**Token:** admin
-
-Example — create a district:
+**Full URLs**
 
 ```
-POST https://lms-application-pi.vercel.app/api/districts
+GET    https://lms-application-pi.vercel.app/api/zones
+POST   https://lms-application-pi.vercel.app/api/zones
+GET    https://lms-application-pi.vercel.app/api/districts
+POST   https://lms-application-pi.vercel.app/api/districts
+GET    https://lms-application-pi.vercel.app/api/districts/{id}
+PUT    https://lms-application-pi.vercel.app/api/districts/{id}
+DELETE https://lms-application-pi.vercel.app/api/districts/{id}
+GET    https://lms-application-pi.vercel.app/api/designations
+POST   https://lms-application-pi.vercel.app/api/designations
+GET    https://lms-application-pi.vercel.app/api/designations/{id}
+PUT    https://lms-application-pi.vercel.app/api/designations/{id}
+DELETE https://lms-application-pi.vercel.app/api/designations/{id}
+GET    https://lms-application-pi.vercel.app/api/courses
+POST   https://lms-application-pi.vercel.app/api/courses
+GET    https://lms-application-pi.vercel.app/api/courses/{id}
+PUT    https://lms-application-pi.vercel.app/api/courses/{id}
+DELETE https://lms-application-pi.vercel.app/api/courses/{id}
+GET    https://lms-application-pi.vercel.app/api/institutes
+POST   https://lms-application-pi.vercel.app/api/institutes
+POST   https://lms-application-pi.vercel.app/api/institutes/create
+DELETE https://lms-application-pi.vercel.app/api/institutes/{id}
 ```
+
+`{id}` accepts the Mongo `_id` (24-char hex). The list routes also accept the
+Mongo id in the body/query form shown below.
+
+#### Zones
+
+`GET /api/zones` — any valid token. No query parameters; the route always
+returns every zone. The 3 Kerala zones are auto-seeded the first time the
+collection is empty.
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "_id": "6ae5b2e1...", "name": "Central Zone", "description": "Central Kerala regional zone (...)" }
+  ]
+}
+```
+
+`POST /api/zones` — **admin token**.
+
+```json
+{
+  "name": "Central Zone",
+  "description": "Central Kerala regional zone"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "6ae5b2e1...", "name": "Central Zone", "description": "Central Kerala regional zone" }
+}
+```
+
+There is **no** `/api/zones/{id}` route. Use `PUT/DELETE /api/admin/zones`
+(section 5.4) to edit or remove a zone.
+
+#### Districts
+
+`GET /api/districts` — any valid token. Query: `?search=` matches `name`,
+`zone` or `description`. The 14 Kerala districts are auto-seeded when the
+collection is empty.
+
+`GET /api/districts/{id}` — any valid token. `404` when the id is unknown.
+
+`POST /api/districts` — **admin token**. `name` and `zone` are required.
 
 ```json
 {
@@ -713,11 +781,185 @@ POST https://lms-application-pi.vercel.app/api/districts
 }
 ```
 
-Delete an institute:
+`PUT /api/districts/{id}` — **admin token**. `name` and `zone` are required.
 
+```json
+{
+  "name": "Ernakulam",
+  "zone": "Central Zone",
+  "description": "Central Kerala — updated"
+}
 ```
-DELETE https://lms-application-pi.vercel.app/api/institutes/6ae5b2e1...
+
+`PUT /api/districts` with `{ "id": "...", "name": "...", "zone": "..." }` in the
+body behaves identically.
+
+`DELETE /api/districts/{id}` — **admin token**. You can also use
+`DELETE /api/districts?id=...` or a JSON body `{ "id": "..." }`.
+
+**Response `200`**
+
+```json
+{
+  "message": "District deleted successfully",
+  "deleted": { "_id": "6ae5b2e1...", "name": "Ernakulam", "zone": "Central Zone" }
+}
 ```
+
+#### Designations
+
+The live catalog contains exactly 4 workflow designations:
+`Sales Manager (SM)`, `Area Sales Manager (ASM)`,
+`Business Development Executive (BDE)` and
+`Business Development Manager (BDM)`.
+
+`GET /api/designations` — any valid token. Query: `?search=` matches `name` or
+`prefix`. Sorted newest first.
+
+`GET /api/designations/{id}` — any valid token. `404` when the id is unknown.
+
+`POST /api/designations` — **admin token**. `name` and `prefix` are required.
+
+```json
+{
+  "name": "Business Development Manager",
+  "prefix": "BDM"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "_id": "6ae5b2e1...",
+  "name": "Business Development Manager",
+  "prefix": "BDM"
+}
+```
+
+`PUT /api/designations/{id}` — **admin token**. `name` and `prefix` are required.
+
+```json
+{
+  "name": "Business Development Manager",
+  "prefix": "BDM"
+}
+```
+
+`PUT /api/designations` with `{ "id": "...", "name": "...", "prefix": "..." }` in
+the body behaves identically.
+
+`DELETE /api/designations/{id}` — **admin token**. You can also use
+`DELETE /api/designations?id=...` or a JSON body `{ "id": "..." }`.
+
+**Response `200`**
+
+```json
+{
+  "message": "Designation deleted successfully",
+  "deleted": { "_id": "6ae5b2e1...", "name": "Business Development Manager", "prefix": "BDM" }
+}
+```
+
+#### Courses
+
+`GET /api/courses` — any valid token. Query: `?search=` matches `name`. Sorted
+oldest first. The live catalog currently has 9 courses.
+
+`GET /api/courses/{id}` — any valid token. `404` when the id is unknown.
+
+`POST /api/courses` — **admin token**. `name` is required.
+
+```json
+{
+  "name": "Full-Stack Web Development"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "_id": "6ae5b2e1...",
+  "name": "Full-Stack Web Development"
+}
+```
+
+`PUT /api/courses/{id}` — **admin token**. `name` is required.
+
+```json
+{
+  "name": "Full-Stack Web Development"
+}
+```
+
+`PUT /api/courses` with `{ "id": "...", "name": "..." }` in the body behaves
+identically.
+
+`DELETE /api/courses/{id}` — **admin token**. You can also use
+`DELETE /api/courses?id=...` or a JSON body `{ "id": "..." }`.
+
+**Response `200`**
+
+```json
+{
+  "message": "Course deleted successfully",
+  "deleted": { "_id": "6ae5b2e1...", "name": "Full-Stack Web Development" }
+}
+```
+
+#### Institutes
+
+`GET /api/institutes` — any valid token. Query: `?district=Ernakulam&search=college`.
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "123456", "_id": "6ae5b2e1...", "name": "Model Engineering College", "district": "Ernakulam", "email": "office@mec.ac.in" }
+  ]
+}
+```
+
+`POST /api/institutes` — **any valid token**. `name` is required; every other
+field is optional.
+
+```json
+{
+  "name": "Model Engineering College",
+  "type": "College",
+  "district": "Ernakulam",
+  "address": "Thrikkakara, Kochi",
+  "contact_person": "Dr. Principal",
+  "contact_phone": "9847000000",
+  "email": "office@mec.ac.in"
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "message": "Institute Model Engineering College created successfully",
+  "data": {
+    "id": "123456",
+    "_id": "6ae5b2e1...",
+    "name": "Model Engineering College",
+    "district": "Ernakulam"
+  }
+}
+```
+
+`POST /api/institutes/create` is an **alias** with the identical body and
+response.
+
+`DELETE /api/institutes/{id}` — **admin token**. `{id}` accepts the Mongo id or
+the numeric legacy id.
+
+**Response `200`**
 
 ```json
 {
@@ -3039,7 +3281,88 @@ https://lms-application-pi.vercel.app/api/profile
 }
 ```
 
-`GET /api/auth/me` is an alias of this endpoint.
+`GET /api/auth/me` returns the same employee payload **and** also accepts an
+admin token — see 8.2.1.
+
+---
+
+### 8.2.1 GET /api/auth/me — session for both portals
+
+**URL**
+
+```
+https://lms-application-pi.vercel.app/api/auth/me
+```
+
+**Token:** **admin or employee** Bearer token. No `x-admin-key` support.
+
+**Body:** none.
+
+This is the endpoint both portals call on startup to verify a stored token. It
+is **not** a plain alias of `/api/profile` any more, because `/api/profile`
+rejects admin tokens.
+
+**Response `200` — admin token**
+
+```json
+{
+  "success": true,
+  "message": "Session loaded",
+  "user": {
+    "id": "6ae5a83d36c60dc78a552a04",
+    "name": "KIDE Admin",
+    "email": "admin@kide.com",
+    "role": "admin",
+    "designation": "Administrator",
+    "designation_name": "Administrator",
+    "team": "",
+    "zone": "",
+    "district": "",
+    "reports_to": null,
+    "status": "active",
+    "require_password_change": false
+  },
+  "data": { "...": "same object as user" }
+}
+```
+
+**Response `200` — employee token**
+
+```json
+{
+  "success": true,
+  "message": "Session loaded",
+  "user": {
+    "id": "6ae5b1d4...",
+    "employee_id": "BDE001",
+    "name": "Vishnu Mohan",
+    "email": "vishnu@kide.com",
+    "role": "BDE",
+    "designation": "Business Development Executive",
+    "designation_name": "Business Development Executive",
+    "team": "EKM Team",
+    "zone": "Central Zone",
+    "district": "Ernakulam",
+    "reports_to": "ASM001",
+    "status": "active",
+    "require_password_change": false
+  },
+  "data": {
+    "id": "6ae5b1d4...",
+    "employee_id": "BDE001",
+    "name": "Vishnu Mohan",
+    "contact_number": "9847000003",
+    "phone": "9847000003",
+    "leave_balances": { "casual": 12, "medical": 8, "earned": 15 }
+  }
+}
+```
+
+For employees, `data` is the full serialized employee (including
+`contact_number`, `phone` and `leave_balances`); `user` is the compact session
+object. For admins, `user` and `data` are identical.
+
+**Errors:** `401` missing/invalid/expired token, `500` server error.
 
 ---
 
@@ -4082,72 +4405,91 @@ Verified production results:
 
 ## 10. Endpoint index
 
-| # | Method | URL | Token |
-|---|---|---|---|
-| 1 | POST | `https://lms-application-pi.vercel.app/api/login` | none |
-| 2 | POST | `https://lms-application-pi.vercel.app/api/logout` | none |
-| 3 | POST | `https://lms-application-pi.vercel.app/api/register` | none (403) |
-| 4 | GET | `https://lms-application-pi.vercel.app/api/admin/stats` | admin |
-| 5 | GET | `https://lms-application-pi.vercel.app/api/admin/create-sm` | admin |
-| 6 | POST | `https://lms-application-pi.vercel.app/api/admin/create-sm` | admin |
-| 7 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/admin/{tab}` | admin |
-| 8 | GET/POST | `https://lms-application-pi.vercel.app/api/admin/leads/create` | admin |
-| 9 | POST | `https://lms-application-pi.vercel.app/api/set-password` | admin |
-| 10 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/task-templates` | admin |
-| 11 | POST | `https://lms-application-pi.vercel.app/api/task-templates/generate` | admin |
-| 12 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/employee-tasks` | admin |
-| 13 | GET | `https://lms-application-pi.vercel.app/api/home` | employee |
-| 14 | GET | `https://lms-application-pi.vercel.app/api/profile` | employee |
-| 15 | GET | `https://lms-application-pi.vercel.app/api/auth/me` | employee |
-| 16 | POST | `https://lms-application-pi.vercel.app/api/auth/refresh-token` | employee |
-| 17 | POST | `https://lms-application-pi.vercel.app/api/employee/change-password` | employee |
-| 18 | GET | `https://lms-application-pi.vercel.app/api/operations` | employee |
-| 19 | GET | `https://lms-application-pi.vercel.app/api/team` | employee |
-| 20 | GET | `https://lms-application-pi.vercel.app/api/teams` | employee |
-| 21 | GET | `https://lms-application-pi.vercel.app/api/sm/asms` | SM/admin |
-| 22 | GET | `https://lms-application-pi.vercel.app/api/sm/asms/{id}` | SM/admin |
-| 23 | POST | `https://lms-application-pi.vercel.app/api/sm/create-asm` | SM |
-| 24 | GET | `https://lms-application-pi.vercel.app/api/asm/bdes` | ASM/SM/admin |
-| 25 | GET | `https://lms-application-pi.vercel.app/api/asm/bdes/{id}` | ASM/SM/admin |
-| 26 | POST | `https://lms-application-pi.vercel.app/api/asm/create-bde` | ASM/SM |
-| 27 | GET | `https://lms-application-pi.vercel.app/api/tasks` | employee |
-| 28 | POST | `https://lms-application-pi.vercel.app/api/tasks` | SM/ASM |
-| 29 | PUT/PATCH | `https://lms-application-pi.vercel.app/api/tasks` | employee |
-| 30 | DELETE | `https://lms-application-pi.vercel.app/api/tasks?id=` | employee |
-| 31 | GET | `https://lms-application-pi.vercel.app/api/leads` | employee |
-| 32 | POST | `https://lms-application-pi.vercel.app/api/leads` | employee |
-| 33 | POST | `https://lms-application-pi.vercel.app/api/leads/create` | employee |
-| 34 | GET | `https://lms-application-pi.vercel.app/api/leads/create` | employee |
-| 35 | GET | `https://lms-application-pi.vercel.app/api/leads/next-student-id` | employee |
-| 36 | POST | `https://lms-application-pi.vercel.app/api/leads/import` | employee |
-| 37 | PUT | `https://lms-application-pi.vercel.app/api/leads` | employee |
-| 38 | DELETE | `https://lms-application-pi.vercel.app/api/leads?id=` | employee |
-| 39 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/followup` | employee |
-| 40 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/follow-up` | employee |
-| 41 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/close` | employee |
-| 42 | GET/POST | `https://lms-application-pi.vercel.app/api/followups` | employee |
-| 43 | GET | `https://lms-application-pi.vercel.app/api/attendance` | employee |
-| 44 | GET | `https://lms-application-pi.vercel.app/api/attendance/status` | employee |
-| 45 | POST | `https://lms-application-pi.vercel.app/api/attendance/check-in` | employee |
-| 46 | POST | `https://lms-application-pi.vercel.app/api/attendance/check-out` | employee |
-| 47 | GET | `https://lms-application-pi.vercel.app/api/attendance/history` | employee |
-| 48 | GET | `https://lms-application-pi.vercel.app/api/leaves` | employee |
-| 49 | POST | `https://lms-application-pi.vercel.app/api/leaves/apply` | employee |
-| 50 | GET | `https://lms-application-pi.vercel.app/api/incentives` | employee |
-| 51 | GET | `https://lms-application-pi.vercel.app/api/wallet/balance` | employee/admin |
-| 52 | GET | `https://lms-application-pi.vercel.app/api/wallet/requests` | employee |
-| 53 | POST | `https://lms-application-pi.vercel.app/api/wallet/withdraw` | employee |
-| 54 | POST | `https://lms-application-pi.vercel.app/api/wallet/workflow` | ASM/SM/admin |
-| 55 | GET | `https://lms-application-pi.vercel.app/api/salary/requests` | employee |
-| 56 | POST | `https://lms-application-pi.vercel.app/api/salary/request` | employee |
-| 57 | POST | `https://lms-application-pi.vercel.app/api/salary/workflow` | ASM/SM/admin |
-| 58 | GET | `https://lms-application-pi.vercel.app/api/zones` | employee |
-| 59 | GET | `https://lms-application-pi.vercel.app/api/districts` | employee |
-| 60 | GET | `https://lms-application-pi.vercel.app/api/designations` | employee |
-| 61 | GET | `https://lms-application-pi.vercel.app/api/courses` | employee |
-| 62 | GET | `https://lms-application-pi.vercel.app/api/sources` | employee |
-| 63 | GET | `https://lms-application-pi.vercel.app/api/hierarchy/filters` | employee |
-| 64 | GET/POST | `https://lms-application-pi.vercel.app/api/institutes` | employee |
-| 65 | DELETE | `https://lms-application-pi.vercel.app/api/institutes/{id}` | admin |
-| 66 | GET | `https://lms-application-pi.vercel.app/api/test` | admin |
-| 67 | GET | `https://lms-application-pi.vercel.app/api/seed` | admin |
+Every URL is the full deployed URL. `{id}` accepts the Mongo `_id`. The
+`Body / query` column is a summary — the exact request and response examples are
+in the matching section above.
+
+| # | Method | URL | Token | Body / query |
+|---|---|---|---|---|
+| 1 | POST | `https://lms-application-pi.vercel.app/api/login` | none | `{ "employee_id" or "email", "password" }` |
+| 2 | POST | `https://lms-application-pi.vercel.app/api/logout` | none | none |
+| 3 | POST | `https://lms-application-pi.vercel.app/api/register` | none (403) | `{ ... }` — disabled |
+| 4 | GET | `https://lms-application-pi.vercel.app/api/admin/stats` | admin | `?zone=&district=` |
+| 5 | GET | `https://lms-application-pi.vercel.app/api/admin/create-sm` | admin | none |
+| 6 | POST | `https://lms-application-pi.vercel.app/api/admin/create-sm` | admin | `{ "name", "email"?, "contact_number"?, "password" }` |
+| 7 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/admin/{tab}` | admin | `?id=` / `{ "id" or "_id", ...fields }` — tab-specific |
+| 8 | GET/POST | `https://lms-application-pi.vercel.app/api/admin/leads/create` | admin | lead body — see 5.5 |
+| 9 | POST | `https://lms-application-pi.vercel.app/api/set-password` | admin | `{ "employee_id" or "email", "password" }` |
+| 10 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/task-templates` | admin | `?search=` / `{ "title", "metric_type", "designation", "frequency", "target_count", "is_carry_over" }` |
+| 11 | POST | `https://lms-application-pi.vercel.app/api/task-templates/generate` | admin | `{ "template_ids" or "template_id", "period_start"? }` |
+| 12 | GET/POST/PUT/DELETE | `https://lms-application-pi.vercel.app/api/employee-tasks` | admin | `?search=` / `{ "employee", "task_template", "period_start", "total_target", "achieved", "is_completed" }` |
+| 13 | GET | `https://lms-application-pi.vercel.app/api/home` | employee | none |
+| 14 | GET | `https://lms-application-pi.vercel.app/api/profile` | employee | none |
+| 15 | GET | `https://lms-application-pi.vercel.app/api/auth/me` | **admin or employee** | none |
+| 16 | POST | `https://lms-application-pi.vercel.app/api/auth/refresh-token` | employee/admin | none, or `{ "token" }` |
+| 17 | POST | `https://lms-application-pi.vercel.app/api/employee/change-password` | employee | `{ "current_password", "new_password" }` |
+| 18 | GET | `https://lms-application-pi.vercel.app/api/operations` | employee | none |
+| 19 | GET | `https://lms-application-pi.vercel.app/api/team` | employee | `?scope=all` or `?scope=direct` |
+| 20 | GET | `https://lms-application-pi.vercel.app/api/teams` | employee | `?team=` |
+| 21 | GET | `https://lms-application-pi.vercel.app/api/sm/asms` | SM/admin/MD | `?id=`, `?_id=`, `?employee_id=`, `?email=`, `?asm_id=`, `?team=` |
+| 22 | GET | `https://lms-application-pi.vercel.app/api/sm/asms/{id}` | SM/admin/MD | none |
+| 23 | POST | `https://lms-application-pi.vercel.app/api/sm/create-asm` | SM | `{ "name", "email", "contact_number", "password", "team_code", "sm_id"? }` |
+| 24 | GET | `https://lms-application-pi.vercel.app/api/asm/bdes` | ASM/BDM/SM/admin/MD | `?id=`, `?_id=`, `?employee_id=`, `?email=`, `?asm_id=`, `?team=` |
+| 25 | GET | `https://lms-application-pi.vercel.app/api/asm/bdes/{id}` | ASM/BDM/SM/admin/MD | none |
+| 26 | POST | `https://lms-application-pi.vercel.app/api/asm/create-bde` | ASM/BDM/SM/admin/MD | `{ "name", "email", "contact_number", "password", "district", "asm_id"? }` |
+| 27 | GET | `https://lms-application-pi.vercel.app/api/tasks` | employee | `?assigned_to=&status=&team=&mine=` |
+| 28 | POST | `https://lms-application-pi.vercel.app/api/tasks` | SM/ASM | `{ "title", "priority"?, "assigned_to"?, "team"?, ... }` |
+| 29 | PUT/PATCH | `https://lms-application-pi.vercel.app/api/tasks` | employee | `{ "id", "status"?, ... }` |
+| 30 | DELETE | `https://lms-application-pi.vercel.app/api/tasks?id=` | employee | `?id=` |
+| 31 | GET | `https://lms-application-pi.vercel.app/api/leads` | employee | `?id=&lead_id=&district=&status=&course=&interest=&employee=&search=` |
+| 32 | POST | `https://lms-application-pi.vercel.app/api/leads` | employee | lead body — see 6.15 |
+| 33 | POST | `https://lms-application-pi.vercel.app/api/leads/create` | employee | lead body |
+| 34 | GET | `https://lms-application-pi.vercel.app/api/leads/create` | employee | same filters as 31 |
+| 35 | GET | `https://lms-application-pi.vercel.app/api/leads/next-student-id` | employee | none |
+| 36 | POST | `https://lms-application-pi.vercel.app/api/leads/import` | employee | `{ "csv" or "data", "employee"?, "employee_id"? }` |
+| 37 | PUT | `https://lms-application-pi.vercel.app/api/leads` | employee | `{ "id", ...fields }` |
+| 38 | DELETE | `https://lms-application-pi.vercel.app/api/leads?id=` | employee | `?id=` |
+| 39 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/followup` | employee | `{ "student_id"?, "next_followup_date"?, "remarks", "student_interest"?, "admission_status"? }` |
+| 40 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/follow-up` | employee | alias of 39 |
+| 41 | POST | `https://lms-application-pi.vercel.app/api/leads/{id}/close` | employee | `{ "student_id", "course"?, "payment"?, "payment_verification"?, "remarks"? }` |
+| 42 | GET/POST | `https://lms-application-pi.vercel.app/api/followups` | employee | `?lead_id=&status=&presentation=&interest=&due=` / `{ "lead_id" or "id", "remarks", "date"? }` |
+| 43 | GET | `https://lms-application-pi.vercel.app/api/attendance` | employee | `?email=&employee_id=&month=` |
+| 44 | GET | `https://lms-application-pi.vercel.app/api/attendance/status` | employee | none |
+| 45 | POST | `https://lms-application-pi.vercel.app/api/attendance/check-in` | employee | `{ "latitude"?, "longitude"?, "address"? }` |
+| 46 | POST | `https://lms-application-pi.vercel.app/api/attendance/check-out` | employee | `{ "notes"? }` |
+| 47 | GET | `https://lms-application-pi.vercel.app/api/attendance/history` | employee | `?email=&employee_id=&month=` |
+| 48 | GET | `https://lms-application-pi.vercel.app/api/leaves` | employee | `?employee=` |
+| 49 | POST | `https://lms-application-pi.vercel.app/api/leaves/apply` | employee | `{ "leave_type", "start_date", "end_date", "reason" }` |
+| 50 | GET | `https://lms-application-pi.vercel.app/api/incentives` | employee | `?bde_id=&employee_id=&asm_id=&team=&status=` |
+| 51 | GET | `https://lms-application-pi.vercel.app/api/wallet/balance` | employee/admin | `?employee=&employee_id=` |
+| 52 | GET | `https://lms-application-pi.vercel.app/api/wallet/requests` | employee | `?status=&request_id=&employee_id=` |
+| 53 | POST | `https://lms-application-pi.vercel.app/api/wallet/withdraw` | employee | `{ "amount", "upi_id"?, "bank_name"?, "account_number"?, "ifsc_code"?, "remarks"? }` |
+| 54 | POST | `https://lms-application-pi.vercel.app/api/wallet/workflow` | ASM/SM/admin | `{ "request_id" or "id", "action", "remarks"?, "transaction_reference"? }` |
+| 55 | GET | `https://lms-application-pi.vercel.app/api/salary/requests` | employee | `?status=` |
+| 56 | POST | `https://lms-application-pi.vercel.app/api/salary/request` | employee | `{ "amount"?, "period"?, "attendance_days"?, "remarks"? }` |
+| 57 | POST | `https://lms-application-pi.vercel.app/api/salary/workflow` | ASM/SM/admin | `{ "request_id" or "id", "action", "remarks"?, "transaction_reference"? }` |
+| 58 | GET | `https://lms-application-pi.vercel.app/api/zones` | any valid token | none |
+| 59 | POST | `https://lms-application-pi.vercel.app/api/zones` | admin | `{ "name", "description"? }` |
+| 60 | GET | `https://lms-application-pi.vercel.app/api/districts` | any valid token | `?search=` |
+| 61 | POST | `https://lms-application-pi.vercel.app/api/districts` | admin | `{ "name", "zone", "description"? }` |
+| 62 | GET | `https://lms-application-pi.vercel.app/api/districts/{id}` | any valid token | none |
+| 63 | PUT | `https://lms-application-pi.vercel.app/api/districts/{id}` | admin | `{ "name", "zone", "description"? }` |
+| 64 | DELETE | `https://lms-application-pi.vercel.app/api/districts/{id}` | admin | none (or `?id=` / `{ "id" }`) |
+| 65 | GET | `https://lms-application-pi.vercel.app/api/designations` | any valid token | `?search=` |
+| 66 | POST | `https://lms-application-pi.vercel.app/api/designations` | admin | `{ "name", "prefix" }` |
+| 67 | GET | `https://lms-application-pi.vercel.app/api/designations/{id}` | any valid token | none |
+| 68 | PUT | `https://lms-application-pi.vercel.app/api/designations/{id}` | admin | `{ "name", "prefix" }` |
+| 69 | DELETE | `https://lms-application-pi.vercel.app/api/designations/{id}` | admin | none (or `?id=` / `{ "id" }`) |
+| 70 | GET | `https://lms-application-pi.vercel.app/api/courses` | any valid token | `?search=` |
+| 71 | POST | `https://lms-application-pi.vercel.app/api/courses` | admin | `{ "name" }` |
+| 72 | GET | `https://lms-application-pi.vercel.app/api/courses/{id}` | any valid token | none |
+| 73 | PUT | `https://lms-application-pi.vercel.app/api/courses/{id}` | admin | `{ "name" }` |
+| 74 | DELETE | `https://lms-application-pi.vercel.app/api/courses/{id}` | admin | none (or `?id=` / `{ "id" }`) |
+| 75 | GET | `https://lms-application-pi.vercel.app/api/sources` | any valid token | none |
+| 76 | GET | `https://lms-application-pi.vercel.app/api/hierarchy/filters` | any valid token | none |
+| 77 | GET | `https://lms-application-pi.vercel.app/api/institutes` | any valid token | `?district=&search=` |
+| 78 | POST | `https://lms-application-pi.vercel.app/api/institutes` | any valid token | `{ "name", "type"?, "district"?, "address"?, "contact_person"?, "contact_phone"?, "email"? }` |
+| 79 | POST | `https://lms-application-pi.vercel.app/api/institutes/create` | any valid token | alias of 78 |
+| 80 | DELETE | `https://lms-application-pi.vercel.app/api/institutes/{id}` | admin | none (`{id}` = Mongo id or legacy numeric id) |
+| 81 | GET | `https://lms-application-pi.vercel.app/api/test` | admin | none |
+| 82 | GET | `https://lms-application-pi.vercel.app/api/seed` | admin | none |

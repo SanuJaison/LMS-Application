@@ -120,15 +120,15 @@ Notes:
 
 ---
 
-## 2. Public reference catalogs (no token needed)
+## 2. Reference catalogs (any valid token)
 
 | # | Method | Endpoint | Expected |
 |---|---|---|---|
-| 2.1 | GET | `/courses` | 200, 5 courses |
+| 2.1 | GET | `/courses` | 200, 9 live courses |
 | 2.2 | GET | `/districts` | 200, 14 Kerala districts |
 | 2.3 | GET | `/zones` | 200, South / Central / North |
 | 2.4 | GET | `/sources` | 200, lead sources |
-| 2.5 | GET | `/designations` | 200, SM / ASM / BDE / … |
+| 2.5 | GET | `/designations` | 200, exactly 4 workflow roles (SM / ASM / BDE / BDM) |
 | 2.6 | GET | `/hierarchy/filters` | 200, `data.zones / districts / designations / teams` |
 
 Optional query: `/institutes?district=Ernakulam&search=college` (see §5.7).

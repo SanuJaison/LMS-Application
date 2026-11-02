@@ -9,7 +9,7 @@ This document provides complete, end-to-end documentation for the **Kerala Insti
 
 1. [Executive Summary & Organization Architecture](#1-executive-summary--organization-architecture)
 2. [District & Team Allocation Structure (8 Teams)](#2-district--team-allocation-structure-8-teams)
-3. [Course Catalog (5 Standard Courses)](#3-course-catalog-5-standard-courses)
+3. [Course Catalog (9 Live Courses)](#3-course-catalog-9-live-courses)
 4. [Business & Financial Rules](#4-business--financial-rules)
    - [Lead Generation & Sequential Student ID Rule](#41-lead-generation--sequential-student-id-rule)
    - [Lead Closure, Student ID Verification & ₹1,000 Incentive](#42-lead-closure-student-id-verification--1000-incentive)
@@ -74,17 +74,26 @@ There are **7 Regional ASM Teams** covering all 14 districts of Kerala (2 distri
 
 ---
 
-## 3. Course Catalog (5 Standard Courses)
+## 3. Course Catalog (9 Live Courses)
 
-The application provides 5 courses for lead generation and admissions:
+`GET /api/courses` currently returns **9 courses** (verified against the live
+database on 2026-11-02):
 
-| No. | Course Name | Standard Fee | Standard Duration | Status |
+| No. | Course Name | Fee | Duration | Status |
 |:---:|:---|:---:|:---:|:---:|
-| 1 | **Flutter** | ₹20,000 | 4 Months | Active |
-| 2 | **Full Stack Development** | ₹25,000 | 6 Months | Active |
-| 3 | **Cyber Security** | ₹30,000 | 6 Months | Active |
-| 4 | **Digital Marketing** | ₹15,000 | 3 Months | Active |
-| 5 | **Data Science Pro** | ₹35,000 | 6 Months | Active |
+| 1 | **Full-Stack Web Development** | ₹25,000 | 6 Months | Active |
+| 2 | **Data Science & Machine Learning** | ₹30,000 | 6 Months | Active |
+| 3 | **Digital Marketing Pro** | ₹15,000 | 3 Months | Active |
+| 4 | **Flutter & Mobile App Development** | ₹20,000 | 4 Months | Active |
+| 5 | **Cyber Security** | ₹20,000 | 3 Months | Active |
+| 6 | **Flutter** | ₹20,000 | 4 Months | Active |
+| 7 | **Full Stack Development** | ₹25,000 | 6 Months | Active |
+| 8 | **Digital Marketing** | ₹15,000 | 3 Months | Active |
+| 9 | **Data Science Pro** | ₹35,000 | 6 Months | Active |
+
+Courses 1–4 are the current names; 5–9 are legacy names still present in the
+database. The admin catalog (`/api/admin/courses` or the Course Catalog screen)
+can rename or delete any of them.
 
 ---
 
@@ -777,11 +786,11 @@ Based on a comprehensive audit of the Flutter codebase (`keralainstitutesalesapp
 
 | Endpoint | Method | Description | Content |
 |---|:---:|---|---|
-| `/api/courses` | `GET` | Catalog of 5 standard courses | Flutter, Full Stack Development, Cyber Security, Digital Marketing, Data Science Pro |
+| `/api/courses` | `GET` | Catalog of 9 live courses | Full-Stack Web Development, Data Science & Machine Learning, Digital Marketing Pro, Flutter & Mobile App Development, Cyber Security, Flutter, Full Stack Development, Digital Marketing, Data Science Pro |
 | `/api/districts` | `GET` | All 14 Kerala districts | Thiruvananthapuram, Kollam, Pathanamthitta, Alappuzha, Kottayam, Idukki, Ernakulam, Thrissur, Palakkad, Malappuram, Kozhikode, Wayanad, Kannur, Kasaragod |
 | `/api/zones` | `GET` | Kerala administrative zones | South Zone, Central Zone, North Zone |
 | `/api/sources` | `GET` | Standard lead sources | College Visit, Referral, Seminar, Event, Campus Drive |
-| `/api/designations` | `GET` | Available roles | SM, ASM, BDE, Tele-caller |
+| `/api/designations` | `GET` | Available workflow roles | Sales Manager (SM), Area Sales Manager (ASM), Business Development Executive (BDE), Business Development Manager (BDM) |
 | `/api/hierarchy/filters` | `GET` | Bundled filters for mobile dropdowns | Zones, districts, designations, teams |
 
 ---
@@ -850,5 +859,5 @@ Based on a comprehensive audit of the Flutter codebase (`keralainstitutesalesapp
 | **Salary Request Min ₹5,000** | Strict validation rule in `/api/salary/request`. | Verified |
 | **Salary Approval Flow** | BDE → ASM → SM → Accounts. | Verified |
 | **Accounts Section in Admin Portal** | Dedicated `AccountsView.tsx` with P&L KPIs, salary sanctions, incentive disbursements, and admission records. | Verified |
-| **5 Standard Courses** | Flutter, Full Stack Development, Cyber Security, Digital Marketing, Data Science Pro. | Verified |
+| **9 Live Courses** | Full-Stack Web Development, Data Science & Machine Learning, Digital Marketing Pro, Flutter & Mobile App Development, Cyber Security, Flutter, Full Stack Development, Digital Marketing, Data Science Pro. | Verified |
 | **No Git Commits or Pushes** | Strictly preserved local state without committing or pushing. | Verified |
