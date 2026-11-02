@@ -28,8 +28,11 @@ import { CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function KeralaCRMApp() {
   // Authentication State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(false);
+  // Start unauthenticated and verify the stored token before rendering the
+  // portal, so a missing/expired token shows the login screen instead of an
+  // empty dashboard whose API calls all return 401.
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [user, setUser] = useState<User>({
     id: 'usr-admin',
     name: 'Admin User',
@@ -63,15 +66,21 @@ export default function KeralaCRMApp() {
         fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.success && data.user) {
+          .then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data && data.success && data.user) {
               setUser(data.user);
               setIsAuthenticated(true);
+            } else {
+              // Stale or invalid token: fall back to the login screen.
+              localStorage.removeItem('auth_token');
+              setIsAuthenticated(false);
             }
           })
           .catch((err) => {
             console.error('Session verification error:', err);
+            localStorage.removeItem('auth_token');
+            setIsAuthenticated(false);
           })
           .finally(() => {
             setIsCheckingAuth(false);

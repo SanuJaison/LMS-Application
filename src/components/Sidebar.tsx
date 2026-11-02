@@ -39,18 +39,18 @@ export default function Sidebar({
   toggleGroup,
 }: SidebarProps) {
   return (
-    <aside className="w-64 bg-[#0a101d] border-r border-[#1a253a] flex flex-col overflow-y-auto shrink-0 select-none text-[13px]">
+    <aside className="w-64 bg-side border-r border-line flex flex-col overflow-y-auto shrink-0 select-none text-[13px]">
       <div className="p-3 space-y-1">
         {/* Top Standalone Links */}
         <button suppressHydrationWarning
           onClick={() => onTabChange('dashboard')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'dashboard'
-              ? 'bg-[#1b263b] text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              ? 'bg-active text-ink shadow-sm'
+              : 'text-muted hover:text-ink hover:bg-hover'
           }`}
         >
-          <Home className="w-4 h-4 text-[#09929e]" />
+          <Home className="w-4 h-4 text-accent" />
           <span>Dashboard</span>
         </button>
 
@@ -58,11 +58,11 @@ export default function Sidebar({
           onClick={() => onTabChange('activities')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'activities'
-              ? 'bg-[#1b263b] text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              ? 'bg-active text-ink shadow-sm'
+              : 'text-muted hover:text-ink hover:bg-hover'
           }`}
         >
-          <Activity className="w-4 h-4 text-slate-400" />
+          <Activity className="w-4 h-4 text-muted" />
           <span>Activities</span>
         </button>
 
@@ -70,11 +70,11 @@ export default function Sidebar({
           onClick={() => onTabChange('designations')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'designations'
-              ? 'bg-[#1b263b] text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              ? 'bg-active text-ink shadow-sm'
+              : 'text-muted hover:text-ink hover:bg-hover'
           }`}
         >
-          <Briefcase className="w-4 h-4 text-slate-400" />
+          <Briefcase className="w-4 h-4 text-muted" />
           <span>Designations</span>
         </button>
 
@@ -82,11 +82,11 @@ export default function Sidebar({
           onClick={() => onTabChange('courses')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition cursor-pointer ${
             activeTab === 'courses'
-              ? 'bg-[#1b263b] text-white shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+              ? 'bg-active text-ink shadow-sm'
+              : 'text-muted hover:text-ink hover:bg-hover'
           }`}
         >
-          <GraduationCap className="w-4 h-4 text-slate-400" />
+          <GraduationCap className="w-4 h-4 text-muted" />
           <span>Courses</span>
         </button>
 
@@ -94,7 +94,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('employeeHierarchy')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Employee Hierarchy</span>
             {expandedGroups.employeeHierarchy ? (
@@ -109,8 +109,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('districts')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'districts'
-                    ? 'bg-[#15233e] text-white font-medium'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink font-medium'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <MapPin className="w-4 h-4" />
@@ -121,19 +121,19 @@ export default function Sidebar({
                 onClick={() => onTabChange('employees')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'employees'
-                    ? 'bg-[#15233e] text-[#38bdf8] font-medium'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-accent font-medium'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
-                <Users className="w-4 h-4 text-[#38bdf8]" />
+                <Users className="w-4 h-4 text-accent" />
                 <span>Employees</span>
               </button>
               <button suppressHydrationWarning
                 onClick={() => onTabChange('teams')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'teams'
-                    ? 'bg-[#15233e] text-white font-medium'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink font-medium'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Users2 className="w-4 h-4" />
@@ -143,8 +143,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('zones')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'zones'
-                    ? 'bg-[#15233e] text-white font-medium'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink font-medium'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Globe className="w-4 h-4" />
@@ -158,7 +158,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('leadManagement')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Lead Management</span>
             {expandedGroups.leadManagement ? (
@@ -173,8 +173,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('leads')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'leads'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <UserPlus className="w-4 h-4" />
@@ -188,7 +188,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('taskManagement')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Task Management</span>
             {expandedGroups.taskManagement ? (
@@ -203,8 +203,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('employeeTasks')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'employeeTasks'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <CheckSquare className="w-4 h-4" />
@@ -214,8 +214,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('taskTemplates')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'taskTemplates'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Layers className="w-4 h-4" />
@@ -229,7 +229,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('fieldActivity')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Field Activity</span>
             {expandedGroups.fieldActivity ? (
@@ -244,8 +244,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('attendanceRecords')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'attendanceRecords'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Clock className="w-4 h-4" />
@@ -255,8 +255,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('leaves')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'leaves'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <CalendarX className="w-4 h-4" />
@@ -270,7 +270,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('finances')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Finances</span>
             {expandedGroups.finances ? (
@@ -285,19 +285,19 @@ export default function Sidebar({
                 onClick={() => onTabChange('accounts')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'accounts'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
-                <Building2 className="w-4 h-4 text-[#38bdf8]" />
+                <Building2 className="w-4 h-4 text-accent" />
                 <span>Accounts & Finance</span>
               </button>
               <button suppressHydrationWarning
                 onClick={() => onTabChange('salaryRequests')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'salaryRequests'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Receipt className="w-4 h-4" />
@@ -307,8 +307,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('wallets')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'wallets'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <Wallet className="w-4 h-4" />
@@ -318,8 +318,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('walletWithdrawRequests')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'walletWithdrawRequests'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <CreditCard className="w-4 h-4" />
@@ -333,7 +333,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('systemSettings')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>System Settings</span>
             {expandedGroups.systemSettings ? (
@@ -348,8 +348,8 @@ export default function Sidebar({
                 onClick={() => onTabChange('settings')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'settings'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <SettingsIcon className="w-4 h-4" />
@@ -363,7 +363,7 @@ export default function Sidebar({
         <div className="pt-2">
           <button suppressHydrationWarning
             onClick={() => toggleGroup('rolesPermissions')}
-            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
             <span>Roles & Permissions</span>
             {expandedGroups.rolesPermissions ? (
@@ -378,15 +378,15 @@ export default function Sidebar({
                 onClick={() => onTabChange('roles')}
                 className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg transition cursor-pointer ${
                   activeTab === 'roles'
-                    ? 'bg-[#1b263b] text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                    ? 'bg-active text-ink'
+                    : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Roles</span>
                 </div>
-                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#142338] text-cyan-400 border border-cyan-800/60">
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-accent/15 text-accent border border-accent/30">
                   3
                 </span>
               </button>

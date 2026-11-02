@@ -320,28 +320,28 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       {/* Top Header: Breadcrumbs, Title & "New team" Button */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
             <span>Teams</span>
-            <span className="text-slate-600">&gt;</span>
-            <span className="text-slate-300">List</span>
+            <span className="text-subtle">&gt;</span>
+            <span className="text-ink/80">List</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Teams</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight">Teams</h1>
         </div>
 
         <button
           onClick={openNewModal}
-          className="px-4 py-2 bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer"
+          className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow transition cursor-pointer"
         >
           New team
         </button>
       </div>
 
       {/* Main Table Card */}
-      <div className="bg-[#0b1322] border border-[#1b253b] rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-surface border border-line rounded-xl shadow-lg overflow-hidden">
         {/* Top Bar: Search Input & Column Visibility Toggle Button */}
-        <div className="p-3.5 flex items-center justify-end gap-2 border-b border-[#1b253b]">
+        <div className="p-3.5 flex items-center justify-end gap-2 border-b border-line">
           <div className="relative w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search"
@@ -350,44 +350,44 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-[#080d18] border border-slate-700/80 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#00a2b8]"
+              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           <div className="relative">
             <button
               onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-              className="p-2 border border-slate-700/80 rounded-lg bg-[#080d18] text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer"
+              className="p-2 border border-line rounded-lg bg-field text-muted hover:text-ink transition flex items-center justify-center cursor-pointer"
               title="Toggle columns"
             >
               <Columns3 className="w-3.5 h-3.5" />
             </button>
 
             {showColumnDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-[#0d1627] border border-[#223352] rounded-xl shadow-2xl p-3 z-30 text-xs">
-                <div className="font-semibold text-slate-300 mb-2 pb-1 border-b border-slate-800">
+              <div className="absolute right-0 mt-2 w-48 bg-elevated border border-line rounded-xl shadow-2xl p-3 z-30 text-xs">
+                <div className="font-semibold text-ink/80 mb-2 pb-1 border-b border-line">
                   Columns
                 </div>
                 <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-ink/80 hover:text-ink cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={visibleColumns.district}
                       onChange={() =>
                         setVisibleColumns((prev) => ({ ...prev, district: !prev.district }))
                       }
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                     <span>District</span>
                   </label>
-                  <label className="flex items-center gap-2 text-slate-300 hover:text-white cursor-pointer select-none">
+                  <label className="flex items-center gap-2 text-ink/80 hover:text-ink cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={visibleColumns.name}
                       onChange={() =>
                         setVisibleColumns((prev) => ({ ...prev, name: !prev.name }))
                       }
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                     <span>Name</span>
                   </label>
@@ -399,17 +399,17 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
         {/* Bulk Actions Notification Bar */}
         {selectedIds.length > 0 && (
-          <div className="px-4 py-2.5 bg-[#132038] border-b border-[#203254] flex items-center justify-between text-xs animate-in fade-in">
-            <div className="flex items-center gap-2 text-white">
+          <div className="px-4 py-2.5 bg-bulk border-b border-line flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-ink">
               <span className="font-semibold">{selectedIds.length}</span>
-              <span className="text-slate-300">
+              <span className="text-ink/80">
                 team{selectedIds.length > 1 ? 's' : ''} selected
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedIds([])}
-                className="px-2.5 py-1 rounded bg-[#0b1322] border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                className="px-2.5 py-1 rounded bg-surface border border-line text-ink/80 hover:text-ink transition cursor-pointer"
               >
                 Deselect all
               </button>
@@ -426,15 +426,15 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
         {/* Table Content */}
         {loading ? (
-          <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
-            <Loader2 className="w-6 h-6 text-[#00a2b8] animate-spin" />
+          <div className="py-16 flex flex-col items-center justify-center text-muted gap-2">
+            <Loader2 className="w-6 h-6 text-accent animate-spin" />
             <span className="text-xs">Loading teams...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[#1b253b] text-slate-300 font-semibold text-xs bg-[#0b1322]">
+                <tr className="border-b border-line text-ink/80 font-semibold text-xs bg-surface">
                   <th className="py-3.5 px-4 w-10">
                     <input
                       type="checkbox"
@@ -443,18 +443,18 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                         paginatedTeams.length > 0
                       }
                       onChange={toggleSelectAll}
-                      className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                      className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                     />
                   </th>
                   {visibleColumns.district && (
                     <th
                       onClick={() => handleSort('district')}
-                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                      className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
                         <span>District</span>
                         <ChevronDown
-                          className={`w-3 h-3 text-slate-500 transition-transform ${
+                          className={`w-3 h-3 text-subtle transition-transform ${
                             sortField === 'district' && sortOrder === 'desc'
                               ? 'rotate-180'
                               : ''
@@ -466,13 +466,13 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   {visibleColumns.name && (
                     <th
                       onClick={() => handleSort('name')}
-                      className="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                      className="py-3.5 px-4 cursor-pointer hover:text-ink select-none"
                     >
                       <div className="flex items-center gap-1">
                         <span>Name</span>
                         {sortField === 'name' && (
                           <ChevronDown
-                            className={`w-3 h-3 text-slate-500 transition-transform ${
+                            className={`w-3 h-3 text-subtle transition-transform ${
                               sortOrder === 'desc' ? 'rotate-180' : ''
                             }`}
                           />
@@ -483,27 +483,27 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   <th className="py-3.5 px-4 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#172236]">
+              <tbody className="divide-y divide-line-2">
                 {paginatedTeams.length > 0 ? (
                   paginatedTeams.map((team, idx) => {
                     const id = team.id || team._id || String(idx);
                     return (
-                      <tr key={id} className="hover:bg-[#131d2e]/60 transition">
+                      <tr key={id} className="hover:bg-hover/60 transition">
                         <td className="py-3.5 px-4">
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(id)}
                             onChange={() => toggleSelectOne(id)}
-                            className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer"
+                            className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer"
                           />
                         </td>
                         {visibleColumns.district && (
-                          <td className="py-3.5 px-4 text-slate-300">
+                          <td className="py-3.5 px-4 text-ink/80">
                             {team.district || 'Ernakulam'}
                           </td>
                         )}
                         {visibleColumns.name && (
-                          <td className="py-3.5 px-4 font-normal text-slate-200">
+                          <td className="py-3.5 px-4 font-normal text-ink">
                             {team.name}
                           </td>
                         )}
@@ -511,26 +511,26 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                           <div className="flex items-center justify-end gap-3.5 whitespace-nowrap">
                             <button
                               onClick={() => setViewModalTeam(team)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="View details"
                             >
-                              <Eye className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Eye className="w-3.5 h-3.5 text-accent" />
                               <span>View</span>
                             </button>
                             <button
                               onClick={() => openEditModal(team)}
-                              className="inline-flex items-center gap-1.5 text-[#38bdf8] hover:text-white transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-accent hover:text-ink transition font-medium text-xs hover:underline cursor-pointer"
                               title="Edit team"
                             >
-                              <Pencil className="w-3.5 h-3.5 text-[#38bdf8]" />
+                              <Pencil className="w-3.5 h-3.5 text-accent" />
                               <span>Edit</span>
                             </button>
                             <button
                               onClick={() => handleDeleteTeam(team)}
-                              className="inline-flex items-center gap-1.5 text-[#f43f5e] hover:text-red-400 transition font-medium text-xs hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-danger hover:text-danger transition font-medium text-xs hover:underline cursor-pointer"
                               title="Delete team"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-[#f43f5e]" />
+                              <Trash2 className="w-3.5 h-3.5 text-danger" />
                               <span>Delete</span>
                             </button>
                           </div>
@@ -542,7 +542,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   <tr>
                     <td
                       colSpan={4}
-                      className="py-12 text-center text-slate-500 text-xs"
+                      className="py-12 text-center text-subtle text-xs"
                     >
                       No teams found.
                     </td>
@@ -554,20 +554,20 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
         )}
 
         {/* Table Footer: Result Count & Per Page */}
-        <div className="px-4 py-3 bg-[#0a101d] border-t border-[#1b253b] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <div className="px-4 py-3 bg-panel border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted">
           <div>
             Showing{' '}
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-ink">
               {filteredAndSortedTeams.length === 0
                 ? 0
                 : (currentPage - 1) * perPage + 1}
             </span>{' '}
             to{' '}
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-ink">
               {Math.min(currentPage * perPage, filteredAndSortedTeams.length)}
             </span>{' '}
             of{' '}
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-ink">
               {filteredAndSortedTeams.length}
             </span>{' '}
             results
@@ -582,7 +582,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   setPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="bg-[#080d18] border border-slate-700/80 rounded px-2.5 py-1 text-white text-xs outline-none focus:border-[#00a2b8]"
+                className="bg-field border border-line rounded px-2.5 py-1 text-ink text-xs outline-none focus:border-accent"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -595,7 +595,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-2.5 py-1 rounded border border-line bg-field text-ink/80 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -612,7 +612,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                     currentPage >=
                     Math.ceil(filteredAndSortedTeams.length / perPage)
                   }
-                  className="px-2.5 py-1 rounded border border-slate-700 bg-[#080d18] text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-2.5 py-1 rounded border border-line bg-field text-ink/80 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -625,20 +625,20 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       {/* VIEW MODAL */}
       {viewModalTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent">
                   <Eye className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Team Details</h3>
-                  <p className="text-[11px] text-slate-400">{viewModalTeam.name}</p>
+                  <h3 className="text-sm font-bold text-ink">Team Details</h3>
+                  <p className="text-[11px] text-muted">{viewModalTeam.name}</p>
                 </div>
               </div>
               <button
                 onClick={() => setViewModalTeam(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-hover transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -646,33 +646,33 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
             <div className="p-5 space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3.5">
-                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                  <div className="text-slate-400 text-[11px] mb-1">Team Name</div>
-                  <div className="text-white font-semibold text-sm">
+                <div className="p-3 bg-field rounded-xl border border-line">
+                  <div className="text-muted text-[11px] mb-1">Team Name</div>
+                  <div className="text-ink font-semibold text-sm">
                     {viewModalTeam.name}
                   </div>
                 </div>
-                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                  <div className="text-slate-400 text-[11px] mb-1">District</div>
-                  <div className="text-white font-semibold text-sm">
+                <div className="p-3 bg-field rounded-xl border border-line">
+                  <div className="text-muted text-[11px] mb-1">District</div>
+                  <div className="text-ink font-semibold text-sm">
                     {viewModalTeam.is_office ? (
-                      <span className="text-amber-400">Office team (no district)</span>
+                      <span className="text-warning">Office team (no district)</span>
                     ) : (
                       viewModalTeam.district || '—'
                     )}
                   </div>
                 </div>
-                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                  <div className="text-slate-400 text-[11px] mb-1">Zone</div>
-                  <div className="text-slate-200">
+                <div className="p-3 bg-field rounded-xl border border-line">
+                  <div className="text-muted text-[11px] mb-1">Zone</div>
+                  <div className="text-ink">
                     {viewModalTeam.zone || 'Central Zone'}
                   </div>
                 </div>
-                <div className="p-3 bg-[#080d18] rounded-xl border border-slate-800">
-                  <div className="text-slate-400 text-[11px] mb-1">Team Lead</div>
-                  <div className="text-slate-200">
+                <div className="p-3 bg-field rounded-xl border border-line">
+                  <div className="text-muted text-[11px] mb-1">Team Lead</div>
+                  <div className="text-ink">
                     {viewModalTeam.is_office ? (
-                      <span className="text-slate-500 italic">None (Office team)</span>
+                      <span className="text-subtle italic">None (Office team)</span>
                     ) : (
                       viewModalTeam.team_lead || 'Not assigned'
                     )}
@@ -681,20 +681,20 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
               </div>
             </div>
 
-            <div className="p-3.5 bg-[#090d16] border-t border-[#223352] flex items-center justify-end gap-2.5">
+            <div className="p-3.5 bg-panel border-t border-line flex items-center justify-end gap-2.5">
               <button
                 onClick={() => {
                   const target = viewModalTeam;
                   setViewModalTeam(null);
                   openEditModal(target);
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-medium transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition cursor-pointer"
               >
                 Edit team
               </button>
               <button
                 onClick={() => setViewModalTeam(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-surface-2 hover:bg-hover text-ink/80 text-xs transition cursor-pointer"
               >
                 Close
               </button>
@@ -706,23 +706,23 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
       {/* CREATE / EDIT MODAL */}
       {editModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0f172a] border border-[#223352] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-[#223352] flex items-center justify-between">
+          <div className="bg-elevated border border-line rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-line flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#00a2b8]/20 flex items-center justify-center text-[#00a2b8]">
+                <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center text-accent">
                   {editingTeam ? (
                     <Pencil className="w-4 h-4" />
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}
                 </div>
-                <h3 className="text-sm font-bold text-white">
+                <h3 className="text-sm font-bold text-ink">
                   {editingTeam ? 'Edit Team' : 'New Team'}
                 </h3>
               </div>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                className="text-muted hover:text-ink p-1 rounded-lg hover:bg-hover transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -730,8 +730,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
 
             <form onSubmit={handleSaveTeam} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Team Name <span className="text-red-400">*</span>
+                <label className="block text-ink/80 font-semibold mb-1">
+                  Team Name <span className="text-danger">*</span>
                 </label>
                 <input
                   type="text"
@@ -741,13 +741,13 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                 />
               </div>
 
               {/* Office Team Checkbox */}
               <div className="pt-1 pb-1">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+                <label className="flex items-center gap-2 cursor-pointer text-ink/80 select-none">
                   <input
                     type="checkbox"
                     checked={formData.is_office}
@@ -762,12 +762,12 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                         team_lead: checked ? '' : formData.team_lead,
                       });
                     }}
-                    className="rounded bg-[#080d18] border-slate-700 text-[#00a2b8] focus:ring-0 cursor-pointer w-4 h-4"
+                    className="rounded bg-field border-line text-accent focus:ring-0 cursor-pointer w-4 h-4"
                   />
                   <span className="font-medium text-xs">Office team (no district)</span>
                 </label>
                 {formData.is_office && (
-                  <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                  <p className="text-[11px] text-muted mt-1 pl-6">
                     Office teams operate without a district or field team lead.
                   </p>
                 )}
@@ -777,8 +777,8 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
               {!formData.is_office && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">
-                      District 1 <span className="text-red-400">*</span>
+                    <label className="block text-ink/80 font-semibold mb-1">
+                      District 1 <span className="text-danger">*</span>
                     </label>
                     <select
                       value={formData.district}
@@ -786,7 +786,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                         setFormData({ ...formData, district: e.target.value })
                       }
                       required
-                      className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                      className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                     >
                       {DISTRICT_OPTIONS.map((d) => (
                         <option key={d} value={d}>
@@ -796,15 +796,15 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">
-                      District 2 <span className="text-slate-500 font-normal">(Optional)</span>
+                    <label className="block text-ink/80 font-semibold mb-1">
+                      District 2 <span className="text-subtle font-normal">(Optional)</span>
                     </label>
                     <select
                       value={formData.district2}
                       onChange={(e) =>
                         setFormData({ ...formData, district2: e.target.value })
                       }
-                      className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                      className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                     >
                       <option value="">None (Single district)</option>
                       {DISTRICT_OPTIONS.map((d) => (
@@ -818,7 +818,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
               )}
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">
+                <label className="block text-ink/80 font-semibold mb-1">
                   Zone
                 </label>
                 <select
@@ -826,7 +826,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                   onChange={(e) =>
                     setFormData({ ...formData, zone: e.target.value })
                   }
-                  className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                 >
                   {ZONE_OPTIONS.map((z) => (
                     <option key={z} value={z}>
@@ -840,11 +840,11 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
               {!formData.is_office && (
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-slate-300 font-semibold">
+                    <label className="block text-ink/80 font-semibold">
                       Team Lead (ASM)
                     </label>
                     {asmEmployees.length === 0 && (
-                      <span className="text-[10px] text-amber-400">
+                      <span className="text-[10px] text-warning">
                         No ASM employees found
                       </span>
                     )}
@@ -854,7 +854,7 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                     onChange={(e) =>
                       setFormData({ ...formData, team_lead: e.target.value })
                     }
-                    className="w-full bg-[#080d18] border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-[#00a2b8]"
+                    className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink outline-none focus:border-accent"
                   >
                     <option value="">Select Team Lead (Optional)</option>
                     {asmEmployees.length === 0 ? (
@@ -872,24 +872,24 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
                       ))
                     )}
                   </select>
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-[10px] text-muted mt-1">
                     Select an Area Sales Manager (ASM). The ASM will automatically be assigned to this team.
                   </p>
                 </div>
               )}
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2.5">
+              <div className="pt-3 border-t border-line flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-surface-2 hover:bg-hover text-ink/80 text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-[#00a2b8] hover:bg-[#0891b2] text-white text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold shadow transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingTeam ? 'Save changes' : 'Create team'}</span>

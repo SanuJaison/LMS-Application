@@ -67,20 +67,13 @@ const DISTRICTS = [
   { name: 'Kasaragod', zone: 'North Zone' },
 ];
 
-// The organisation roles plus the field roles the app shipped with. Entries are
-// matched by prefix, so an existing role (including the legacy BDM spelling)
-// is never duplicated.
+// Only the roles used by the Admin -> SM -> ASM -> BDE workflow. Entries are
+// matched by prefix, so a role is never duplicated.
 const DESIGNATIONS = [
-  { name: 'Managing Director', prefix: 'MD' },
-  { name: 'Bussiness Developement Manager', prefix: 'BDM' },
   { name: 'Sales Manager', prefix: 'SM' },
   { name: 'Area Sales Manager', prefix: 'ASM' },
   { name: 'Business Development Executive', prefix: 'BDE' },
-  { name: 'Zonal Manager', prefix: 'ZM' },
-  { name: 'District Team Lead', prefix: 'DTL' },
-  { name: 'Senior Field Executive', prefix: 'SFE' },
-  { name: 'Field Executive', prefix: 'FE' },
-  { name: 'Relationship Officer', prefix: 'RO' },
+  { name: 'Business Development Manager', prefix: 'BDM' },
 ];
 
 const COURSES = [

@@ -624,12 +624,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           onClick={() => { setRoleFilter('all'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
             roleFilter === 'all'
-              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
-              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+              ? 'bg-selected text-accent border border-accent/40 shadow-sm'
+              : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
           <span>All Employees</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-hover text-muted">
             {employees.length}
           </span>
         </button>
@@ -638,8 +638,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           onClick={() => { setRoleFilter('sm'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
             roleFilter === 'sm'
-              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
-              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+              ? 'bg-selected text-accent border border-accent/40 shadow-sm'
+              : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
           <span>Sales Manager (SM)</span>
@@ -652,12 +652,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           onClick={() => { setRoleFilter('asm'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
             roleFilter === 'asm'
-              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
-              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+              ? 'bg-selected text-accent border border-accent/40 shadow-sm'
+              : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
           <span>Area Sales Managers (7 ASM Teams)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-900/40 text-amber-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-warning/10 text-warning border border-warning/30">
             {employees.filter((e) => isASMDesignation(e.designation)).length}/7
           </span>
         </button>
@@ -666,8 +666,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           onClick={() => { setRoleFilter('bde'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
             roleFilter === 'bde'
-              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
-              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+              ? 'bg-selected text-accent border border-accent/40 shadow-sm'
+              : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
           <span>Business Development Executives (BDE)</span>
@@ -680,12 +680,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           onClick={() => { setRoleFilter('office'); setCurrentPage(1); }}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
             roleFilter === 'office'
-              ? 'bg-[#15233e] text-[#38bdf8] border border-cyan-800/60 shadow-sm'
-              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-slate-800'
+              ? 'bg-selected text-accent border border-accent/40 shadow-sm'
+              : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
           <span>Office Team (Tele-callers)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-hover text-muted">
             {employees.filter(
               (e) =>
                 (e.team || '').toLowerCase().includes('office') ||
@@ -697,43 +697,43 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
       {/* ASM Regional Teams Overview Card when ASM filter is active */}
       {roleFilter === 'asm' && (
-        <div className="p-4 rounded-xl bg-[#0c1424] border border-amber-900/40 text-xs space-y-2">
-          <div className="flex items-center justify-between text-amber-400 font-bold">
+        <div className="p-4 rounded-xl bg-surface-2 border border-warning/30 text-xs space-y-2">
+          <div className="flex items-center justify-between text-warning font-bold">
             <span>Official 7 Regional Teams & Assigned Districts (1 ASM per Team, 2 Districts each)</span>
-            <span className="text-[11px] text-slate-400 font-normal">Supervised by SM</span>
+            <span className="text-[11px] text-muted font-normal">Supervised by SM</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">1. TVM Team</strong>
-              <span className="text-slate-400 text-[10px]">Thiruvananthapuram, Kollam</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">1. TVM Team</strong>
+              <span className="text-muted text-[10px]">Thiruvananthapuram, Kollam</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">2. PTM Team</strong>
-              <span className="text-slate-400 text-[10px]">Pathanamthitta, Alappuzha</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">2. PTM Team</strong>
+              <span className="text-muted text-[10px]">Pathanamthitta, Alappuzha</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">3. KTM Team</strong>
-              <span className="text-slate-400 text-[10px]">Kottayam, Idukki</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">3. KTM Team</strong>
+              <span className="text-muted text-[10px]">Kottayam, Idukki</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">4. EKM Team</strong>
-              <span className="text-slate-400 text-[10px]">Ernakulam, Thrissur</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">4. EKM Team</strong>
+              <span className="text-muted text-[10px]">Ernakulam, Thrissur</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">5. PKD Team</strong>
-              <span className="text-slate-400 text-[10px]">Palakkad, Malappuram</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">5. PKD Team</strong>
+              <span className="text-muted text-[10px]">Palakkad, Malappuram</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">6. CLT Team</strong>
-              <span className="text-slate-400 text-[10px]">Kozhikode, Wayanad</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">6. CLT Team</strong>
+              <span className="text-muted text-[10px]">Kozhikode, Wayanad</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">7. KZE Team</strong>
-              <span className="text-slate-400 text-[10px]">Kannur, Kasaragod</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">7. KZE Team</strong>
+              <span className="text-muted text-[10px]">Kannur, Kasaragod</span>
             </div>
-            <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-              <strong className="text-white block font-mono text-[11px]">8. Office Team</strong>
-              <span className="text-slate-400 text-[10px]">Tele-callers under SM</span>
+            <div className="p-2 rounded bg-surface border border-line">
+              <strong className="text-ink block font-mono text-[11px]">8. Office Team</strong>
+              <span className="text-muted text-[10px]">Tele-callers under SM</span>
             </div>
           </div>
         </div>
@@ -1272,10 +1272,10 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                       {isCurrentBDE && <span className="text-accent font-normal">(Area Sales Manager only)</span>}
                     </label>
                     {isCurrentASM && availableManagers.length === 0 && (
-                      <span className="text-[10px] text-amber-500 font-medium">Create SM first</span>
+                      <span className="text-[10px] text-warning font-medium">Create SM first</span>
                     )}
                     {isCurrentBDE && availableManagers.length === 0 && (
-                      <span className="text-[10px] text-amber-500 font-medium">Create ASM first</span>
+                      <span className="text-[10px] text-warning font-medium">Create ASM first</span>
                     )}
                   </div>
                   <select
@@ -1304,11 +1304,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     ))}
                   </select>
                   {isCurrentASM && availableManagers.length === 0 ? (
-                    <span className="block mt-1 text-[10px] text-amber-500 font-medium">
+                    <span className="block mt-1 text-[10px] text-warning font-medium">
                       ⚠️ No Sales Manager (SM) found. ASMs can only report to the Sales Manager. Please create the Sales Manager first, or assign the manager later.
                     </span>
                   ) : isCurrentBDE && availableManagers.length === 0 ? (
-                    <span className="block mt-1 text-[10px] text-amber-500 font-medium">
+                    <span className="block mt-1 text-[10px] text-warning font-medium">
                       ⚠️ No Area Sales Manager (ASM) found. BDEs can only report to an Area Sales Manager. Please create an ASM first.
                     </span>
                   ) : (
@@ -1376,7 +1376,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                         ℹ️ Select an Area Sales Manager (Reports To) above to display their assigned team and its districts.
                       </p>
                     ) : !selectedAsmTeam ? (
-                      <p className="text-[11px] text-amber-500 font-medium">
+                      <p className="text-[11px] text-warning font-medium">
                         ⚠️ The selected Area Sales Manager has not been assigned as Team Lead of any team yet. Please assign them in Teams first.
                       </p>
                     ) : (

@@ -41,14 +41,10 @@ export const mockDistricts: District[] = [
 ];
 
 export const mockDesignations: Designation[] = [
-  { id: 'des-0', name: 'State Manager', prefix: 'SM' },
+  { id: 'des-0', name: 'Sales Manager', prefix: 'SM' },
   { id: 'des-1', name: 'Area Sales Manager', prefix: 'ASM' },
   { id: 'des-2', name: 'Business Development Executive', prefix: 'BDE' },
-  { id: 'des-3', name: 'Zonal Manager', prefix: 'ZM' },
-  { id: 'des-4', name: 'District Team Lead', prefix: 'DTL' },
-  { id: 'des-5', name: 'Senior Field Executive', prefix: 'SFE' },
-  { id: 'des-6', name: 'Field Executive', prefix: 'FE' },
-  { id: 'des-7', name: 'Relationship Officer', prefix: 'RO' },
+  { id: 'des-3', name: 'Business Development Manager', prefix: 'BDM' },
 ];
 
 export const mockCourses: Course[] = [
@@ -59,7 +55,7 @@ export const mockCourses: Course[] = [
 ];
 
 export const mockEmployees: Employee[] = [
-  { id: 'emp-0', employee_id: 'SM001', name: 'Kiran Kumar', email: 'kiran.kumar@kide.com', contact_number: '9000000000', designation: 'State Manager', district: '', zone: '', team: '', reports_to: '', status: 'active', created_at: '2026-05-01' },
+  { id: 'emp-0', employee_id: 'SM001', name: 'Kiran Kumar', email: 'kiran.kumar@kide.com', contact_number: '9000000000', designation: 'Sales Manager', district: '', zone: '', team: '', reports_to: '', status: 'active', created_at: '2026-05-01' },
   { id: 'emp-1', employee_id: 'ASM001', name: 'Anoop Menon', email: 'anoop.menon@kide.com', contact_number: '9000000001', designation: 'Area Sales Manager', district: 'Ernakulam', zone: 'Central Zone', team: 'Team Ernakulam', reports_to: 'SM001', status: 'active', created_at: '2026-05-01' },
   { id: 'emp-2', employee_id: 'BDE001', name: 'Aslam', email: 'aslam@gmail.com', contact_number: '9746543243', designation: 'Business Development Executive', district: 'Ernakulam', zone: 'Central Zone', team: 'Team Ernakulam', reports_to: 'ASM001', status: 'active', created_at: '2026-05-01' },
   { id: 'emp-3', employee_id: 'BDE002', name: 'Tony', email: 'tony@gmail.com', contact_number: '9876756743', designation: 'Business Development Executive', district: 'Ernakulam', zone: 'Central Zone', team: 'Team Ernakulam', reports_to: 'ASM001', status: 'active', created_at: '2026-05-03' },
@@ -77,12 +73,12 @@ export const mockLeads: Lead[] = [
 ];
 
 export const mockLiveAttendance: AttendanceRecord[] = [
-  { id: 'att-1', name: 'Rahul Nair', designation: 'Zonal Manager', district: 'Ernakulam', date: '2026-10-19', check_in: '09:02 AM', status: 'ONLINE', hours_worked: 7.5 },
-  { id: 'att-2', name: 'Ananya Varma', designation: 'District Team Lead', district: 'Thiruvananthapuram', date: '2026-10-19', check_in: '09:15 AM', status: 'ONLINE', hours_worked: 7.2 },
-  { id: 'att-3', name: 'Faizal Khan', designation: 'Senior Field Executive', district: 'Kozhikode', date: '2026-10-19', check_in: '09:30 AM', status: 'ONLINE', hours_worked: 7.0 },
-  { id: 'att-4', name: 'Deepa Menon', designation: 'Field Executive', district: 'Thrissur', date: '2026-10-19', check_in: '09:45 AM', status: 'ONLINE', hours_worked: 6.8 },
-  { id: 'att-5', name: 'Arun George', designation: 'Relationship Officer', district: 'Kottayam', date: '2026-10-19', check_in: '10:00 AM', status: 'ONLINE', hours_worked: 6.5 },
-  { id: 'att-6', name: 'Sujith Kumar', designation: 'Field Executive', district: 'Malappuram', date: '2026-10-19', status: 'OFFLINE', hours_worked: 0 },
+  { id: 'att-1', name: 'Rahul Nair', designation: 'Sales Manager', district: 'Ernakulam', date: '2026-10-19', check_in: '09:02 AM', status: 'ONLINE', hours_worked: 7.5 },
+  { id: 'att-2', name: 'Ananya Varma', designation: 'Area Sales Manager', district: 'Thiruvananthapuram', date: '2026-10-19', check_in: '09:15 AM', status: 'ONLINE', hours_worked: 7.2 },
+  { id: 'att-3', name: 'Faizal Khan', designation: 'Business Development Manager', district: 'Kozhikode', date: '2026-10-19', check_in: '09:30 AM', status: 'ONLINE', hours_worked: 7.0 },
+  { id: 'att-4', name: 'Deepa Menon', designation: 'Business Development Executive', district: 'Thrissur', date: '2026-10-19', check_in: '09:45 AM', status: 'ONLINE', hours_worked: 6.8 },
+  { id: 'att-5', name: 'Arun George', designation: 'Business Development Executive', district: 'Kottayam', date: '2026-10-19', check_in: '10:00 AM', status: 'ONLINE', hours_worked: 6.5 },
+  { id: 'att-6', name: 'Sujith Kumar', designation: 'Business Development Executive', district: 'Malappuram', date: '2026-10-19', status: 'OFFLINE', hours_worked: 0 },
 ];
 
 export const mockTeams: Team[] = [

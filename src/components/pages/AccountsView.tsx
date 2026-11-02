@@ -258,13 +258,13 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-[#09929e]" />
+          <h1 className="text-2xl font-bold tracking-tight text-ink flex items-center gap-2">
+            <Building2 className="w-6 h-6 text-accent" />
             <span>Accounts & Financial Operations</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             Kerala Institute of Digital Education — Approval Workflows, Incentive Payouts & Profit Analytics
           </p>
         </div>
@@ -272,9 +272,9 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
         <button
           onClick={loadData}
           disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:text-white border border-slate-700 text-xs font-medium cursor-pointer"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-hover text-ink hover:text-ink border border-line text-xs font-medium cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#09929e]' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-accent' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>
@@ -282,103 +282,103 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
       {/* 1. FINANCIAL KPI SUMMARY CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Total Admissions */}
-        <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-surface border border-line flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
             Admissions
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-white">{totalAdmissionsCount}</span>
-            <Users className="w-4 h-4 text-cyan-400" />
+            <span className="text-2xl font-bold text-ink">{totalAdmissionsCount}</span>
+            <Users className="w-4 h-4 text-accent" />
           </div>
-          <span className="text-[10px] text-emerald-400 mt-1">Closed Leads</span>
+          <span className="text-[10px] text-success mt-1">Closed Leads</span>
         </div>
 
         {/* Total Income */}
-        <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-surface border border-line flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
             Total Income
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-emerald-400">
+            <span className="text-xl font-bold text-success">
               ₹{totalIncome.toLocaleString('en-IN')}
             </span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <TrendingUp className="w-4 h-4 text-success" />
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">Course Admissions</span>
+          <span className="text-[10px] text-muted mt-1">Course Admissions</span>
         </div>
 
         {/* Total Incentives */}
-        <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-surface border border-line flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
             Incentives (₹1k)
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-amber-400">
+            <span className="text-xl font-bold text-warning">
               ₹{totalIncentivesEarned.toLocaleString('en-IN')}
             </span>
-            <Award className="w-4 h-4 text-amber-400" />
+            <Award className="w-4 h-4 text-warning" />
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">
+          <span className="text-[10px] text-muted mt-1">
             Paid: ₹{totalIncentivesPaid.toLocaleString('en-IN')}
           </span>
         </div>
 
         {/* Salary Expenses */}
-        <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-surface border border-line flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
             Salaries (₹5k+)
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-indigo-400">
+            <span className="text-xl font-bold text-accent">
               ₹{totalSalaryExpenses.toLocaleString('en-IN')}
             </span>
-            <CreditCard className="w-4 h-4 text-indigo-400" />
+            <CreditCard className="w-4 h-4 text-accent" />
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">Approved/Paid</span>
+          <span className="text-[10px] text-muted mt-1">Approved/Paid</span>
         </div>
 
         {/* Total Expenses */}
-        <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-surface border border-line flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
             Total Expenses
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-bold text-red-400">
+            <span className="text-xl font-bold text-danger">
               ₹{totalExpenses.toLocaleString('en-IN')}
             </span>
-            <DollarSign className="w-4 h-4 text-red-400" />
+            <DollarSign className="w-4 h-4 text-danger" />
           </div>
-          <span className="text-[10px] text-slate-400 mt-1">Salaries + Incentives</span>
+          <span className="text-[10px] text-muted mt-1">Salaries + Incentives</span>
         </div>
 
         {/* Net Profit */}
-        <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-800/50 flex flex-col justify-between">
-          <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
+        <div className="p-4 rounded-xl bg-gradient-to-br from-success/10 to-surface border border-success/30 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-success uppercase tracking-wider">
             Total Profit
           </span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-xl font-extrabold text-emerald-300">
+            <span className="text-xl font-extrabold text-success">
               ₹{totalProfit.toLocaleString('en-IN')}
             </span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <TrendingUp className="w-4 h-4 text-success" />
           </div>
-          <span className="text-[10px] text-emerald-400/80 mt-1">Income – Expenses</span>
+          <span className="text-[10px] text-success/80 mt-1">Income – Expenses</span>
         </div>
       </div>
 
       {/* 2. SUB-NAVIGATION TABS */}
-      <div className="flex border-b border-slate-800 gap-6 text-sm font-medium">
+      <div className="flex border-b border-line gap-6 text-sm font-medium">
         <button
           onClick={() => setActiveSubTab('salaries')}
           className={`pb-3 px-1 border-b-2 transition flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'salaries'
-              ? 'border-[#09929e] text-[#38bdf8]'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-accent text-accent'
+              : 'border-transparent text-muted hover:text-ink'
           }`}
         >
           <CreditCard className="w-4 h-4" />
           <span>Salary Requests (BDE → ASM → SM → Accounts)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {salaryRequests.length}
           </span>
         </button>
@@ -387,13 +387,13 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           onClick={() => setActiveSubTab('withdrawals')}
           className={`pb-3 px-1 border-b-2 transition flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'withdrawals'
-              ? 'border-[#09929e] text-[#38bdf8]'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-accent text-accent'
+              : 'border-transparent text-muted hover:text-ink'
           }`}
         >
           <Award className="w-4 h-4" />
           <span>Incentive Withdrawals (Max ₹5k)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {withdrawalRequests.length}
           </span>
         </button>
@@ -402,13 +402,13 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           onClick={() => setActiveSubTab('admissions')}
           className={`pb-3 px-1 border-b-2 transition flex items-center gap-2 cursor-pointer ${
             activeSubTab === 'admissions'
-              ? 'border-[#09929e] text-[#38bdf8]'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
+              ? 'border-accent text-accent'
+              : 'border-transparent text-muted hover:text-ink'
           }`}
         >
           <FileCheck className="w-4 h-4" />
           <span>Closed Admissions & Incentives (₹1,000/close)</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {closedAdmissions.length}
           </span>
         </button>
@@ -417,23 +417,23 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
       {/* Filters & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
           <input
             type="text"
             placeholder="Search by name, employee ID, request ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#0d1424] border border-slate-800 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#09929e]"
+            className="w-full bg-field border border-line rounded-lg pl-9 pr-3 py-1.5 text-xs text-ink placeholder-subtle focus:outline-none focus:border-accent"
           />
         </div>
 
         {activeSubTab !== 'admissions' && (
           <div className="flex items-center gap-2 self-end">
-            <span className="text-xs text-slate-400">Status:</span>
+            <span className="text-xs text-muted">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-[#0d1424] border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-[#09929e]"
+              className="bg-field border border-line rounded-lg px-2.5 py-1 text-xs text-ink focus:outline-none focus:border-accent"
             >
               <option value="all">All Statuses</option>
               <option value="Submitted to ASM">Submitted to ASM</option>
@@ -451,10 +451,10 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
 
       {/* SUB-TAB 1: SALARY REQUESTS */}
       {activeSubTab === 'salaries' && (
-        <div className="bg-[#0c1220] border border-slate-800/80 rounded-xl overflow-hidden shadow-lg">
+        <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#11192e] text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+            <table className="w-full text-left text-xs text-ink/80">
+              <thead className="bg-surface-2 text-[11px] font-semibold text-muted uppercase tracking-wider border-b border-line">
                 <tr>
                   <th className="py-3 px-4">Request ID</th>
                   <th className="py-3 px-4">Employee</th>
@@ -465,52 +465,52 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                   <th className="py-3 px-4 text-right">Accounts Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-line-2 font-medium">
                 {filteredSalaries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                    <td colSpan={7} className="py-8 text-center text-subtle">
                       No salary requests found.
                     </td>
                   </tr>
                 ) : (
                   filteredSalaries.map((req) => (
-                    <tr key={req._id || req.request_id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-4 font-mono font-bold text-cyan-400">
+                    <tr key={req._id || req.request_id} className="hover:bg-hover/60">
+                      <td className="py-3 px-4 font-mono font-bold text-accent">
                         {req.request_id}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-white font-semibold">{req.employee_name}</div>
-                        <div className="text-[10px] text-slate-400">{req.employee_id} • {req.designation}</div>
+                        <div className="text-ink font-semibold">{req.employee_name}</div>
+                        <div className="text-[10px] text-muted">{req.employee_id} • {req.designation}</div>
                       </td>
                       <td className="py-3 px-4">
                         <div>{req.team || 'Regional Team'}</div>
-                        <div className="text-[10px] text-slate-400">ASM: {req.asm_name || req.asm_id || '—'}</div>
+                        <div className="text-[10px] text-muted">ASM: {req.asm_name || req.asm_id || '—'}</div>
                       </td>
-                      <td className="py-3 px-4 text-slate-300">
+                      <td className="py-3 px-4 text-ink/80">
                         {req.period}
                       </td>
-                      <td className="py-3 px-4 font-bold text-white">
+                      <td className="py-3 px-4 font-bold text-ink">
                         ₹{(req.amount || 5000).toLocaleString('en-IN')}
                       </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                             req.status === 'Paid'
-                              ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/60'
+                              ? 'bg-success/10 text-success border-success/30'
                               : req.status === 'Approved'
-                                ? 'bg-cyan-950/40 text-cyan-400 border-cyan-800/60'
+                                ? 'bg-accent/10 text-accent border-accent/30'
                                 : req.status === 'Rejected'
-                                  ? 'bg-red-950/40 text-red-400 border-red-800/60'
+                                  ? 'bg-danger/10 text-danger border-danger/30'
                                   : req.status === 'Forwarded to Accounts'
-                                    ? 'bg-amber-950/40 text-amber-400 border-amber-800/60'
-                                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                                    ? 'bg-warning/10 text-warning border-warning/30'
+                                    : 'bg-hover text-muted border-line'
                           }`}
                         >
                           <Clock className="w-3 h-3" />
                           <span>{req.status}</span>
                         </span>
                         {req.transaction_reference && (
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          <div className="text-[10px] text-subtle font-mono mt-0.5">
                             Ref: {req.transaction_reference}
                           </div>
                         )}
@@ -521,14 +521,14 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             <button
                               onClick={() => handleWorkflowAction('salary', req, 'sanction')}
                               disabled={actionLoading}
-                              className="px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white text-[11px] font-semibold cursor-pointer"
+                              className="px-2.5 py-1 rounded bg-accent hover:bg-accent-hover text-white text-[11px] font-semibold cursor-pointer"
                             >
                               Sanction
                             </button>
                             <button
                               onClick={() => handleWorkflowAction('salary', req, 'reject')}
                               disabled={actionLoading}
-                              className="px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-200 text-[11px] cursor-pointer"
+                              className="px-2 py-1 rounded bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-[11px] cursor-pointer"
                             >
                               Reject
                             </button>
@@ -538,7 +538,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                           <button
                             onClick={() => openPayModal('salary', req)}
                             disabled={actionLoading}
-                            className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold cursor-pointer"
+                            className="px-3 py-1 rounded bg-success hover:bg-success/90 text-white text-[11px] font-semibold cursor-pointer"
                           >
                             Mark Paid
                           </button>
@@ -548,7 +548,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             onClick={() => handleWorkflowAction('salary', req, 'forward_to_sm')}
                             disabled={actionLoading}
                             title="Forward as ASM"
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] cursor-pointer"
+                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
                           >
                             ASM Fwd →
                           </button>
@@ -558,13 +558,13 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             onClick={() => handleWorkflowAction('salary', req, 'forward_to_accounts')}
                             disabled={actionLoading}
                             title="Forward as SM"
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] cursor-pointer"
+                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
                           >
                             SM Fwd →
                           </button>
                         )}
                         {req.status === 'Paid' && (
-                          <span className="text-emerald-400 text-xs font-semibold">
+                          <span className="text-success text-xs font-semibold">
                             ✓ Disbursed
                           </span>
                         )}
@@ -580,10 +580,10 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
 
       {/* SUB-TAB 2: INCENTIVE WITHDRAWAL REQUESTS */}
       {activeSubTab === 'withdrawals' && (
-        <div className="bg-[#0c1220] border border-slate-800/80 rounded-xl overflow-hidden shadow-lg">
+        <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#11192e] text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+            <table className="w-full text-left text-xs text-ink/80">
+              <thead className="bg-surface-2 text-[11px] font-semibold text-muted uppercase tracking-wider border-b border-line">
                 <tr>
                   <th className="py-3 px-4">Request ID</th>
                   <th className="py-3 px-4">Employee</th>
@@ -594,66 +594,66 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                   <th className="py-3 px-4 text-right">Accounts Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-line-2 font-medium">
                 {filteredWithdrawals.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                    <td colSpan={7} className="py-8 text-center text-subtle">
                       No incentive withdrawal requests found.
                     </td>
                   </tr>
                 ) : (
                   filteredWithdrawals.map((item) => (
-                    <tr key={item._id || item.request_id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-4 font-mono font-bold text-amber-400">
+                    <tr key={item._id || item.request_id} className="hover:bg-hover/60">
+                      <td className="py-3 px-4 font-mono font-bold text-warning">
                         {item.request_id || `WDR-${item.id || 1001}`}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-white font-semibold">{item.name || item.employee}</div>
-                        <div className="text-[10px] text-slate-400">{item.employee_id || 'BDE'}</div>
+                        <div className="text-ink font-semibold">{item.name || item.employee}</div>
+                        <div className="text-[10px] text-muted">{item.employee_id || 'BDE'}</div>
                       </td>
                       <td className="py-3 px-4">
                         {item.team || 'Regional Team'}
                       </td>
-                      <td className="py-3 px-4 font-bold text-white">
+                      <td className="py-3 px-4 font-bold text-ink">
                         ₹{(Number(item.amount) || 0).toLocaleString('en-IN')}
-                        <span className="block text-[10px] font-normal text-slate-400">
+                        <span className="block text-[10px] font-normal text-muted">
                           (Max limit: ₹5k)
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         {item.upi_id ? (
                           <div>
-                            <span className="text-[10px] text-cyan-400 font-bold">UPI:</span>{' '}
-                            <span className="font-mono text-[11px] text-slate-200">{item.upi_id}</span>
+                            <span className="text-[10px] text-accent font-bold">UPI:</span>{' '}
+                            <span className="font-mono text-[11px] text-ink">{item.upi_id}</span>
                           </div>
                         ) : item.account_number ? (
                           <div>
-                            <span className="text-[10px] text-slate-400">{item.bank_name || 'Bank'}:</span>{' '}
-                            <span className="font-mono text-[11px] text-slate-200">{item.account_number}</span>
+                            <span className="text-[10px] text-muted">{item.bank_name || 'Bank'}:</span>{' '}
+                            <span className="font-mono text-[11px] text-ink">{item.account_number}</span>
                           </div>
                         ) : (
-                          <span className="text-slate-500 italic text-[11px]">Direct transfer</span>
+                          <span className="text-subtle italic text-[11px]">Direct transfer</span>
                         )}
                       </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                             item.status === 'Paid'
-                              ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/60'
+                              ? 'bg-success/10 text-success border-success/30'
                               : item.status === 'Approved'
-                                ? 'bg-cyan-950/40 text-cyan-400 border-cyan-800/60'
+                                ? 'bg-accent/10 text-accent border-accent/30'
                                 : item.status === 'Rejected'
-                                  ? 'bg-red-950/40 text-red-400 border-red-800/60'
+                                  ? 'bg-danger/10 text-danger border-danger/30'
                                   : item.status === 'Forwarded to Accounts'
-                                    ? 'bg-amber-950/40 text-amber-400 border-amber-800/60'
-                                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                                    ? 'bg-warning/10 text-warning border-warning/30'
+                                    : 'bg-hover text-muted border-line'
                           }`}
                         >
                           <Clock className="w-3 h-3" />
                           <span>{item.status || 'Submitted to ASM'}</span>
                         </span>
                         {item.transaction_reference && (
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          <div className="text-[10px] text-subtle font-mono mt-0.5">
                             Ref: {item.transaction_reference}
                           </div>
                         )}
@@ -664,14 +664,14 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             <button
                               onClick={() => handleWorkflowAction('withdrawal', item, 'sanction')}
                               disabled={actionLoading}
-                              className="px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white text-[11px] font-semibold cursor-pointer"
+                              className="px-2.5 py-1 rounded bg-accent hover:bg-accent-hover text-white text-[11px] font-semibold cursor-pointer"
                             >
                               Sanction
                             </button>
                             <button
                               onClick={() => handleWorkflowAction('withdrawal', item, 'reject')}
                               disabled={actionLoading}
-                              className="px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-200 text-[11px] cursor-pointer"
+                              className="px-2 py-1 rounded bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-[11px] cursor-pointer"
                             >
                               Reject
                             </button>
@@ -681,7 +681,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                           <button
                             onClick={() => openPayModal('withdrawal', item)}
                             disabled={actionLoading}
-                            className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold cursor-pointer"
+                            className="px-3 py-1 rounded bg-success hover:bg-success/90 text-white text-[11px] font-semibold cursor-pointer"
                           >
                             Mark Paid
                           </button>
@@ -691,7 +691,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             onClick={() => handleWorkflowAction('withdrawal', item, 'forward_to_sm')}
                             disabled={actionLoading}
                             title="Forward as ASM"
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] cursor-pointer"
+                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
                           >
                             ASM Fwd →
                           </button>
@@ -701,13 +701,13 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                             onClick={() => handleWorkflowAction('withdrawal', item, 'forward_to_accounts')}
                             disabled={actionLoading}
                             title="Forward as SM"
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] cursor-pointer"
+                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
                           >
                             SM Fwd →
                           </button>
                         )}
                         {item.status === 'Paid' && (
-                          <span className="text-emerald-400 text-xs font-semibold">
+                          <span className="text-success text-xs font-semibold">
                             ✓ Paid
                           </span>
                         )}
@@ -723,10 +723,10 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
 
       {/* SUB-TAB 3: CLOSED ADMISSIONS & INCENTIVES */}
       {activeSubTab === 'admissions' && (
-        <div className="bg-[#0c1220] border border-slate-800/80 rounded-xl overflow-hidden shadow-lg">
+        <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#11192e] text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+            <table className="w-full text-left text-xs text-ink/80">
+              <thead className="bg-surface-2 text-[11px] font-semibold text-muted uppercase tracking-wider border-b border-line">
                 <tr>
                   <th className="py-3 px-4">Student ID</th>
                   <th className="py-3 px-4">Lead ID</th>
@@ -737,39 +737,39 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                   <th className="py-3 px-4 text-right">Incentive</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-line-2 font-medium">
                 {filteredAdmissions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                    <td colSpan={7} className="py-8 text-center text-subtle">
                       No closed admissions yet.
                     </td>
                   </tr>
                 ) : (
                   filteredAdmissions.map((adm) => (
-                    <tr key={adm._id || adm.lead_id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                    <tr key={adm._id || adm.lead_id} className="hover:bg-hover/60">
+                      <td className="py-3 px-4 font-mono font-bold text-success">
                         {adm.student_id || 'STU-001'}
                       </td>
-                      <td className="py-3 px-4 font-mono text-cyan-400">
+                      <td className="py-3 px-4 font-mono text-accent">
                         {adm.lead_id}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-white">
+                      <td className="py-3 px-4 font-semibold text-ink">
                         {adm.name}
-                        <div className="text-[10px] text-slate-400">{adm.phone || adm.contact_number}</div>
+                        <div className="text-[10px] text-muted">{adm.phone || adm.contact_number}</div>
                       </td>
-                      <td className="py-3 px-4 text-slate-200">
+                      <td className="py-3 px-4 text-ink">
                         {adm.course || adm.interested_course || 'Flutter'}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-white">{adm.employee || 'BDE'}</div>
-                        <div className="text-[10px] text-slate-400">{adm.team || adm.district}</div>
+                        <div className="text-ink">{adm.employee || 'BDE'}</div>
+                        <div className="text-[10px] text-muted">{adm.team || adm.district}</div>
                       </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             adm.payment_verification === 'Verified'
-                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60'
-                              : 'bg-amber-950/60 text-amber-400 border border-amber-800/60'
+                              ? 'bg-success/10 text-success border border-success/30'
+                              : 'bg-warning/10 text-warning border border-warning/30'
                           }`}
                         >
                           <CheckCircle className="w-2.5 h-2.5" />
@@ -777,10 +777,10 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-extrabold text-amber-400">
+                        <span className="font-extrabold text-warning">
                           +₹1,000
                         </span>
-                        <div className="text-[10px] text-emerald-400">Credited to BDE</div>
+                        <div className="text-[10px] text-success">Credited to BDE</div>
                       </td>
                     </tr>
                   ))
@@ -794,45 +794,45 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
       {/* PAYMENT TRANSACTION MODAL */}
       {paymentModalOpen && selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#11192e] border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <div className="bg-surface-2 border border-line rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
                 <span>Sanction & Complete Payment</span>
               </h3>
               <button
                 onClick={() => setPaymentModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-muted hover:text-ink"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3 bg-slate-900/80 rounded-lg space-y-1">
+            <div className="space-y-3 text-xs text-ink/80">
+              <div className="p-3 bg-surface-2 rounded-lg space-y-1">
                 <div>
-                  <span className="text-slate-400">Recipient:</span>{' '}
-                  <strong className="text-white">
+                  <span className="text-muted">Recipient:</span>{' '}
+                  <strong className="text-ink">
                     {selectedRequest.employee_name || selectedRequest.name}
                   </strong>{' '}
                   ({selectedRequest.employee_id})
                 </div>
                 <div>
-                  <span className="text-slate-400">Amount to Disburse:</span>{' '}
-                  <strong className="text-emerald-400 text-sm">
+                  <span className="text-muted">Amount to Disburse:</span>{' '}
+                  <strong className="text-success text-sm">
                     ₹{Number(selectedRequest.amount).toLocaleString('en-IN')}
                   </strong>
                 </div>
                 {selectedRequest.upi_id && (
                   <div>
-                    <span className="text-slate-400">UPI ID:</span>{' '}
-                    <span className="font-mono text-cyan-400">{selectedRequest.upi_id}</span>
+                    <span className="text-muted">UPI ID:</span>{' '}
+                    <span className="font-mono text-accent">{selectedRequest.upi_id}</span>
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                <label className="block text-[11px] font-semibold text-ink/80 mb-1">
                   Bank / UPI Transaction Reference (UTR / IMPS / Txn ID) *
                 </label>
                 <input
@@ -840,22 +840,22 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                   value={transactionRef}
                   onChange={(e) => setTransactionRef(e.target.value)}
                   placeholder="e.g. UTR1234567890"
-                  className="w-full bg-[#0b101d] border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink font-mono text-xs focus:outline-none focus:border-success"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-line">
               <button
                 onClick={() => setPaymentModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs"
+                className="px-3 py-1.5 rounded-lg bg-hover text-muted hover:text-ink text-xs"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmPayment}
                 disabled={actionLoading || !transactionRef.trim()}
-                className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-1.5 rounded-lg bg-success hover:bg-success/90 text-white font-semibold text-xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {actionLoading ? 'Processing...' : 'Confirm & Disburse'}
               </button>
