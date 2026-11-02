@@ -684,29 +684,55 @@ Based on a comprehensive audit of the Flutter codebase (`keralainstitutesalesapp
 ```json
 {
   "success": true,
-  "data": {
-    "asms": [
-      {
-        "employee_id": "ASM001",
-        "name": "Bipin Joseph",
-        "email": "bipin.tvm@kide.com",
-        "team": "TVM Team",
-        "team_code": "TVM",
-        "districts": ["Thiruvananthapuram", "Kollam"],
-        "bde_count": 4,
-        "status": "active"
+  "count": 7,
+  "data": [
+    {
+      "id": "6724...",
+      "employee_id": "ASM001",
+      "name": "Bipin Joseph",
+      "email": "bipin.tvm@kide.com",
+      "contact_number": "+91 90000 00001",
+      "designation": "Area Sales Manager",
+      "team": "TVM Team",
+      "districts": ["Thiruvananthapuram", "Kollam"],
+      "zone": "South Zone",
+      "reports_to": "SM001",
+      "bdes_count": 4,
+      "status": "active",
+      "daily_target": 12,
+      "daily_achieved": 5,
+      "daily_pending": 7,
+      "daily_completion_percentage": 42,
+      "monthly_target": 45,
+      "monthly_achieved": 28,
+      "monthly_pending": 17,
+      "monthly_completion_percentage": 62,
+      "total_leads": 120,
+      "completed_leads": 84,
+      "pending_leads": 36,
+      "completion_percentage": 70,
+      "targets": {
+        "daily": {
+          "total_leads": 12,
+          "completed_leads": 5,
+          "pending_leads": 7,
+          "completion_percentage": 42
+        },
+        "monthly": {
+          "total_leads": 45,
+          "completed_leads": 28,
+          "pending_leads": 17,
+          "completion_percentage": 62
+        },
+        "overall": {
+          "total_leads": 120,
+          "completed_leads": 84,
+          "pending_leads": 36,
+          "completion_percentage": 70
+        }
       }
-    ],
-    "available_teams": [
-      { "code": "PTM", "name": "PTM Team", "districts": ["Pathanamthitta", "Alappuzha"] },
-      { "code": "KTM", "name": "KTM Team", "districts": ["Kottayam", "Idukki"] },
-      { "code": "EKM", "name": "EKM Team", "districts": ["Ernakulam", "Thrissur"] },
-      { "code": "PKD", "name": "PKD Team", "districts": ["Palakkad", "Malappuram"] },
-      { "code": "CLT", "name": "CLT Team", "districts": ["Kozhikode", "Wayanad"] },
-      { "code": "KZE", "name": "KZE Team", "districts": ["Kannur", "Kasaragod"] },
-      { "code": "OFFICE", "name": "Office Team", "districts": [] }
-    ]
-  }
+    }
+  ]
 }
 ```
 
