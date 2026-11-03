@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
@@ -51,31 +52,83 @@ export function forbidden(message = 'You do not have permission to access this r
 }
 
 /**
- * Resolve the caller from a raw token. Returns null for an invalid, expired or
- * inactive identity. Used by both the Authorization-header flow and the
- * refresh-token flow (which may receive the token in the request body).
+ * Resolve the caller from the Authorization header. Returns null for a missing,
+ * invalid, expired or inactive identity.
  */
-export async function authenticateToken(
-  token: string | null | undefined
-): Promise<AuthContext | null> {
+export async function authenticate(req: Request): Promise<AuthContext | null> {
   await connectDB();
 
+  const token = extractTokenFromHeader(req);
   if (!token) return null;
 
   const decoded = verifyToken(token);
   if (!decoded) return null;
 
   const tokenRole = String(decoded.role || '').toLowerCase();
+  const isExplicitAdmin = tokenRole === 'admin' || tokenRole === 'superadmin';
 
-  // Admin portal token (Users collection).
-  if (tokenRole === 'admin' || tokenRole === 'superadmin' || tokenRole === 'manager') {
-    let user: any = null;
+  // 1. If not explicitly admin, try finding in Employee collection (SM, ASM, BDE, etc.)
+  if (!isExplicitAdmin) {
+    let employee: any = null;
+    const empIdOrDocId = decoded.id || decoded._id || decoded.employee_id;
+
+    if (empIdOrDocId) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(String(empIdOrDocId))) {
+          employee = await Employee.findById(empIdOrDocId).lean();
+        }
+      } catch {
+        employee = null;
+      }
+    }
+
+    if (!employee) {
+      const orConditions: any[] = [];
+      if (decoded.employee_id) orConditions.push({ employee_id: decoded.employee_id });
+      if (empIdOrDocId && typeof empIdOrDocId === 'string' && empIdOrDocId.length < 24) {
+        orConditions.push({ employee_id: empIdOrDocId });
+      }
+      if (decoded.email) orConditions.push({ email: decoded.email.toLowerCase() });
+
+      if (orConditions.length > 0) {
+        employee = await Employee.findOne({ $or: orConditions }).lean();
+      }
+    }
+
+    if (employee) {
+      if (String(employee.status || '').toLowerCase() === 'inactive') return null;
+
+      return {
+        decoded,
+        employee,
+        role: hierarchyRole(employee),
+        isAdmin: false,
+        employeeId: String(employee.employee_id || ''),
+        name: String(employee.name || ''),
+        team: String(employee.team || ''),
+      };
+    }
+  }
+
+  // 2. Check in Users collection (Admin Portal)
+  let user: any = null;
+  const adminId = decoded.id || decoded._id;
+
+  if (adminId) {
     try {
-      user = await User.findById(decoded.id).lean();
+      if (mongoose.Types.ObjectId.isValid(String(adminId))) {
+        user = await User.findById(adminId).lean();
+      }
     } catch {
       user = null;
     }
-    if (!user) return null;
+  }
+
+  if (!user && decoded.email) {
+    user = await User.findOne({ email: decoded.email.toLowerCase() }).lean();
+  }
+
+  if (user) {
     if (String(user.status || '').toLowerCase() === 'inactive') return null;
 
     return {
@@ -89,35 +142,31 @@ export async function authenticateToken(
     };
   }
 
-  // Field-force / mobile app token (Employees collection).
-  if (tokenRole !== 'employee' || !decoded.id) return null;
-
-  let employee: any = null;
-  try {
-    employee = await Employee.findById(decoded.id).lean();
-  } catch {
-    employee = null;
+  // 3. Fallback: Check Employee collection even if token had an admin/manager label
+  let fallbackEmp: any = null;
+  if (decoded.employee_id || decoded.email || decoded.id) {
+    fallbackEmp = await Employee.findOne({
+      $or: [
+        ...(decoded.employee_id ? [{ employee_id: decoded.employee_id }] : []),
+        ...(decoded.email ? [{ email: decoded.email.toLowerCase() }] : []),
+        ...(decoded.id && mongoose.Types.ObjectId.isValid(String(decoded.id)) ? [{ _id: decoded.id }] : []),
+      ],
+    }).lean();
   }
-  if (!employee) return null;
-  if (String(employee.status || '').toLowerCase() === 'inactive') return null;
 
-  return {
-    decoded,
-    employee,
-    role: hierarchyRole(employee),
-    isAdmin: false,
-    employeeId: String(employee.employee_id || ''),
-    name: String(employee.name || ''),
-    team: String(employee.team || ''),
-  };
-}
+  if (fallbackEmp && String(fallbackEmp.status || '').toLowerCase() !== 'inactive') {
+    return {
+      decoded,
+      employee: fallbackEmp,
+      role: hierarchyRole(fallbackEmp),
+      isAdmin: false,
+      employeeId: String(fallbackEmp.employee_id || ''),
+      name: String(fallbackEmp.name || ''),
+      team: String(fallbackEmp.team || ''),
+    };
+  }
 
-/**
- * Resolve the caller from the Authorization header. Returns null for a missing,
- * invalid, expired or inactive identity.
- */
-export async function authenticate(req: Request): Promise<AuthContext | null> {
-  return authenticateToken(extractTokenFromHeader(req));
+  return null;
 }
 
 /** Any valid token (employee or admin). */
