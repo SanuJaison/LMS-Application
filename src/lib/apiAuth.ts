@@ -51,13 +51,15 @@ export function forbidden(message = 'You do not have permission to access this r
 }
 
 /**
- * Resolve the caller from the Authorization header. Returns null for a missing,
- * invalid, expired or inactive identity.
+ * Resolve the caller from a raw token. Returns null for an invalid, expired or
+ * inactive identity. Used by both the Authorization-header flow and the
+ * refresh-token flow (which may receive the token in the request body).
  */
-export async function authenticate(req: Request): Promise<AuthContext | null> {
+export async function authenticateToken(
+  token: string | null | undefined
+): Promise<AuthContext | null> {
   await connectDB();
 
-  const token = extractTokenFromHeader(req);
   if (!token) return null;
 
   const decoded = verifyToken(token);
@@ -108,6 +110,14 @@ export async function authenticate(req: Request): Promise<AuthContext | null> {
     name: String(employee.name || ''),
     team: String(employee.team || ''),
   };
+}
+
+/**
+ * Resolve the caller from the Authorization header. Returns null for a missing,
+ * invalid, expired or inactive identity.
+ */
+export async function authenticate(req: Request): Promise<AuthContext | null> {
+  return authenticateToken(extractTokenFromHeader(req));
 }
 
 /** Any valid token (employee or admin). */

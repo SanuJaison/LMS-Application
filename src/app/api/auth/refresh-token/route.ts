@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
-import { authenticate, unauthorized } from '@/lib/apiAuth';
-import { extractTokenFromHeader, signToken, verifyToken } from '@/lib/jwt';
+import { authenticateToken, unauthorized } from '@/lib/apiAuth';
+import {
+  extractTokenFromHeader,
+  signToken,
+  verifyToken,
+  TOKEN_EXPIRES_IN,
+} from '@/lib/jwt';
 
 /**
  * POST /api/auth/refresh-token
  * Issues a fresh 1-day token for a valid, active identity.
  *
- * Invalid, expired or inactive identities are rejected with 401. The old
- * behaviour of signing `{ role: 'employee' }` for any garbage token is gone.
+ * The token may be sent as a Bearer header or in the JSON body. The body form
+ * is important for mobile clients that refresh their session on app resume.
+ * Invalid, expired or inactive identities are rejected with 401.
  */
 export async function POST(req: Request) {
   try {
@@ -27,7 +33,7 @@ export async function POST(req: Request) {
       return unauthorized('Invalid or expired token. Please log in again.');
     }
 
-    const auth = await authenticate(req);
+    const auth = await authenticateToken(token);
     if (!auth) {
       return unauthorized('Invalid or expired token. Please log in again.');
     }
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
     delete (payload as any).iat;
     delete (payload as any).exp;
 
-    const newToken = signToken(payload, '1d');
+    const newToken = signToken(payload, TOKEN_EXPIRES_IN);
 
     return NextResponse.json({
       success: true,

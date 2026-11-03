@@ -58,9 +58,14 @@ export function verifyToken(token: string): DecodedToken | null {
   }
 }
 
+export const TOKEN_EXPIRES_IN = '1d';
+
 /**
  * Signs payload into JWT token string.
  */
-export function signToken(payload: object, expiresIn: string | number = '1d'): string {
+export function signToken(
+  payload: object,
+  expiresIn: string | number = TOKEN_EXPIRES_IN
+): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: expiresIn as any });
 }
