@@ -313,25 +313,21 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     }
   };
 
-  // Open Create Modal
-  const openNewModal = (preselectedRole?: string) => {
+  // Open Create Modal (Admin creates strictly the Sales Manager)
+  const openNewModal = () => {
     fetchOptions();
-    const hasSM = employees.some((e) => isSMDesignation(e.designation));
-    const defaultDesignation =
-      preselectedRole ||
-      (!hasSM ? 'Sales Manager' : (designations[0]?.name || 'Business Development Executive'));
     setEditingEmployee(null);
     setFormData({
       name: '',
       email: '',
       password: '',
-      employee_id: buildEmployeeId(defaultDesignation),
+      employee_id: buildEmployeeId('Sales Manager'),
       contact_number: '',
-      designation: defaultDesignation,
+      designation: 'Sales Manager',
       salary: '',
       incentive: '',
-      zone: 'Central Zone',
-      district: 'Ernakulam',
+      zone: 'Kerala',
+      district: '',
       reports_to: '',
       team: '',
       status: 'active',
@@ -521,6 +517,9 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     }
   };
 
+  const smEmployee = employees.find((e) => isSMDesignation(e.designation));
+  const hasSM = Boolean(smEmployee);
+
   // SM/MD are top level: no district, zone or manager fields.
   const isTopLevel = isTopLevelDesignation(formData.designation);
   const isCurrentASM = isASMDesignation(formData.designation);
@@ -651,7 +650,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
             </p>
           </div>
           <button
-            onClick={() => openNewModal('Sales Manager')}
+            onClick={() => openNewModal()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-lg shadow-md transition cursor-pointer whitespace-nowrap"
           >
             + Create Sales Manager
@@ -1231,67 +1230,28 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     Auto-generated from the designation prefix.
                   </span>
                 </div>
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1">
-                    Designation <span className="text-danger">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.designation}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const currentKey = editingEmployee?.id || (editingEmployee as any)?._id;
-                      const nextIsTop = isTopLevelDesignation(value);
-                      const nextIsASM = isASMDesignation(value);
-                      const nextIsBDE = isBDEDesignation(value);
-
-                      let nextReportsTo = formData.reports_to;
-                      if (nextIsTop) {
-                        nextReportsTo = '';
-                      } else if (nextIsASM) {
-                        const currentMgr = employees.find((emp) => emp.employee_id === formData.reports_to);
-                        const isCurrentMgrSM = currentMgr && isSMDesignation(currentMgr.designation);
-                        if (!isCurrentMgrSM) {
-                          const sm = employees.find((emp) => isSMDesignation(emp.designation));
-                          nextReportsTo = sm ? sm.employee_id : '';
-                        }
-                      } else if (nextIsBDE) {
-                        const currentMgr = employees.find((emp) => emp.employee_id === formData.reports_to);
-                        const isCurrentMgrASM = currentMgr && isASMDesignation(currentMgr.designation);
-                        if (!isCurrentMgrASM) {
-                          const asm = employees.find((emp) => isASMDesignation(emp.designation));
-                          nextReportsTo = asm ? asm.employee_id : '';
-                        }
-                      }
-
-                      setFormData((prev) => ({
-                        ...prev,
-                        designation: value,
-                        employee_id: editingEmployee
-                          ? prev.employee_id
-                          : buildEmployeeId(value, currentKey),
-                        reports_to: nextReportsTo,
-                        ...(nextIsTop
-                          ? { zone: '', district: '', reports_to: '' }
-                          : {}),
-                      }));
-                    }}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    {formData.designation &&
-                      !designations.some((d) => d.name === formData.designation) && (
-                        <option value={formData.designation}>{formData.designation}</option>
-                      )}
-                    {designations.map((d) => (
-                      <option key={d.id || d._id || d.name} value={d.name}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {editingEmployee ? (
+                  <div>
+                    <label className="block text-ink/80 font-semibold mb-1">Designation</label>
+                    <div className="px-3 py-2 bg-field/60 border border-line rounded-lg text-ink text-xs font-semibold flex items-center justify-between min-h-[38px]">
+                      <span>{formData.designation}</span>
+                      <span className="text-[10px] text-muted font-mono">{formData.employee_id}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-ink/80 font-semibold mb-1">
+                      Designation <span className="text-danger">*</span>
+                    </label>
+                    <div className="px-3 py-2 bg-blue-950/40 border border-blue-500/40 rounded-lg text-blue-200 text-xs font-semibold flex items-center justify-between min-h-[38px]">
+                      <span>Sales Manager (SM)</span>
+                      <span className="text-[10px] text-blue-300 font-normal">Admin creates SM only</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-ink/80 font-semibold mb-1">Status</label>
                   <select
@@ -1302,6 +1262,34 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Monthly Salary (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    value={formData.salary}
+                    onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                    placeholder="e.g. 50000"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Incentive (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={formData.incentive}
+                    onChange={(e) => setFormData({ ...formData, incentive: e.target.value })}
+                    placeholder="e.g. 5000"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
+                  />
                 </div>
               </div>
 
