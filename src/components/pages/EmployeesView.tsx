@@ -35,6 +35,15 @@ const DISTRICT_OPTIONS = [
 
 const ZONE_OPTIONS = ['Central Zone', 'North Zone', 'South Zone'];
 
+const CORE_DESIGNATIONS: DesignationOption[] = [
+  { name: 'Sales Manager', prefix: 'SM' },
+  { name: 'Area Sales Manager', prefix: 'ASM' },
+  { name: 'Business Development Executive', prefix: 'BDE' },
+  { name: 'Office Team Lead', prefix: 'ASM' },
+  { name: 'Tele-caller', prefix: 'TC' },
+  { name: 'Managing Director', prefix: 'MD' },
+];
+
 interface DesignationOption {
   id?: string;
   _id?: string;
@@ -85,6 +94,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     employee_id: '',
     contact_number: '',
     designation: 'Business Development Executive',
+    salary: '',
+    incentive: '',
     zone: 'Central Zone',
     district: 'Ernakulam',
     reports_to: '',
@@ -303,9 +314,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   };
 
   // Open Create Modal
-  const openNewModal = () => {
+  const openNewModal = (preselectedRole?: string) => {
     fetchOptions();
-    const defaultDesignation = designations[0]?.name || 'Business Development Executive';
+    const hasSM = employees.some((e) => isSMDesignation(e.designation));
+    const defaultDesignation =
+      preselectedRole ||
+      (!hasSM ? 'Sales Manager' : (designations[0]?.name || 'Business Development Executive'));
     setEditingEmployee(null);
     setFormData({
       name: '',
@@ -314,6 +328,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       employee_id: buildEmployeeId(defaultDesignation),
       contact_number: '',
       designation: defaultDesignation,
+      salary: '',
+      incentive: '',
       zone: 'Central Zone',
       district: 'Ernakulam',
       reports_to: '',
@@ -339,6 +355,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       employee_id: emp.employee_id || '',
       contact_number: emp.contact_number || '',
       designation: emp.designation || '',
+      salary: (emp as any).salary !== undefined ? String((emp as any).salary) : '',
+      incentive: (emp as any).incentive !== undefined ? String((emp as any).incentive) : '',
       zone: emp.zone || 'Central Zone',
       district: emp.district || 'Ernakulam',
       reports_to: emp.reports_to || '',
@@ -402,6 +420,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           formData.employee_id.trim() || buildEmployeeId(formData.designation, empId),
         contact_number: formData.contact_number.trim(),
         designation: formData.designation.trim(),
+        salary: formData.salary ? Number(formData.salary) : 0,
+        incentive: formData.incentive ? Number(formData.incentive) : 0,
         zone: isTopLevel
           ? ''
           : isSaveBDE && selectedAsmTeam
@@ -611,12 +631,33 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
         <button
           id="btn-new-employee"
-          onClick={openNewModal}
+          onClick={() => openNewModal()}
           className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow transition self-start sm:self-auto cursor-pointer"
         >
           New employee
         </button>
       </div>
+
+      {/* Organization Setup Banner if no Sales Manager exists */}
+      {employees.filter((e) => isSMDesignation(e.designation)).length === 0 && !loading && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-blue-950/40 border border-blue-500/40 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-blue-500 text-white font-bold text-[10px]">Step 1</span>
+              <strong className="text-blue-200 text-sm">Create the Sales Manager (SM)</strong>
+            </div>
+            <p className="text-blue-300/80 mt-1">
+              No Sales Manager found yet. In KIDE hierarchy, create the single Sales Manager first who will supervise all 7 regional teams and the Office Team.
+            </p>
+          </div>
+          <button
+            onClick={() => openNewModal('Sales Manager')}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-lg shadow-md transition cursor-pointer whitespace-nowrap"
+          >
+            + Create Sales Manager
+          </button>
+        </div>
+      )}
 
       {/* Role Hierarchy Filter Pills */}
       <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
