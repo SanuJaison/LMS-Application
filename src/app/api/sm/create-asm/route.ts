@@ -419,3 +419,86 @@ export async function POST(req: Request) {
 function escapeRegex(value: string): string {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * GET /api/sm/create-asm
+ * Returns the 8 predefined teams (7 regional + 1 office) with their fixed
+ * districts, zones, and whether each team is currently available or already assigned.
+ */
+export async function GET(req: Request) {
+  try {
+    await connectDB();
+
+    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const asms: any[] = await Employee.find({
+      $or: [
+        { designation: /area sales manager/i },
+        { designation: /office team lead/i },
+        { employee_id: /^ASM/i },
+      ],
+      status: 'active',
+    })
+      .select('name employee_id team district')
+      .lean();
+
+    const data: Array<{
+      team_code: string;
+      team_name: string;
+      districts: string[];
+      zone: string;
+      is_available: boolean;
+      assigned_to: { employee_id: string; name: string } | null;
+    }> = Object.entries(REGIONAL_TEAMS_CONFIG).map(([code, cfg]) => {
+      const assigned = asms.find(
+        (a) => a.team?.toLowerCase() === cfg.teamName.toLowerCase()
+      );
+      return {
+        team_code: code,
+        team_name: cfg.teamName,
+        districts: cfg.districts,
+        zone: cfg.zone,
+        is_available: !assigned,
+        assigned_to: assigned
+          ? {
+              employee_id: assigned.employee_id,
+              name: assigned.name,
+            }
+          : null,
+      };
+    });
+
+    const officeAssigned = asms.find(
+      (a) =>
+        a.team?.toLowerCase() === 'office team' ||
+        /office team lead/i.test(a.designation)
+    );
+
+    data.push({
+      team_code: 'OFFICE',
+      team_name: 'Office Team',
+      districts: [],
+      zone: 'Central Zone',
+      is_available: !officeAssigned,
+      assigned_to: officeAssigned
+        ? {
+            employee_id: officeAssigned.employee_id,
+            name: officeAssigned.name,
+          }
+        : null,
+    });
+
+    return NextResponse.json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error: any) {
+    console.error('GET /api/sm/create-asm error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to list predefined teams' },
+      { status: 500 }
+    );
+  }
+}

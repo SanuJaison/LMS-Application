@@ -2,70 +2,15 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team } from '@/models';
-import { Lead } from '@/models/lead';
 import { andFilter, getScope, requireRoles, scopeFilter } from '@/lib/apiAuth';
 
 // Always read fresh data: Next.js 14 otherwise statically caches this GET at
 // build time, so newly created ASMs never show up on Vercel.
 export const dynamic = 'force-dynamic';
 
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-
-function getIstDateRanges() {
-  const now = new Date();
-  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
-
-  const year = istNow.getUTCFullYear();
-  const month = istNow.getUTCMonth();
-  const day = istNow.getUTCDate();
-
-  // Start & end of today in IST
-  const startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0) - IST_OFFSET_MS);
-  const endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999) - IST_OFFSET_MS);
-
-  // Start & end of current month in IST
-  const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0) - IST_OFFSET_MS);
-  const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999) - IST_OFFSET_MS);
-
-  return { startOfDay, endOfDay, startOfMonth, endOfMonth };
-}
-
-function isLeadCompleted(lead: any): boolean {
-  const status = lead.status;
-  const statusStr = String(status || '').toLowerCase().trim();
-  const admStatus = String(lead.admission_status || '').toLowerCase().trim();
-  return (
-    status === 4 ||
-    status === 5 ||
-    statusStr === '4' ||
-    statusStr === '5' ||
-    statusStr === 'admitted' ||
-    statusStr === 'closed' ||
-    statusStr === 'won' ||
-    admStatus === 'admitted' ||
-    admStatus === 'closed' ||
-    admStatus === 'won'
-  );
-}
-
-function getLeadCreationDate(lead: any): Date {
-  if (lead.createdAt) return new Date(lead.createdAt);
-  if (lead._id && typeof lead._id.getTimestamp === 'function') {
-    return lead._id.getTimestamp();
-  }
-  return new Date();
-}
-
-function getLeadCompletionDate(lead: any): Date {
-  if (lead.admission_date) return new Date(lead.admission_date);
-  if (lead.updatedAt) return new Date(lead.updatedAt);
-  return getLeadCreationDate(lead);
-}
-
 /**
  * GET /api/sm/asms
- * Lists the Area Sales Managers (ASMs) visible to the caller, along with
- * their daily, monthly, and overall lead targets & achievement metrics.
+ * Lists the Area Sales Managers (ASMs) visible to the caller.
  *   - SM    -> only ASMs that report to that SM
  *   - admin -> all ASMs
  *
@@ -117,15 +62,6 @@ export async function GET(req: Request) {
       .select('employee_id name reports_to team status')
       .lean();
 
-    // Fetch leads to calculate daily and monthly targets
-    const allLeads: any[] = await Lead.find({})
-      .select(
-        'asm_id asm_name team employee employee_id admission_status status createdAt updatedAt admission_date'
-      )
-      .lean();
-
-    const { startOfDay, endOfDay, startOfMonth, endOfMonth } = getIstDateRanges();
-
     const data = asms.map((asm) => {
       const teamDoc: any = teams.find(
         (t) =>
@@ -138,74 +74,6 @@ export async function GET(req: Request) {
         (b: any) => String(b.reports_to || '') === String(asm.employee_id || '')
       );
 
-      const bdeIds = new Set(
-        assignedBdes.map((b: any) => String(b.employee_id || '').toLowerCase()).filter(Boolean)
-      );
-      const bdeNames = new Set(
-        assignedBdes.map((b: any) => String(b.name || '').toLowerCase().trim()).filter(Boolean)
-      );
-      const asmIdLower = String(asm.employee_id || '').toLowerCase();
-      const asmNameLower = String(asm.name || '').toLowerCase().trim();
-      const asmTeamLower = String(asm.team || teamDoc?.name || '').toLowerCase().trim();
-
-      // Find all leads associated with this ASM or their BDEs
-      const asmLeads = allLeads.filter((l: any) => {
-        const leadAsmId = String(l.asm_id || '').toLowerCase();
-        if (leadAsmId && leadAsmId === asmIdLower) return true;
-
-        const leadTeam = String(l.team || '').toLowerCase().trim();
-        if (asmTeamLower && leadTeam && leadTeam === asmTeamLower) return true;
-
-        const leadEmpId = String(l.employee_id || '').toLowerCase();
-        if (leadEmpId && (leadEmpId === asmIdLower || bdeIds.has(leadEmpId))) return true;
-
-        const leadEmpName = String(l.employee || '').toLowerCase().trim();
-        if (leadEmpName && (leadEmpName === asmNameLower || bdeNames.has(leadEmpName))) return true;
-
-        return false;
-      });
-
-      // Overall leads
-      const overallTotal = asmLeads.length;
-      const overallCompleted = asmLeads.filter(isLeadCompleted).length;
-      const overallPending = Math.max(0, overallTotal - overallCompleted);
-      const overallPercentage =
-        overallTotal > 0 ? Math.round((overallCompleted / overallTotal) * 100) : 0;
-
-      // Daily leads (IST today)
-      const dailyCreated = asmLeads.filter((l: any) => {
-        const d = getLeadCreationDate(l);
-        return d >= startOfDay && d <= endOfDay;
-      });
-      const dailyCompleted = asmLeads.filter((l: any) => {
-        if (!isLeadCompleted(l)) return false;
-        const d = getLeadCompletionDate(l);
-        return d >= startOfDay && d <= endOfDay;
-      });
-
-      const dailyTotal = Math.max(dailyCreated.length, dailyCompleted.length);
-      const dailyAchieved = dailyCompleted.length;
-      const dailyPending = Math.max(0, dailyTotal - dailyAchieved);
-      const dailyPercentage =
-        dailyTotal > 0 ? Math.round((dailyAchieved / dailyTotal) * 100) : 0;
-
-      // Monthly leads (IST current month)
-      const monthlyCreated = asmLeads.filter((l: any) => {
-        const d = getLeadCreationDate(l);
-        return d >= startOfMonth && d <= endOfMonth;
-      });
-      const monthlyCompleted = asmLeads.filter((l: any) => {
-        if (!isLeadCompleted(l)) return false;
-        const d = getLeadCompletionDate(l);
-        return d >= startOfMonth && d <= endOfMonth;
-      });
-
-      const monthlyTotal = Math.max(monthlyCreated.length, monthlyCompleted.length);
-      const monthlyAchieved = monthlyCompleted.length;
-      const monthlyPending = Math.max(0, monthlyTotal - monthlyAchieved);
-      const monthlyPercentage =
-        monthlyTotal > 0 ? Math.round((monthlyAchieved / monthlyTotal) * 100) : 0;
-
       return {
         id: asm._id.toString(),
         employee_id: asm.employee_id,
@@ -217,48 +85,8 @@ export async function GET(req: Request) {
         districts: teamDoc?.districts || (asm.district ? [asm.district] : []),
         zone: asm.zone || teamDoc?.zone || '',
         reports_to: asm.reports_to || '',
-        salary: asm.salary ?? 0,
-        incentive: asm.incentive ?? 0,
         bdes_count: assignedBdes.length,
         status: asm.status || 'active',
-
-        // Flat target fields for simple access
-        daily_target: dailyTotal,
-        daily_achieved: dailyAchieved,
-        daily_pending: dailyPending,
-        daily_completion_percentage: dailyPercentage,
-
-        monthly_target: monthlyTotal,
-        monthly_achieved: monthlyAchieved,
-        monthly_pending: monthlyPending,
-        monthly_completion_percentage: monthlyPercentage,
-
-        total_leads: overallTotal,
-        completed_leads: overallCompleted,
-        pending_leads: overallPending,
-        completion_percentage: overallPercentage,
-
-        // Structured targets breakdown
-        targets: {
-          daily: {
-            total_leads: dailyTotal,
-            completed_leads: dailyAchieved,
-            pending_leads: dailyPending,
-            completion_percentage: dailyPercentage,
-          },
-          monthly: {
-            total_leads: monthlyTotal,
-            completed_leads: monthlyAchieved,
-            pending_leads: monthlyPending,
-            completion_percentage: monthlyPercentage,
-          },
-          overall: {
-            total_leads: overallTotal,
-            completed_leads: overallCompleted,
-            pending_leads: overallPending,
-            completion_percentage: overallPercentage,
-          },
-        },
       };
     });
 

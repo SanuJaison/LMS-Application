@@ -91,30 +91,16 @@ export async function GET(req: Request) {
       }).lean(),
     ]);
 
-    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs (statewide).
-    const scopedLeads = role === 'BDE' ? ownLeads : leads;
-
-    const dailyTargetRow = (targetRows as any[]).find(
-      (t) =>
-        t.task_template?.toLowerCase().includes('daily') ||
-        (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
-    );
-    const dailyTarget = dailyTargetRow?.total_target ?? 15;
-
-    const dailyAchieved = scopedLeads.filter((lead) => {
+    const dailyTarget = 15;
+    const dailyAchieved = ownLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 10) === todayIso;
     }).length;
 
-    const monthlyTargetRow = (targetRows as any[]).find(
-      (t) => t.task_template?.toLowerCase().includes('monthly')
-    );
     const monthlyTarget =
-      monthlyTargetRow?.total_target ??
-      ((targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
-      dailyTarget * 26);
-
-    const monthlyAchieved = scopedLeads.filter((lead) => {
+      (targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
+      dailyTarget * 26;
+    const monthlyAchieved = ownLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 7) === monthKey;
     }).length;
@@ -125,13 +111,15 @@ export async function GET(req: Request) {
     ).length;
 
     // ------------------------------------------------------- role-scoped data
+    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs.
+    const scopedLeads = role === 'BDE' ? ownLeads : leads;
 
     const assignedLeads = scopedLeads.length;
     const followUpLeads = scopedLeads.filter(isFollowUp).length;
     const closedLeads = scopedLeads.filter(isClosed).length;
     const ownClosedLeads = ownLeads.filter(isClosed).length;
 
-    const incentivesEarned = wallet?.total_earned ?? (role === 'SM' ? closedLeads * (employee?.incentive || 0) : role === 'ASM' ? closedLeads * (employee?.incentive || 0) : ownClosedLeads * (employee?.incentive || 1000));
+    const incentivesEarned = wallet?.total_earned ?? ownClosedLeads * 1000;
 
     // Subordinates: only people below the caller (never team-wide).
     const subordinates =
