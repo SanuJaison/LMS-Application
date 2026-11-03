@@ -13,6 +13,7 @@ import {
   UserPlus,
   CheckSquare,
   Layers,
+  Target,
   Clock,
   CalendarX,
   Wallet,
@@ -218,8 +219,8 @@ export default function Sidebar({
                     : 'text-muted hover:text-ink hover:bg-hover'
                 }`}
               >
-                <Layers className="w-4 h-4" />
-                <span>Task Templates</span>
+                <Target className="w-4 h-4" />
+                <span>SM Targets</span>
               </button>
             </div>
           )}

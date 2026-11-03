@@ -2,101 +2,155 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Search,
-  Eye,
-  Pencil,
-  Trash2,
-  X,
-  Plus,
-  Loader2,
-  RotateCw,
+  Target,
+  Calendar,
   CheckCircle2,
-  XCircle,
-  SlidersHorizontal,
+  Clock,
+  AlertCircle,
+  ArrowRight,
+  UserCheck,
+  Shield,
+  IndianRupee,
+  TrendingUp,
+  RefreshCw,
+  Loader2,
+  Trash2,
+  Pencil,
+  X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   fetchResourceList,
   createResourceItem,
   updateResourceItem,
   deleteResourceItem,
-  generateTasksNow,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
-
-export interface TaskTemplateItem {
-  _id?: string;
-  id?: string;
-  title: string;
-  metric_type: string;
-  designation: string;
-  frequency: string;
-  target_count: number;
-  is_carry_over: boolean;
-  is_active: boolean;
-  description?: string;
-  createdAt?: string;
-}
 
 interface TaskTemplatesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
   onNavigateToTasks?: () => void;
 }
 
-const METRIC_TYPE_OPTIONS = ['Leads Generated', 'Calls Made', 'Admissions Closed', 'Follow-ups Completed'];
-const FREQUENCY_OPTIONS = ['daily', 'weekly', 'monthly'];
+export interface SMTaskTarget {
+  _id?: string;
+  id?: string;
+  employee: string;
+  employee_id?: string;
+  task_template: string;
+  period_start: string;
+  period_end: string;
+  total_target: number;
+  achieved: number;
+  is_completed: boolean;
+  metric_type?: string;
+  notes?: string;
+  createdAt?: string;
+}
 
-export default function TaskTemplatesView({ showToast, onNavigateToTasks }: TaskTemplatesViewProps) {
-  // Data State
-  const [templates, setTemplates] = useState<TaskTemplateItem[]>([]);
-  const [designations, setDesignations] = useState<string[]>(['Business Development Executive']);
+const METRIC_TYPE_OPTIONS = [
+  'Admissions Closed',
+  'Leads Generated',
+  'Follow-ups Completed',
+  'Calls Made',
+];
+
+export default function TaskTemplatesView({
+  showToast,
+  onNavigateToTasks,
+}: TaskTemplatesViewProps) {
+  // State
   const [loading, setLoading] = useState<boolean>(true);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // Table controls
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // SM Profile
+  const [smEmployee, setSmEmployee] = useState<any | null>(null);
+
+  // Targets assigned to SM
+  const [smTasks, setSmTasks] = useState<SMTaskTarget[]>([]);
+
+  // Statewide Lead Statistics
+  const [leads, setLeads] = useState<any[]>([]);
+
+  // Form State
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [targetMonth, setTargetMonth] = useState<string>(currentMonthStr);
+  const [dailyTargetInput, setDailyTargetInput] = useState<number>(15);
+  const [monthlyTargetInput, setMonthlyTargetInput] = useState<number>(390);
+  const [metricType, setMetricType] = useState<string>('Admissions Closed');
+  const [notes, setNotes] = useState<string>('');
+
+  // Edit Modal State
+  const [editingTarget, setEditingTarget] = useState<SMTaskTarget | null>(null);
+  const [editTargetCount, setEditTargetCount] = useState<number>(15);
+  const [editAchievedCount, setEditAchievedCount] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+
+  // Pagination
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Modals state
-  const [viewModalItem, setViewModalItem] = useState<TaskTemplateItem | null>(null);
-  const [formModalOpen, setFormModalOpen] = useState<boolean>(false);
-  const [editingItem, setEditingItem] = useState<TaskTemplateItem | null>(null);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-
-  // Form Fields
-  const [formTitle, setFormTitle] = useState<string>('');
-  const [formMetricType, setFormMetricType] = useState<string>('Leads Generated');
-  const [formDesignation, setFormDesignation] = useState<string>('Business Development Executive');
-  const [formFrequency, setFormFrequency] = useState<string>('daily');
-  const [formTargetCount, setFormTargetCount] = useState<number>(15);
-  const [formIsCarryOver, setFormIsCarryOver] = useState<boolean>(true);
-  const [formIsActive, setFormIsActive] = useState<boolean>(true);
-  const [formDescription, setFormDescription] = useState<string>('');
-
-  // Fetch templates & designations
+  // Load Data
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetchResourceList('taskTemplates');
-      setTemplates(Array.isArray(res) ? res : []);
+      const [empList, tasksList, leadsList] = await Promise.all([
+        fetchResourceList('employees').catch(() => []),
+        fetchResourceList('employeeTasks').catch(() => []),
+        fetchResourceList('leads').catch(() => []),
+      ]);
 
-      // Load designations for dropdown
-      try {
-        const desigRes = await fetchResourceList('designations');
-        if (Array.isArray(desigRes) && desigRes.length > 0) {
-          const names = desigRes.map((d: any) => d.name).filter(Boolean);
-          if (names.length > 0) setDesignations(names);
-        }
-      } catch {
-        // keep defaults
+      // 1. Identify active Sales Manager
+      const sm = Array.isArray(empList)
+        ? empList.find(
+            (e: any) =>
+              e.designation?.toLowerCase() === 'sales manager' ||
+              e.employee_id === 'SM001' ||
+              /^SM/i.test(e.employee_id || '')
+          )
+        : null;
+      setSmEmployee(sm || null);
+
+      // 2. Filter tasks for SM
+      const allTasks: SMTaskTarget[] = Array.isArray(tasksList) ? tasksList : [];
+      const smSpecificTasks = sm
+        ? allTasks.filter(
+            (t) =>
+              t.employee_id === sm.employee_id ||
+              t.employee?.toLowerCase() === sm.name?.toLowerCase() ||
+              t.task_template?.toLowerCase().includes('sm target')
+          )
+        : allTasks.filter((t) => t.task_template?.toLowerCase().includes('sm target'));
+
+      setSmTasks(smSpecificTasks);
+
+      // 3. Leads for performance calculation
+      const validLeads = Array.isArray(leadsList) ? leadsList : [];
+      setLeads(validLeads);
+
+      // Pre-fill inputs from latest monthly/daily targets if present
+      const latestDaily = smSpecificTasks.find(
+        (t) => t.task_template?.toLowerCase().includes('daily')
+      );
+      if (latestDaily && latestDaily.total_target) {
+        setDailyTargetInput(latestDaily.total_target);
+      }
+
+      const latestMonthly = smSpecificTasks.find(
+        (t) => t.task_template?.toLowerCase().includes('monthly')
+      );
+      if (latestMonthly && latestMonthly.total_target) {
+        setMonthlyTargetInput(latestMonthly.total_target);
       }
     } catch (err) {
-      console.error('Failed to load task templates:', err);
-      showToast?.('danger', 'Failed to load task templates');
+      console.error('Failed to load SM target data:', err);
+      showToast?.('danger', 'Failed to load Sales Manager data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -104,674 +158,812 @@ export default function TaskTemplatesView({ showToast, onNavigateToTasks }: Task
     loadData();
   }, []);
 
-  const rowId = (item: TaskTemplateItem) => (item._id || item.id || '').toString();
+  // Today ISO and Month keys
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const activeMonthKey = targetMonth || currentMonthStr;
 
-  // Filtered
-  const filteredTemplates = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return templates;
-    return templates.filter(
+  // Statewide Lead Calculations
+  const leadsCreatedToday = useMemo(() => {
+    return leads.filter((l) => {
+      const d = l.createdAt ? new Date(l.createdAt).toISOString().slice(0, 10) : '';
+      return d === todayIso;
+    }).length;
+  }, [leads, todayIso]);
+
+  const leadsCreatedThisMonth = useMemo(() => {
+    return leads.filter((l) => {
+      const d = l.createdAt ? new Date(l.createdAt).toISOString().slice(0, 7) : '';
+      return d === activeMonthKey;
+    }).length;
+  }, [leads, activeMonthKey]);
+
+  const admissionsToday = useMemo(() => {
+    return leads.filter((l) => {
+      const isClosed =
+        l.status === 4 ||
+        l.status === 5 ||
+        l.admission_status === 'Admitted' ||
+        l.admission_status === 'Closed' ||
+        l.admission_status === 'Won';
+      const d = l.admission_date
+        ? new Date(l.admission_date).toISOString().slice(0, 10)
+        : l.updatedAt
+        ? new Date(l.updatedAt).toISOString().slice(0, 10)
+        : '';
+      return isClosed && d === todayIso;
+    }).length;
+  }, [leads, todayIso]);
+
+  const admissionsThisMonth = useMemo(() => {
+    return leads.filter((l) => {
+      const isClosed =
+        l.status === 4 ||
+        l.status === 5 ||
+        l.admission_status === 'Admitted' ||
+        l.admission_status === 'Closed' ||
+        l.admission_status === 'Won';
+      const d = l.admission_date
+        ? new Date(l.admission_date).toISOString().slice(0, 7)
+        : l.updatedAt
+        ? new Date(l.updatedAt).toISOString().slice(0, 7)
+        : '';
+      return isClosed && d === activeMonthKey;
+    }).length;
+  }, [leads, activeMonthKey]);
+
+  // Live target progress
+  const activeDailyTarget = useMemo(() => {
+    const dailyRow = smTasks.find(
       (t) =>
-        t.title?.toLowerCase().includes(q) ||
-        t.metric_type?.toLowerCase().includes(q) ||
-        t.designation?.toLowerCase().includes(q) ||
-        t.frequency?.toLowerCase().includes(q)
+        t.task_template?.toLowerCase().includes('daily') ||
+        t.period_start?.slice(0, 10) === todayIso
     );
-  }, [templates, searchQuery]);
+    return dailyRow ? dailyRow.total_target : dailyTargetInput;
+  }, [smTasks, todayIso, dailyTargetInput]);
 
-  // Pagination
-  const paginatedTemplates = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    return filteredTemplates.slice(start, start + perPage);
-  }, [filteredTemplates, currentPage, perPage]);
+  const activeDailyAchieved = metricType === 'Leads Generated' ? leadsCreatedToday : admissionsToday;
 
-  // Selection
-  const allVisibleSelected =
-    paginatedTemplates.length > 0 &&
-    paginatedTemplates.every((item) => selectedIds.includes(rowId(item)));
-
-  const toggleSelectAllVisible = () => {
-    if (allVisibleSelected) {
-      const visibleIds = paginatedTemplates.map(rowId);
-      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
-    } else {
-      const visibleIds = paginatedTemplates.map(rowId);
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
-    }
-  };
-
-  const toggleSelectRow = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  const activeMonthlyTarget = useMemo(() => {
+    const monthlyRow = smTasks.find(
+      (t) =>
+        t.task_template?.toLowerCase().includes('monthly') ||
+        t.period_start?.slice(0, 7) === activeMonthKey
     );
-  };
+    return monthlyRow ? monthlyRow.total_target : monthlyTargetInput;
+  }, [smTasks, activeMonthKey, monthlyTargetInput]);
 
-  // Trigger automated task generation (Bulk to all or specific selected templates)
-  const handleGenerateTasks = async (overrideIds?: string[]) => {
-    try {
-      setIsGenerating(true);
-      const targetIds =
-        overrideIds && overrideIds.length > 0
-          ? overrideIds
-          : selectedIds.length > 0
-            ? selectedIds
-            : undefined;
+  const activeMonthlyAchieved =
+    metricType === 'Leads Generated' ? leadsCreatedThisMonth : admissionsThisMonth;
 
-      const res = await generateTasksNow(targetIds);
-      if (res.success) {
-        showToast?.('success', res.message || 'Tasks generated successfully!');
-        if (targetIds && targetIds.length > 0) {
-          setSelectedIds([]);
-        }
-      } else {
-        showToast?.('danger', res.message || 'Failed to generate tasks');
-      }
-    } catch (err) {
-      console.error('Error generating tasks:', err);
-      showToast?.('danger', 'Error triggering task generation.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Open Create Modal
-  const openCreateModal = () => {
-    setEditingItem(null);
-    setFormTitle('');
-    setFormMetricType('Leads Generated');
-    setFormDesignation(designations[0] || 'Business Development Executive');
-    setFormFrequency('daily');
-    setFormTargetCount(15);
-    setFormIsCarryOver(true);
-    setFormIsActive(true);
-    setFormDescription('');
-    setFormModalOpen(true);
-  };
-
-  // Open Edit Modal
-  const openEditModal = (item: TaskTemplateItem) => {
-    setEditingItem(item);
-    setFormTitle(item.title || '');
-    setFormMetricType(item.metric_type || 'Leads Generated');
-    setFormDesignation(item.designation || designations[0] || 'Business Development Executive');
-    setFormFrequency(item.frequency || 'daily');
-    setFormTargetCount(item.target_count || 15);
-    setFormIsCarryOver(item.is_carry_over !== false);
-    setFormIsActive(item.is_active !== false);
-    setFormDescription(item.description || '');
-    setFormModalOpen(true);
-  };
-
-  // Save (Create / Edit)
-  const handleSaveTemplate = async (e: React.FormEvent, keepOpen = false) => {
+  // Handle Target Assignment Submission
+  const handleAssignTargets = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim() || !formDesignation.trim()) {
-      showToast?.('danger', 'Title and Designation are required.');
+    if (!smEmployee) {
+      showToast?.('danger', 'Please create a Sales Manager first in the Employees section.');
       return;
     }
 
-    setIsSaving(true);
+    if (dailyTargetInput <= 0 || monthlyTargetInput <= 0) {
+      showToast?.('danger', 'Targets must be greater than zero.');
+      return;
+    }
+
     try {
-      const payload = {
-        title: formTitle.trim(),
-        metric_type: formMetricType,
-        designation: formDesignation,
-        frequency: formFrequency,
-        target_count: Number(formTargetCount) || 15,
-        is_carry_over: formIsCarryOver,
-        is_active: formIsActive,
-        description: formDescription.trim(),
+      setIsSaving(true);
+
+      const daysInMonth = new Date(
+        parseInt(activeMonthKey.split('-')[0]),
+        parseInt(activeMonthKey.split('-')[1]),
+        0
+      ).getDate();
+      const monthEndIso = `${activeMonthKey}-${String(daysInMonth).padStart(2, '0')}`;
+
+      // 1. Check if Daily Target exists for today, update or create
+      const existingDaily = smTasks.find(
+        (t) =>
+          (t.task_template?.toLowerCase().includes('daily') &&
+            t.period_start?.slice(0, 10) === todayIso) ||
+          t.period_start === todayIso
+      );
+
+      const dailyPayload = {
+        employee: smEmployee.name,
+        employee_id: smEmployee.employee_id,
+        task_template: 'Daily SM Target',
+        period_start: todayIso,
+        period_end: todayIso,
+        total_target: Number(dailyTargetInput),
+        achieved: activeDailyAchieved,
+        is_completed: activeDailyAchieved >= Number(dailyTargetInput),
+        metric_type: metricType,
+        notes: notes || `Statewide daily target for ${smEmployee.name}`,
       };
 
-      if (editingItem) {
-        await updateResourceItem('taskTemplates', {
-          ...payload,
-          id: rowId(editingItem),
-          _id: rowId(editingItem),
+      if (existingDaily && (existingDaily._id || existingDaily.id)) {
+        await updateResourceItem('employeeTasks', {
+          id: existingDaily._id || existingDaily.id,
+          _id: existingDaily._id || existingDaily.id,
+          ...dailyPayload,
         });
-        showToast?.('success', 'Task template updated successfully!');
-        setFormModalOpen(false);
-        setEditingItem(null);
       } else {
-        await createResourceItem('taskTemplates', payload);
-        showToast?.('success', 'Task template created successfully!');
-        if (keepOpen) {
-          setFormTitle('');
-          setFormDescription('');
-        } else {
-          setFormModalOpen(false);
-        }
+        await createResourceItem('employeeTasks', dailyPayload);
       }
+
+      // 2. Check if Monthly Target exists for this month, update or create
+      const existingMonthly = smTasks.find(
+        (t) =>
+          t.task_template?.toLowerCase().includes('monthly') &&
+          t.period_start?.slice(0, 7) === activeMonthKey
+      );
+
+      const monthlyPayload = {
+        employee: smEmployee.name,
+        employee_id: smEmployee.employee_id,
+        task_template: 'Monthly SM Target',
+        period_start: `${activeMonthKey}-01`,
+        period_end: monthEndIso,
+        total_target: Number(monthlyTargetInput),
+        achieved: activeMonthlyAchieved,
+        is_completed: activeMonthlyAchieved >= Number(monthlyTargetInput),
+        metric_type: metricType,
+        notes: notes || `Statewide monthly target for ${smEmployee.name} (${activeMonthKey})`,
+      };
+
+      if (existingMonthly && (existingMonthly._id || existingMonthly.id)) {
+        await updateResourceItem('employeeTasks', {
+          id: existingMonthly._id || existingMonthly.id,
+          _id: existingMonthly._id || existingMonthly.id,
+          ...monthlyPayload,
+        });
+      } else {
+        await createResourceItem('employeeTasks', monthlyPayload);
+      }
+
+      showToast?.('success', `Targets assigned for Sales Manager (${smEmployee.name})!`);
       await loadData();
     } catch (err) {
-      console.error('Error saving template:', err);
-      showToast?.('danger', 'Failed to save task template.');
+      console.error('Failed to assign SM targets:', err);
+      showToast?.('danger', 'Failed to save SM targets.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Delete single
-  const handleDeleteTemplate = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this task template?')) return;
-    setIsDeleting(id);
+  // Delete Target Record
+  const handleDeleteTarget = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this target record?')) return;
     try {
-      await deleteResourceItem('taskTemplates', id);
-      showToast?.('success', 'Task template deleted successfully!');
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
-      await loadData();
+      await deleteResourceItem('employeeTasks', id);
+      showToast?.('success', 'Target record deleted.');
+      setSmTasks((prev) => prev.filter((t) => (t._id || t.id) !== id));
     } catch {
-      showToast?.('danger', 'Failed to delete task template.');
-    } finally {
-      setIsDeleting(null);
+      showToast?.('danger', 'Failed to delete target record.');
     }
   };
 
-  // Bulk Delete
-  const handleBulkDelete = async () => {
-    if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected task templates?`)) return;
+  // Open Edit Modal
+  const handleOpenEdit = (task: SMTaskTarget) => {
+    setEditingTarget(task);
+    setEditTargetCount(task.total_target || 15);
+    setEditAchievedCount(task.achieved || 0);
+    setEditNotes(task.notes || '');
+  };
+
+  // Save Edit Modal
+  const handleSaveEdit = async () => {
+    if (!editingTarget) return;
     try {
-      await deleteResourceItem('taskTemplates', selectedIds);
-      showToast?.('success', `${selectedIds.length} templates deleted successfully!`);
-      setSelectedIds([]);
+      setIsUpdating(true);
+      const id = (editingTarget._id || editingTarget.id) as string;
+      const isCompleted = editAchievedCount >= editTargetCount;
+      await updateResourceItem('employeeTasks', {
+        id,
+        _id: id,
+        total_target: Number(editTargetCount),
+        achieved: Number(editAchievedCount),
+        is_completed: isCompleted,
+        notes: editNotes,
+      });
+
+      showToast?.('success', 'Target updated successfully.');
+      setEditingTarget(null);
       await loadData();
     } catch {
-      showToast?.('danger', 'Failed to delete selected templates.');
+      showToast?.('danger', 'Failed to update target.');
+    } finally {
+      setIsUpdating(false);
     }
   };
+
+  // Pagination for tasks table
+  const paginatedTasks = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return smTasks.slice(start, start + perPage);
+  }, [smTasks, currentPage, perPage]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Header & Breadcrumb matching Screenshot 1 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/50">
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted mb-1">
-            <span>Task Templates</span>
-            <span>&gt;</span>
-            <span className="text-ink">List</span>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Target className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-ink">Sales Manager Targets</h1>
+              <p className="text-sm text-muted">
+                Assign and monitor monthly & daily performance targets for the statewide Sales Manager
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Task Templates</h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Generate Tasks Now (Emerald Green Button) */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => handleGenerateTasks()}
-            disabled={isGenerating}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            title={
-              selectedIds.length > 0
-                ? `Generate tasks for ${selectedIds.length} selected template(s)`
-                : "Generate today's tasks for all matching active employees"
-            }
+            type="button"
+            onClick={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            disabled={refreshing || loading}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface border border-border text-sm text-muted hover:text-ink hover:bg-hover transition cursor-pointer"
           >
-            <RotateCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-            <span>
-              {isGenerating
-                ? 'Generating…'
-                : selectedIds.length > 0
-                  ? `Generate Tasks (${selectedIds.length} Selected)`
-                  : 'Generate Tasks Now'}
-            </span>
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
           </button>
 
-          {/* New task template (Cyan Button) */}
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
-          >
-            <span>New task template</span>
-          </button>
+          {onNavigateToTasks && (
+            <button
+              type="button"
+              onClick={onNavigateToTasks}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-sm font-medium text-primary hover:bg-primary/20 transition cursor-pointer"
+            >
+              <span>Employee Tasks</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Table Container */}
-      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-        {/* Search Toolbar matching Screenshot 5 (Right aligned) */}
-        <div className="p-4 flex items-center justify-end border-b border-line">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+      {/* SM Profile Banner */}
+      {smEmployee ? (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-surface to-surface border border-primary/20">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/25">
+                {smEmployee.name?.charAt(0)?.toUpperCase() || 'S'}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg font-bold text-ink">{smEmployee.name}</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/30">
+                    Sales Manager
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-surface border border-border text-muted">
+                    {smEmployee.employee_id || 'SM001'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Active
+                  </span>
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  {smEmployee.email || 'sm@kidecrm.com'} • {smEmployee.contact_number || '+91 9746543243'} • Head of Statewide Operations (Kerala)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 rounded-xl bg-surface/80 border border-border/60">
+                <span className="text-[11px] uppercase tracking-wider text-muted font-medium block">
+                  Monthly Salary
+                </span>
+                <span className="text-base font-bold text-ink flex items-center">
+                  <IndianRupee className="w-3.5 h-3.5" />
+                  {Number(smEmployee.salary || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              <div className="px-4 py-2 rounded-xl bg-surface/80 border border-border/60">
+                <span className="text-[11px] uppercase tracking-wider text-muted font-medium block">
+                  Incentive / Close
+                </span>
+                <span className="text-base font-bold text-emerald-400 flex items-center">
+                  <IndianRupee className="w-3.5 h-3.5" />
+                  {Number(smEmployee.incentive || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-amber-400">No Sales Manager Found</h3>
+            <p className="text-xs text-muted mt-0.5">
+              Please create a Sales Manager first in the Employees section before assigning statewide targets.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Target KPI Progress Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Daily Target Progress */}
+        <div className="p-4 rounded-xl bg-surface border border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Daily Target (Today)
+            </span>
+            <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Clock className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-ink">{activeDailyAchieved}</span>
+            <span className="text-sm text-muted">/ {activeDailyTarget}</span>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-muted mb-1">
+              <span>Progress</span>
+              <span className="font-semibold text-ink">
+                {activeDailyTarget > 0
+                  ? Math.min(100, Math.round((activeDailyAchieved / activeDailyTarget) * 100))
+                  : 0}
+                %
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-border overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{
+                  width: `${
+                    activeDailyTarget > 0
+                      ? Math.min(100, Math.round((activeDailyAchieved / activeDailyTarget) * 100))
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Bulk Selection Notification Bar */}
-        {selectedIds.length > 0 && (
-          <div className="bg-bulk px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs border-b border-line">
-            <span className="text-ink">
-              <strong className="text-ink">{selectedIds.length}</strong> template(s) selected
+        {/* Monthly Target Progress */}
+        <div className="p-4 rounded-xl bg-surface border border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Monthly Target ({activeMonthKey})
             </span>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleGenerateTasks(selectedIds)}
-                disabled={isGenerating}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                <RotateCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                <span>Generate for Selected ({selectedIds.length})</span>
-              </button>
-              <button
-                onClick={() => setSelectedIds([])}
-                className="text-ink/80 hover:text-ink underline text-xs"
-              >
-                Deselect all
-              </button>
-              <button
-                onClick={handleBulkDelete}
-                className="text-danger hover:text-danger font-semibold text-xs flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete selected</span>
-              </button>
+            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Calendar className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-ink">{activeMonthlyAchieved}</span>
+            <span className="text-sm text-muted">/ {activeMonthlyTarget}</span>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-muted mb-1">
+              <span>Progress</span>
+              <span className="font-semibold text-emerald-400">
+                {activeMonthlyTarget > 0
+                  ? Math.min(100, Math.round((activeMonthlyAchieved / activeMonthlyTarget) * 100))
+                  : 0}
+                %
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-border overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                style={{
+                  width: `${
+                    activeMonthlyTarget > 0
+                      ? Math.min(100, Math.round((activeMonthlyAchieved / activeMonthlyTarget) * 100))
+                      : 0
+                  }%`,
+                }}
+              />
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Table matching Screenshot 5 */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-line bg-surface-2 text-ink/80 font-semibold text-[13px]">
-                <th className="py-3.5 px-4 w-10">
-                  <input
-                    type="checkbox"
-                    className="accent-accent cursor-pointer rounded"
-                    checked={allVisibleSelected}
-                    onChange={toggleSelectAllVisible}
-                    title="Select all"
-                  />
-                </th>
-                <th className="py-3.5 px-6">Title</th>
-                <th className="py-3.5 px-6">Metric type</th>
-                <th className="py-3.5 px-6">Designation</th>
-                <th className="py-3.5 px-6">Frequency</th>
-                <th className="py-3.5 px-6">Target count</th>
-                <th className="py-3.5 px-6 text-center">Is carry over</th>
-                <th className="py-3.5 px-6 text-center">Is active</th>
-                <th className="py-3.5 px-6 text-right"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-2 text-[13px]">
-              {loading ? (
+        {/* Statewide Leads */}
+        <div className="p-4 rounded-xl bg-surface border border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Total Leads Generated
+            </span>
+            <span className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+              <FileSpreadsheet className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-ink">{leads.length}</span>
+            <span className="text-xs text-muted">Statewide (Kerala)</span>
+          </div>
+          <p className="text-xs text-muted mt-3">
+            {leadsCreatedThisMonth} added this month • {leadsCreatedToday} today
+          </p>
+        </div>
+
+        {/* Total Closed Admissions */}
+        <div className="p-4 rounded-xl bg-surface border border-border/60">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
+              Closed Admissions
+            </span>
+            <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
+              <CheckCircle2 className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-emerald-400">
+              {leads.filter(
+                (l) =>
+                  l.status === 4 ||
+                  l.status === 5 ||
+                  l.admission_status === 'Admitted' ||
+                  l.admission_status === 'Closed' ||
+                  l.admission_status === 'Won'
+              ).length}
+            </span>
+            <span className="text-xs text-muted">Total Closed</span>
+          </div>
+          <p className="text-xs text-muted mt-3">
+            {admissionsThisMonth} closed this month • {admissionsToday} today
+          </p>
+        </div>
+      </div>
+
+      {/* Target Assignment Form */}
+      <div className="p-6 rounded-2xl bg-surface border border-border/60">
+        <div className="flex items-center gap-2 mb-4">
+          <Target className="w-5 h-5 text-primary" />
+          <h2 className="text-base font-bold text-ink">Assign & Update Sales Manager Targets</h2>
+        </div>
+
+        <form onSubmit={handleAssignTargets} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Daily Target */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wider">
+                Daily Target <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  value={dailyTargetInput}
+                  onChange={(e) => setDailyTargetInput(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface/50 border border-border text-ink focus:outline-none focus:border-primary text-sm font-semibold"
+                  placeholder="e.g. 15"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-muted">/ day</span>
+              </div>
+              <p className="text-[11px] text-muted mt-1">Daily admissions or lead target across Kerala</p>
+            </div>
+
+            {/* Monthly Target */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wider">
+                Monthly Target <span className="text-rose-400">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  value={monthlyTargetInput}
+                  onChange={(e) => setMonthlyTargetInput(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface/50 border border-border text-ink focus:outline-none focus:border-primary text-sm font-semibold"
+                  placeholder="e.g. 390"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-muted">/ month</span>
+              </div>
+              <p className="text-[11px] text-muted mt-1">Total statewide target for the month</p>
+            </div>
+
+            {/* Target Metric */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wider">
+                Target Metric
+              </label>
+              <select
+                value={metricType}
+                onChange={(e) => setMetricType(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-surface/50 border border-border text-ink focus:outline-none focus:border-primary text-sm cursor-pointer"
+              >
+                {METRIC_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} className="bg-slate-900 text-ink">
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted mt-1">Primary KPI to evaluate target completion</p>
+            </div>
+
+            {/* Target Month */}
+            <div>
+              <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wider">
+                Target Month Period
+              </label>
+              <input
+                type="month"
+                value={targetMonth}
+                onChange={(e) => setTargetMonth(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-surface/50 border border-border text-ink focus:outline-none focus:border-primary text-sm cursor-pointer"
+              />
+              <p className="text-[11px] text-muted mt-1">Target active period</p>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-semibold text-muted mb-1.5 uppercase tracking-wider">
+              Target Notes / Directives (Optional)
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Focus on Admissions across Malabar & South Region for Q4"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-surface/50 border border-border text-ink focus:outline-none focus:border-primary text-sm"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={isSaving || !smEmployee}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Assigning Targets...</span>
+                </>
+              ) : (
+                <>
+                  <Target className="w-4 h-4" />
+                  <span>Save & Assign SM Targets</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Assigned Targets History Table */}
+      <div className="rounded-2xl bg-surface border border-border/60 overflow-hidden">
+        <div className="p-4 border-b border-border/50 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-ink">Assigned Targets & Task History</h3>
+            <p className="text-xs text-muted">All targets created for the Sales Manager</p>
+          </div>
+          <span className="text-xs font-medium text-muted bg-surface/80 border border-border px-2.5 py-1 rounded-lg">
+            {smTasks.length} {smTasks.length === 1 ? 'Record' : 'Records'}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted mt-3">Loading target history...</p>
+          </div>
+        ) : smTasks.length === 0 ? (
+          <div className="p-12 text-center text-muted">
+            <Target className="w-10 h-10 mx-auto text-muted/40 mb-2" />
+            <p className="text-sm font-medium">No target records assigned yet</p>
+            <p className="text-xs text-muted/80 mt-1">
+              Use the form above to assign daily and monthly targets for the Sales Manager.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-[#1e293b]/70 border-b border-border text-muted font-semibold">
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-muted">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
-                      <span>Loading task templates...</span>
-                    </div>
-                  </td>
+                  <th className="py-3 px-4">Target Type</th>
+                  <th className="py-3 px-4">Period</th>
+                  <th className="py-3 px-4">Metric</th>
+                  <th className="py-3 px-4">Target</th>
+                  <th className="py-3 px-4">Achieved</th>
+                  <th className="py-3 px-4">Progress</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Notes</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ) : paginatedTemplates.length > 0 ? (
-                paginatedTemplates.map((item, idx) => {
-                  const id = rowId(item) || String(idx);
-                  const isSelected = selectedIds.includes(id);
+              </thead>
+              <tbody className="divide-y divide-border/50 text-ink">
+                {paginatedTasks.map((t) => {
+                  const id = (t._id || t.id) as string;
+                  const isDaily = t.task_template?.toLowerCase().includes('daily');
+                  const targetCount = t.total_target || 15;
+                  const achievedCount = t.achieved || 0;
+                  const pct =
+                    targetCount > 0
+                      ? Math.min(100, Math.round((achievedCount / targetCount) * 100))
+                      : 0;
 
                   return (
-                    <tr
-                      key={id}
-                      className={`transition text-ink ${
-                        isSelected ? 'bg-selected' : 'hover:bg-hover/60'
-                      }`}
-                    >
-                      <td
-                        className={`py-3.5 px-4 border-l-2 ${
-                          isSelected ? 'border-accent' : 'border-transparent'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="accent-accent cursor-pointer rounded"
-                          checked={isSelected}
-                          onChange={() => toggleSelectRow(id)}
+                    <tr key={id} className="hover:bg-hover/40 transition">
+                      <td className="py-3.5 px-4 font-semibold text-ink flex items-center gap-2">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isDaily ? 'bg-primary' : 'bg-emerald-400'
+                          }`}
                         />
+                        {t.task_template || 'Sales Manager Target'}
                       </td>
-                      <td className="py-3.5 px-6 font-normal text-ink">{item.title || '—'}</td>
-                      <td className="py-3.5 px-6 text-ink/80">{item.metric_type || 'Leads Generated'}</td>
-                      <td className="py-3.5 px-6 text-ink/80">{item.designation || '—'}</td>
-                      <td className="py-3.5 px-6 text-ink/80">{item.frequency || 'daily'}</td>
-                      <td className="py-3.5 px-6 text-ink">{item.target_count ?? 15}</td>
-                      <td className="py-3.5 px-6 text-center">
-                        {item.is_carry_over !== false ? (
-                          <svg className="w-4 h-4 text-success inline-block" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M6 10l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                      <td className="py-3.5 px-4 text-muted font-mono">
+                        {t.period_start} {t.period_end && t.period_end !== t.period_start ? `→ ${t.period_end}` : ''}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded-md bg-surface border border-border text-muted">
+                          {t.metric_type || 'Admissions Closed'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-ink">{targetCount}</td>
+                      <td className="py-3.5 px-4 font-bold text-emerald-400">{achievedCount}</td>
+                      <td className="py-3.5 px-4 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                pct >= 100 ? 'bg-emerald-400' : 'bg-primary'
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] font-mono text-muted">{pct}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {pct >= 100 || t.is_completed ? (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            Completed
+                          </span>
                         ) : (
-                          <svg className="w-4 h-4 text-subtle inline-block" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                            In Progress
+                          </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-6 text-center">
-                        {item.is_active !== false ? (
-                          <svg className="w-4 h-4 text-success inline-block" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M6 10l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4 text-danger inline-block" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M7 7l6 6M13 7l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                      <td className="py-3.5 px-4 text-muted max-w-[200px] truncate">
+                        {t.notes || '—'}
                       </td>
-                      <td className="py-3.5 px-6 text-right">
-                        <div className="flex items-center justify-end gap-3">
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => handleGenerateTasks([id])}
-                            disabled={isGenerating}
-                            className="inline-flex items-center gap-1 text-[13px] text-emerald-400 hover:text-emerald-300 transition cursor-pointer disabled:opacity-50"
-                            title={`Generate today's tasks for "${item.title}"`}
+                            type="button"
+                            onClick={() => handleOpenEdit(t)}
+                            title="Edit Target"
+                            className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-hover transition cursor-pointer"
                           >
-                            <RotateCw className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Generate</span>
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => setViewModalItem(item)}
-                            className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
+                            type="button"
+                            onClick={() => handleDeleteTarget(id)}
+                            title="Delete Target"
+                            className="p-1.5 rounded-lg text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                           >
-                            <Eye className="w-4 h-4 text-muted" />
-                            <span>View</span>
-                          </button>
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:text-accent-hover transition cursor-pointer"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-accent" />
-                            <span>Edit</span>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-subtle">
-                    No task templates found. Click &quot;New task template&quot; to create one.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Footer */}
-        <TablePagination
-          total={filteredTemplates.length}
-          page={currentPage}
-          perPage={perPage}
-          onPageChange={setCurrentPage}
-          onPerPageChange={setPerPage}
-        />
+        {smTasks.length > 0 && (
+          <div className="p-4 border-t border-border/50">
+            <TablePagination
+              page={currentPage}
+              perPage={perPage}
+              total={smTasks.length}
+              onPageChange={setCurrentPage}
+              onPerPageChange={(n) => {
+                setPerPage(n);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* VIEW MODAL */}
-      {viewModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-ink text-base">View task template</h3>
-              <button
-                onClick={() => setViewModalItem(null)}
-                className="text-muted hover:text-ink p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="text-xs space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Title</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-ink">
-                    {viewModalItem.title || '—'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Metric Type</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-ink">
-                    {viewModalItem.metric_type || 'Leads Generated'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Designation</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-ink">
-                    {viewModalItem.designation || '—'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Frequency</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-ink capitalize">
-                    {viewModalItem.frequency || 'daily'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Target Count</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-success font-bold">
-                    {viewModalItem.target_count ?? 15}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Flags</label>
-                  <div className="flex items-center gap-3 pt-1">
-                    <span
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium border ${
-                        viewModalItem.is_carry_over !== false
-                          ? 'bg-success/10 text-success border-success/30'
-                          : 'bg-active text-muted border-line'
-                      }`}
-                    >
-                      Carry Over: {viewModalItem.is_carry_over !== false ? 'Yes' : 'No'}
-                    </span>
-                    <span
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium border ${
-                        viewModalItem.is_active !== false
-                          ? 'bg-success/10 text-success border-success/30'
-                          : 'bg-danger/10 text-danger border-danger/30'
-                      }`}
-                    >
-                      {viewModalItem.is_active !== false ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
+      {/* Edit Target Modal */}
+      {editingTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface border border-border rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-primary" />
+                <h3 className="font-bold text-ink text-sm">Edit Target Record</h3>
               </div>
-
-              {viewModalItem.description && (
-                <div>
-                  <label className="block text-muted font-semibold mb-1">Description</label>
-                  <div className="px-3 py-2 bg-field border border-line rounded-lg text-ink/80">
-                    {viewModalItem.description}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-start gap-2 pt-5">
               <button
                 type="button"
-                onClick={() => setViewModalItem(null)}
-                className="px-4 py-1.5 rounded-lg border border-line bg-active text-ink hover:bg-active text-xs font-medium transition"
+                onClick={() => setEditingTarget(null)}
+                className="p-1 rounded-lg text-muted hover:text-ink hover:bg-hover transition cursor-pointer"
               >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREATE / EDIT MODAL */}
-      {formModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-ink text-base">
-                {editingItem ? 'Edit task template' : 'Create task template'}
-              </h3>
-              <button
-                onClick={() => setFormModalOpen(false)}
-                className="text-muted hover:text-ink p-1"
-              >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={(e) => handleSaveTemplate(e, false)} className="text-xs space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1.5">
-                    Title <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g. Daily Lead Generation"
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  />
-                </div>
+            <div className="p-4 space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-muted mb-1">Target Title</label>
+                <input
+                  type="text"
+                  disabled
+                  value={editingTarget.task_template}
+                  className="w-full px-3 py-2 rounded-xl bg-hover/50 border border-border text-muted font-mono cursor-not-allowed"
+                />
+              </div>
 
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-ink/80 font-semibold mb-1.5">
-                    Metric Type <span className="text-danger">*</span>
-                  </label>
-                  <select
-                    value={formMetricType}
-                    onChange={(e) => setFormMetricType(e.target.value)}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    {METRIC_TYPE_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1.5">
-                    Designation <span className="text-danger">*</span>
-                  </label>
-                  <select
-                    value={formDesignation}
-                    onChange={(e) => setFormDesignation(e.target.value)}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
-                  >
-                    {designations.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1.5">Frequency</label>
-                  <select
-                    value={formFrequency}
-                    onChange={(e) => setFormFrequency(e.target.value)}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none capitalize"
-                  >
-                    {FREQUENCY_OPTIONS.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-ink/80 font-semibold mb-1.5">
-                    Target Count <span className="text-danger">*</span>
-                  </label>
+                  <label className="block font-semibold text-muted mb-1">Target Count</label>
                   <input
                     type="number"
-                    min={1}
-                    required
-                    value={formTargetCount}
-                    onChange={(e) => setFormTargetCount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                    min="1"
+                    value={editTargetCount}
+                    onChange={(e) => setEditTargetCount(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface border border-border text-ink focus:outline-none focus:border-primary font-semibold"
                   />
                 </div>
 
-                <div className="flex items-center gap-6 pt-5">
-                  <label className="flex items-center gap-2 text-ink/80 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formIsCarryOver}
-                      onChange={(e) => setFormIsCarryOver(e.target.checked)}
-                      className="accent-accent w-4 h-4 cursor-pointer"
-                    />
-                    <span>Is carry over</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-ink/80 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formIsActive}
-                      onChange={(e) => setFormIsActive(e.target.checked)}
-                      className="accent-accent w-4 h-4 cursor-pointer"
-                    />
-                    <span>Is active</span>
-                  </label>
+                <div>
+                  <label className="block font-semibold text-muted mb-1">Achieved Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editAchievedCount}
+                    onChange={(e) => setEditAchievedCount(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface border border-border text-emerald-400 focus:outline-none focus:border-primary font-semibold"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-ink/80 font-semibold mb-1.5">Description</label>
+                <label className="block font-semibold text-muted mb-1">Notes</label>
                 <textarea
                   rows={3}
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Optional description..."
-                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none resize-none"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-surface border border-border text-ink focus:outline-none focus:border-primary resize-none"
+                  placeholder="Notes or directives..."
                 />
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setFormModalOpen(false)}
-                  className="px-3.5 py-1.5 rounded-lg border border-line text-ink/80 hover:bg-active text-xs"
-                >
-                  Cancel
-                </button>
-                {!editingItem && (
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={(e) => handleSaveTemplate(e, true)}
-                    className="px-3.5 py-1.5 rounded-lg border border-accent text-accent hover:bg-accent/10 text-xs disabled:opacity-60 cursor-pointer"
-                  >
-                    {isSaving ? 'Saving…' : 'Create & create another'}
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-xs disabled:opacity-60 cursor-pointer"
-                >
-                  {isSaving ? 'Saving…' : editingItem ? 'Save' : 'Create'}
-                </button>
-              </div>
-            </form>
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-border bg-[#1e293b]/40">
+              <button
+                type="button"
+                onClick={() => setEditingTarget(null)}
+                className="px-4 py-2 rounded-xl border border-border text-xs text-muted hover:text-ink hover:bg-hover transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isUpdating}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition cursor-pointer disabled:opacity-50"
+              >
+                {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>Save Changes</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -91,16 +91,30 @@ export async function GET(req: Request) {
       }).lean(),
     ]);
 
-    const dailyTarget = 15;
-    const dailyAchieved = ownLeads.filter((lead) => {
+    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs (statewide).
+    const scopedLeads = role === 'BDE' ? ownLeads : leads;
+
+    const dailyTargetRow = (targetRows as any[]).find(
+      (t) =>
+        t.task_template?.toLowerCase().includes('daily') ||
+        (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+    );
+    const dailyTarget = dailyTargetRow?.total_target ?? 15;
+
+    const dailyAchieved = scopedLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 10) === todayIso;
     }).length;
 
+    const monthlyTargetRow = (targetRows as any[]).find(
+      (t) => t.task_template?.toLowerCase().includes('monthly')
+    );
     const monthlyTarget =
-      (targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
-      dailyTarget * 26;
-    const monthlyAchieved = ownLeads.filter((lead) => {
+      monthlyTargetRow?.total_target ??
+      ((targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
+      dailyTarget * 26);
+
+    const monthlyAchieved = scopedLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 7) === monthKey;
     }).length;
@@ -111,8 +125,6 @@ export async function GET(req: Request) {
     ).length;
 
     // ------------------------------------------------------- role-scoped data
-    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs.
-    const scopedLeads = role === 'BDE' ? ownLeads : leads;
 
     const assignedLeads = scopedLeads.length;
     const followUpLeads = scopedLeads.filter(isFollowUp).length;
