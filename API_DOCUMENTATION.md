@@ -1,7 +1,8 @@
 # KIDE LMS API Documentation
 
 > **Base URL:** `https://lms-application-pi.vercel.app` (Production) / `http://localhost:3000` (Local)  
-> **Headers:** For all authenticated requests, pass `Authorization: Bearer <token>` and `Content-Type: application/json`.
+> **Headers:** For all authenticated requests, pass `Authorization: Bearer <token>` and `Content-Type: application/json`.  
+> **Token Validity:** JWT tokens are issued with **7 days validity** (`7d`) to ensure seamless multi-day shifts and session persistence across page refreshes.
 
 ---
 
@@ -349,10 +350,94 @@
 
 ## 3. Sales Manager (SM) APIs (SM Token)
 
-### 3.1 Create Area Sales Manager (ASM) or Office Team
+### 3.1 List Predefined Teams & Live Availability
+- **Endpoint:** `GET /api/sm/create-asm`
+- **Token Needed:** `SM` (or `Admin`)
+- **Description:** Returns all 8 predefined teams (7 regional Kerala 2-district teams + 1 office team) with their team codes, assigned districts, zones, and live availability to populate the team dropdown on the mobile app.
+- **Response `200 OK`:**
+```json
+{
+  "success": true,
+  "count": 8,
+  "data": [
+    {
+      "team_code": "TVM",
+      "team_name": "TVM Team",
+      "districts": ["Thiruvananthapuram", "Kollam"],
+      "zone": "South Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "PTM",
+      "team_name": "PTM Team",
+      "districts": ["Pathanamthitta", "Alappuzha"],
+      "zone": "South Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "KTM",
+      "team_name": "KTM Team",
+      "districts": ["Kottayam", "Idukki"],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "EKM",
+      "team_name": "EKM Team",
+      "districts": ["Ernakulam", "Thrissur"],
+      "zone": "Central Zone",
+      "is_available": false,
+      "assigned_to": {
+        "employee_id": "ASM001",
+        "name": "Bipin Joseph"
+      }
+    },
+    {
+      "team_code": "PKD",
+      "team_name": "PKD Team",
+      "districts": ["Palakkad", "Malappuram"],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "CLT",
+      "team_name": "CLT Team",
+      "districts": ["Kozhikode", "Wayanad"],
+      "zone": "North Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "KZD",
+      "team_name": "KZD Team",
+      "districts": ["Kannur", "Kasaragod"],
+      "zone": "North Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "OFFICE",
+      "team_name": "Office Team",
+      "districts": [],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    }
+  ]
+}
+```
+
+---
+
+### 3.1.1 Create Area Sales Manager (ASM) or Office Team
 - **Endpoint:** `POST /api/sm/create-asm`
 - **Token Needed:** `SM` (or `Admin`)
 - **Allowed `team_code` values:** `TVM`, `PTM`, `KTM`, `EKM`, `PKD`, `CLT`, `KZD` (or `KZE`), and `OFFICE`.
+- **Note:** Selecting `team_code` automatically sets the team name and binds its 2 assigned districts. Also automatically initializes the ASM's incentive wallet.
 - **Request Body (Regional ASM):**
 ```json
 {
@@ -921,9 +1006,13 @@
 }
 ```
 
-### 5.5 Close Lead (Admission Confirmation) — Strict Student ID Check
+### 5.5 Close Lead (Admission Confirmation) — Multi-Tier Incentive Distribution
 - **Endpoint:** `POST /api/leads/:id/close`
 - **Token Needed:** `BDE`, `Tele-caller`, or Manager
+- **Description:** When a lead is closed as an Admission, the system automatically credits wallets across the entire reporting hierarchy:
+  1. **Closing BDE Wallet**: Credited with the configured BDE incentive (e.g. ₹1,000).
+  2. **Parent ASM Wallet**: Automatically credited with the configured ASM team override incentive (e.g. ₹100).
+  3. **Statewide SM Wallet**: Automatically credited with the configured SM statewide override incentive (e.g. ₹20).
 - **Request Body:**
 ```json
 {
@@ -939,7 +1028,7 @@
 ```json
 {
   "success": true,
-  "message": "Lead Arjun Menon successfully closed as Admission (STU-001). ₹1,000 incentive credited to Siddharth V.",
+  "message": "Lead Arjun Menon successfully closed as Admission (STU-001). ₹1,000 incentive credited to Siddharth V. ₹100 credited to ASM Bipin Joseph. ₹20 credited to SM Sanu.",
   "data": {
     "lead_id": "LD-4091",
     "student_id": "STU-001",
@@ -947,7 +1036,11 @@
     "status": 4,
     "admission_status": "Admitted",
     "incentive_earned": 1000,
+    "asm_incentive_earned": 100,
+    "sm_incentive_earned": 20,
     "bde": "Siddharth V",
+    "asm": "Bipin Joseph",
+    "sm": "Sanu",
     "team": "EKM Team"
   }
 }
@@ -1222,16 +1315,26 @@
 ### 6.7 Today's Attendance Status
 - **Endpoint:** `GET /api/attendance/status`
 - **Token Needed:** Any active employee
+- **Description:** Returns the active check-in/out status, hours worked, and location for the authenticated user for today.
 - **Response `200 OK`:**
 ```json
 {
   "success": true,
+  "message": "Attendance status loaded",
   "data": {
-    "date": "2026-11-02",
+    "employee_id": "BDE001",
+    "name": "Siddharth V",
+    "date": "2026-11-03",
     "check_in": "09:15 AM",
-    "check_out": "--:--",
+    "check_out": null,
+    "status": "ONLINE",
+    "shift_status": "ONLINE",
     "is_checked_in": true,
-    "shift_status": "ONLINE"
+    "checked_in": true,
+    "checked_out": false,
+    "hours_worked": 0,
+    "latitude": 10.0159,
+    "longitude": 76.3419
   }
 }
 ```
