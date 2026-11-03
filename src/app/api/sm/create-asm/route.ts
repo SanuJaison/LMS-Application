@@ -93,6 +93,7 @@ function parseTeamLead(teamLead: string): { name: string; employeeId: string } {
  * POST /api/sm/create-asm
  * Enables the Sales Manager (SM) to create an Area Sales Manager (ASM) for one
  * of the seven regional teams, or the single Office Team (no districts).
+ * The SM can set monthly salary and incentive for the ASM.
  *
  * Rules enforced here:
  * - The organisation has exactly one Sales Manager.
@@ -107,8 +108,25 @@ export async function POST(req: Request) {
     await connectDB();
 
     const body = await req.json().catch(() => ({}));
-    const { name, email, contact_number, password, team_code, custom_team_name } =
-      body;
+    const {
+      name,
+      email,
+      contact_number,
+      password,
+      team_code,
+      custom_team_name,
+      salary: rawSalary,
+      incentive: rawIncentive,
+    } = body;
+
+    const salary =
+      rawSalary !== undefined && !isNaN(Number(rawSalary))
+        ? Math.max(0, Number(rawSalary))
+        : 0;
+    const incentive =
+      rawIncentive !== undefined && !isNaN(Number(rawIncentive))
+        ? Math.max(0, Number(rawIncentive))
+        : 0;
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -118,8 +136,6 @@ export async function POST(req: Request) {
     }
 
     // Only the Sales Manager creates ASMs (master workflow: Admin → SM → ASM).
-    // Admin creates the single SM via POST /api/admin/create-sm and can view
-    // every ASM through GET /api/sm/asms, but does not assign teams.
     const guard = await requireRoles(req, ['SM', 'MD']);
     if (!guard.ok) return guard.response;
     const { auth } = guard;
@@ -198,8 +214,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Rule: A team can have only one ASM. The Teams collection is the source of
-    // truth for the current lead (the employee.team field can be stale).
+    // Rule: A team can have only one ASM.
     const existingTeamDoc: any = await Team.findOne({
       name: new RegExp(`^${escapeRegex(assignedTeamName)}$`, 'i'),
     }).lean();
@@ -227,8 +242,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Rule: A district can belong to only one team. The Teams collection is the
-    // source of truth; create-asm always writes the districts there.
+    // Rule: A district can belong to only one team.
     if (assignedDistricts.length > 0) {
       const takenBy = new Map<string, string>();
 
@@ -286,9 +300,7 @@ export async function POST(req: Request) {
     const duplicate = await Employee.findOne({
       $or: [
         { name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
-        ...(normalizedEmail
-          ? [{ email: normalizedEmail }]
-          : []),
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
       ],
     }).lean();
     if (duplicate) {
@@ -332,6 +344,8 @@ export async function POST(req: Request) {
       district: assignedDistricts[0] || '',
       team: assignedTeamName,
       reports_to: smId,
+      salary,
+      incentive,
       status: 'active',
     });
 
@@ -355,7 +369,7 @@ export async function POST(req: Request) {
     );
 
     await logActivity({
-      description: `Sales Manager ${smName} created Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) for ${assignedTeamName}`,
+      description: `Sales Manager ${smName} created Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) for ${assignedTeamName} with salary ₹${salary} and incentive ₹${incentive}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -370,9 +384,13 @@ export async function POST(req: Request) {
           id: newAsm._id.toString(),
           employee_id: newAsm.employee_id,
           name: newAsm.name,
+          email: newAsm.email,
+          contact_number: newAsm.contact_number,
           designation: newAsm.designation,
           team: newAsm.team,
           districts: assignedDistricts,
+          salary: newAsm.salary ?? 0,
+          incentive: newAsm.incentive ?? 0,
           reports_to: smId,
           sm_name: smName,
         },

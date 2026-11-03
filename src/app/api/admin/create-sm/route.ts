@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs';
  *
  * The master workflow is Admin → SM → ASM → BDE. The Admin creates exactly one
  * SM; that SM then creates the 7 regional ASMs plus the Office Team.
+ * Admin can set monthly salary and incentive for the SM upon creation.
  *
  * GET  /api/admin/create-sm  -> whether the SM already exists
  * POST /api/admin/create-sm  -> create the SM (fails if one already exists)
@@ -55,7 +56,10 @@ export async function GET(req: Request) {
             employee_id: sm.employee_id,
             name: sm.name,
             email: sm.email || '',
+            contact_number: sm.contact_number || '',
             designation: sm.designation || 'Sales Manager',
+            salary: sm.salary ?? 0,
+            incentive: sm.incentive ?? 0,
           }
         : null,
       message: sm
@@ -83,6 +87,14 @@ export async function POST(req: Request) {
     const email = String(body.email || '').trim().toLowerCase();
     const contactNumber = String(body.contact_number || body.phone || '').trim();
     const password = String(body.password || '').trim();
+    const salary =
+      body.salary !== undefined && !isNaN(Number(body.salary))
+        ? Math.max(0, Number(body.salary))
+        : 0;
+    const incentive =
+      body.incentive !== undefined && !isNaN(Number(body.incentive))
+        ? Math.max(0, Number(body.incentive))
+        : 0;
 
     if (!name) {
       return NextResponse.json(
@@ -168,11 +180,13 @@ export async function POST(req: Request) {
       district: '',
       team: '',
       reports_to: '',
+      salary,
+      incentive,
       status: 'active',
     });
 
     await logActivity({
-      description: `Admin created the Sales Manager ${created.name} (${created.employee_id})`,
+      description: `Admin created the Sales Manager ${created.name} (${created.employee_id}) with salary ₹${salary} and incentive ₹${incentive}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -186,7 +200,10 @@ export async function POST(req: Request) {
           employee_id: created.employee_id,
           name: created.name,
           email: created.email,
+          contact_number: created.contact_number,
           designation: created.designation,
+          salary: created.salary ?? 0,
+          incentive: created.incentive ?? 0,
           reports_to: '',
         },
       },

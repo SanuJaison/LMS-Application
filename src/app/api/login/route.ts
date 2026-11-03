@@ -79,6 +79,8 @@ export async function POST(req: Request) {
           zone: employee.zone || '',
           district: employee.district || '',
           reports_to: employee.reports_to || null,
+          salary: employee.salary ?? 0,
+          incentive: employee.incentive ?? 0,
           status: employee.status || 'active',
           require_password_change: false,
         };

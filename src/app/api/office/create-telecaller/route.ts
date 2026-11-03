@@ -26,7 +26,9 @@ export async function POST(req: Request) {
 
     const { auth } = guard;
     const body = await req.json().catch(() => ({}));
-    const { name, email, contact_number, password, district } = body;
+    const { name, email, contact_number, password, district, salary: rawSalary, incentive: rawIncentive } = body;
+    const salary = rawSalary !== undefined && !isNaN(Number(rawSalary)) ? Math.max(0, Number(rawSalary)) : 0;
+    const incentive = rawIncentive !== undefined && !isNaN(Number(rawIncentive)) ? Math.max(0, Number(rawIncentive)) : 0;
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -126,6 +128,8 @@ export async function POST(req: Request) {
       district: assignedDistrict,
       team: teamName,
       reports_to: supervisorId,
+      salary,
+      incentive,
       status: 'active',
     });
 
@@ -166,6 +170,8 @@ export async function POST(req: Request) {
           zone: newTelecaller.zone,
           reports_to: supervisorId,
           supervisor_name: supervisorName,
+          salary: newTelecaller.salary ?? 0,
+          incentive: newTelecaller.incentive ?? 0,
         },
       },
       { status: 201 }

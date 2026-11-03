@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs';
  * POST /api/asm/create-bde
  * Enables an Area Sales Manager (ASM) or Office Team Lead to create a
  * Business Development Executive (BDE) or Tele-caller.
+ * The ASM / Office Lead can set salary and incentive for the BDE.
  *
  * Rules:
  * - BDE / Tele-caller is automatically assigned under the creating ASM / Office Lead (reports_to = asm.employee_id).
@@ -31,7 +32,22 @@ export async function POST(req: Request) {
 
     const { auth } = guard;
     const body = await req.json().catch(() => ({}));
-    const { name, email, contact_number, password, district, asm_id, designation } = body;
+    const {
+      name,
+      email,
+      contact_number,
+      password,
+      district,
+      asm_id,
+      designation,
+      salary: rawSalary,
+      incentive: rawIncentive,
+    } = body;
+
+    const salary =
+      rawSalary !== undefined && !isNaN(Number(rawSalary))
+        ? Math.max(0, Number(rawSalary))
+        : 0;
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -193,6 +209,14 @@ export async function POST(req: Request) {
     const assignedDesignation =
       requestedDesignation || (isOfficeTeam ? 'Tele-caller' : 'Business Development Executive');
 
+    // Default incentive: 1,000 for BDEs, 0 for Telecallers (or custom amount if passed)
+    const incentive =
+      rawIncentive !== undefined && !isNaN(Number(rawIncentive))
+        ? Math.max(0, Number(rawIncentive))
+        : isTelecaller
+          ? 0
+          : 1000;
+
     // Generate next sequential ID: TC for telecallers, BDE for field executives
     const prefix = isTelecaller ? 'TC' : 'BDE';
     const existingEmployees = await Employee.find({
@@ -228,6 +252,8 @@ export async function POST(req: Request) {
       district: assignedDistrict,
       team: assignedTeam,
       reports_to: assignedAsmId,
+      salary,
+      incentive,
       status: 'active',
     });
 
@@ -250,7 +276,7 @@ export async function POST(req: Request) {
     }
 
     await logActivity({
-      description: `${isOfficeTeam ? 'Office Team Lead' : 'ASM'} ${assignedAsmName} (${assignedAsmId}) created ${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) under team ${assignedTeam}`,
+      description: `${isOfficeTeam ? 'Office Team Lead' : 'ASM'} ${assignedAsmName} (${assignedAsmId}) created ${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) under team ${assignedTeam} with salary ₹${salary} and incentive ₹${incentive}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -263,10 +289,14 @@ export async function POST(req: Request) {
           id: newEmployee._id.toString(),
           employee_id: newEmployee.employee_id,
           name: newEmployee.name,
+          email: newEmployee.email,
+          contact_number: newEmployee.contact_number,
           designation: newEmployee.designation,
           team: newEmployee.team,
           district: newEmployee.district,
           zone: newEmployee.zone,
+          salary: newEmployee.salary ?? 0,
+          incentive: newEmployee.incentive ?? 0,
           reports_to: assignedAsmId,
           asm_name: assignedAsmName,
         },

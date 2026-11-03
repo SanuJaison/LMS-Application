@@ -129,7 +129,8 @@ export async function POST(
     lead.payment_amount = payment;
     lead.payment_verification = paymentVerification;
     lead.admission_date = lead.admission_date || new Date();
-    lead.incentive_amount = 1000;
+    const earnedIncentive = typeof bdeEmployee?.incentive === 'number' && bdeEmployee.incentive >= 0 ? bdeEmployee.incentive : 1000;
+    lead.incentive_amount = earnedIncentive;
     lead.incentive_status = 'Credited';
     lead.bde_id = bdeId;
     lead.bde_name = bdeName;
@@ -168,12 +169,12 @@ export async function POST(
         asm_id: asmId,
         asm_name: asmName,
         team,
-        amount: 1000,
+        amount: earnedIncentive,
         status: 'Earned',
         admission_date: new Date(),
       });
 
-      // Credit ₹1,000 to BDE wallet
+      // Credit incentive to BDE wallet
       await Wallet.findOneAndUpdate(
         {
           $or: [
@@ -197,7 +198,7 @@ export async function POST(
     }
 
     await logActivity({
-      description: `Admission closed for student ${lead.name} (${finalStudentId}) by ${bdeName}. ₹1,000 incentive credited.`,
+      description: `Admission closed for student ${lead.name} (${finalStudentId}) by ${bdeName}. ₹ incentive credited.`,
       subjectType: 'Admission',
       causer: causerFromRequest(req),
     });

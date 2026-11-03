@@ -217,6 +217,8 @@ export async function GET(req: Request) {
         districts: teamDoc?.districts || (asm.district ? [asm.district] : []),
         zone: asm.zone || teamDoc?.zone || '',
         reports_to: asm.reports_to || '',
+        salary: asm.salary ?? 0,
+        incentive: asm.incentive ?? 0,
         bdes_count: assignedBdes.length,
         status: asm.status || 'active',
 

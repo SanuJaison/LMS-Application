@@ -128,6 +128,8 @@ export async function GET(req: Request) {
         district: bde.district,
         zone: bde.zone,
         reports_to: bde.reports_to,
+        salary: bde.salary ?? 0,
+        incentive: bde.incentive ?? 1000,
         status: bde.status || 'active',
         total_leads: totalLeads,
         admissions,

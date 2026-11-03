@@ -65,6 +65,8 @@ export async function GET(req: Request) {
         zone: tc.zone || 'Central Zone',
         district: tc.district || 'Ernakulam',
         reports_to: tc.reports_to || '',
+        salary: tc.salary ?? 0,
+        incentive: tc.incentive ?? 0,
         leads_assigned: tcLeads.length,
         admissions_closed: closed.length,
         conversion_rate:

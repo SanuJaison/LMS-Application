@@ -12,6 +12,8 @@ export interface IEmployee extends Document {
   reports_to?: string;
   upi_id?: string;
   password?: string;
+  salary?: number;
+  incentive?: number;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -73,6 +75,14 @@ const EmployeeSchema = new Schema<IEmployee>(
       default: '',
       select: false,
     },
+    salary: {
+      type: Number,
+      default: 0,
+    },
+    incentive: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       default: 'active',
@@ -86,6 +96,8 @@ const EmployeeSchema = new Schema<IEmployee>(
 );
 
 // Prevent model recompilation during Next.js hot-reloads
-export const Employee =
-  mongoose.models.Employee || mongoose.model<IEmployee>('Employee', EmployeeSchema);
+if (mongoose.models.Employee) {
+  mongoose.deleteModel('Employee');
+}
+export const Employee = mongoose.model<IEmployee>('Employee', EmployeeSchema);
 export default Employee;

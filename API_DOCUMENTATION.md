@@ -190,7 +190,9 @@
   "name": "Vikram Seth",
   "email": "sm@kide.com",
   "contact_number": "+91 98470 00001",
-  "password": "password123"
+  "password": "password123",
+  "salary": 50000,
+  "incentive": 5000
 }
 ```
 - **Response `201 Created`:**
@@ -203,7 +205,9 @@
     "name": "Vikram Seth",
     "email": "sm@kide.com",
     "designation": "Sales Manager",
-    "zone": "Central Zone"
+    "zone": "Central Zone",
+    "salary": 50000,
+    "incentive": 5000
   }
 }
 ```
@@ -244,7 +248,9 @@
   "designation": "Business Development Executive",
   "team": "EKM Team",
   "district": "Ernakulam",
-  "reports_to": "ASM004"
+    "salary": 15000,
+    "incentive": 1000,
+    "reports_to": "ASM004"
 }
 ```
 
@@ -354,7 +360,9 @@
   "email": "bipin.tvm@kide.com",
   "contact_number": "+91 90000 00001",
   "password": "password123",
-  "team_code": "TVM"
+  "team_code": "TVM",
+  "salary": 35000,
+  "incentive": 2500
 }
 ```
 - **Request Body (Office Team Lead):**
@@ -364,7 +372,9 @@
   "email": "geetha.office@kide.com",
   "contact_number": "+91 90000 00008",
   "password": "password123",
-  "team_code": "OFFICE"
+  "team_code": "OFFICE",
+  "salary": 30000,
+  "incentive": 2000
 }
 ```
 - **Response `201 Created`:**
@@ -379,6 +389,8 @@
     "designation": "Area Sales Manager",
     "team": "TVM Team",
     "districts": ["Thiruvananthapuram", "Kollam"],
+    "salary": 35000,
+    "incentive": 2500,
     "reports_to": "SM001",
     "sm_name": "Sales Manager"
   }
@@ -474,7 +486,9 @@
   "email": "ananya.tc@kide.com",
   "contact_number": "+91 98471 11223",
   "password": "password123",
-  "district": "Ernakulam"
+  "district": "Ernakulam",
+  "salary": 15000,
+  "incentive": 1000
 }
 ```
 - **Response `201 Created`:**
@@ -660,7 +674,9 @@
   "name": "Deepa K",
   "email": "deepa.tc@kide.com",
   "contact_number": "+91 98470 55667",
-  "password": "password123"
+  "password": "password123",
+  "salary": 12000,
+  "incentive": 500
 }
 ```
 - **Response `201 Created`:**

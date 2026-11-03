@@ -32,7 +32,8 @@ export async function POST(req: Request) {
       if (asmEmp) asmName = asmEmp.name;
     }
 
-    const amount = Number(body.amount ?? 5000);
+    const defaultSalary = employee?.salary && Number(employee.salary) >= 5000 ? Number(employee.salary) : 5000;
+    const amount = Number(body.amount ?? defaultSalary);
     if (amount < 5000) {
       return NextResponse.json(
         {

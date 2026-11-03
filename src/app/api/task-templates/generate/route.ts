@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     for (const template of targetTemplates) {
       // Find employees matching designation
       const matchingEmployees = template.designation
-        ? employees.filter((emp) => matchesDesignation(emp.designation, template.designation))
+        ? employees.filter((emp) => matchesDesignation(emp.designation || '', template.designation))
         : employees;
 
       for (const emp of matchingEmployees) {
