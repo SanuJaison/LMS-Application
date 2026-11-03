@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "KIDE API — by role (production)",
-    "description": "Grouped by caller role: Public, Admin, SM, ASM, BDE/Employee, plus security negative tests.\n\nRun the login requests in 00 Public first; they store adminToken / smToken / asmToken / bdeToken in collection variables.\n\nBase URL defaults to production. Change the baseUrl variable to http://localhost:3000 for local testing.",
+    "name": "KIDE LMS — Complete API Collection (App & Web Team)",
+    "description": "# KIDE LMS API Collection for Mobile App & Web Testing\n\n### Base URLs:\n- **Production:** `https://lms-application-pi.vercel.app`\n- **Local:** `http://localhost:3000`\n\n### Quick Start:\n1. Select `baseUrl` in collection variables (default is Production).\n2. Run `00 Public > SM Login` (or `ASM Login`, `BDE Login`, `Admin Login`).\n3. The test script automatically captures the JWT token (valid for 7 days) and saves it to collection variables `{{smToken}}`, `{{asmToken}}`, `{{bdeToken}}`, `{{adminToken}}`, and `{{token}}`.\n4. Test any role endpoint directly!\n\n### Default Test Accounts:\n- **Admin:** `admin@kide.com` / `password123`\n- **Sales Manager (SM):** `SM001` / `password123`\n- **Area Sales Manager (ASM):** `ASM001` / `password123`\n- **BDE / Tele-caller:** `BDE001` / `password123`\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -56,6 +56,10 @@
     {
       "key": "taskId",
       "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
     }
   ],
   "item": [
@@ -99,7 +103,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json();",
-                  "if (j.token) pm.collectionVariables.set('adminToken', j.token);"
+                  "const tok = j.token || j.data?.token;",
+                  "if (tok) {",
+                  "  pm.collectionVariables.set(\"adminToken\", tok);",
+                  "  pm.collectionVariables.set(\"token\", tok);",
+                  "}"
                 ]
               }
             }
@@ -142,7 +150,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json();",
-                  "if (j.token) pm.collectionVariables.set('smToken', j.token);"
+                  "const tok = j.token || j.data?.token;",
+                  "if (tok) {",
+                  "  pm.collectionVariables.set(\"smToken\", tok);",
+                  "  pm.collectionVariables.set(\"token\", tok);",
+                  "}"
                 ]
               }
             }
@@ -185,7 +197,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json();",
-                  "if (j.token) pm.collectionVariables.set('asmToken', j.token);"
+                  "const tok = j.token || j.data?.token;",
+                  "if (tok) {",
+                  "  pm.collectionVariables.set(\"asmToken\", tok);",
+                  "  pm.collectionVariables.set(\"token\", tok);",
+                  "}"
                 ]
               }
             }
@@ -228,7 +244,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "const j = pm.response.json();",
-                  "if (j.token) pm.collectionVariables.set('bdeToken', j.token);"
+                  "const tok = j.token || j.data?.token;",
+                  "if (tok) {",
+                  "  pm.collectionVariables.set(\"bdeToken\", tok);",
+                  "  pm.collectionVariables.set(\"token\", tok);",
+                  "}"
                 ]
               }
             }
@@ -267,6 +287,39 @@
               ]
             }
           }
+        },
+        {
+          "name": "First-Time Password Setup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"ASM001\",\n  \"password\": \"newPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/set-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "set-password"
+              ]
+            },
+            "description": "Allows an employee created by Admin/SM to set their initial password before first login."
+          },
+          "response": []
         }
       ]
     },
@@ -2327,6 +2380,41 @@
               ]
             }
           }
+        },
+        {
+          "name": "SM Predefined Teams & Live Availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{smToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sm/create-asm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sm",
+                "create-asm"
+              ]
+            },
+            "description": "Returns all 8 regional predefined teams (TVM, PTM, KTM, EKM, PKD, CLT, KZD, OFFICE) with mapped districts, zones, and live assignment status (is_available, assigned_to)."
+          },
+          "response": []
         },
         {
           "name": "SM Create ASM",
