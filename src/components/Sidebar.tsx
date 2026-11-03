@@ -191,7 +191,7 @@ export default function Sidebar({
             onClick={() => toggleGroup('taskManagement')}
             className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
-            <span>Task Management</span>
+            <span>Targets &amp; Performance</span>
             {expandedGroups.taskManagement ? (
               <ChevronUp className="w-3.5 h-3.5" />
             ) : (
