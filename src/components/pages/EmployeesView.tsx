@@ -1265,7 +1265,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   <input
                     type="number"
                     min="0"
-                    step="500"
+                    step="any"
                     value={formData.salary}
                     onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                     placeholder="e.g. 50000"
@@ -1274,15 +1274,15 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                 </div>
                 <div>
                   <label className="block text-ink/80 font-semibold mb-1">
-                    Incentive (₹)
+                    Incentive per admission (₹)
                   </label>
                   <input
                     type="number"
                     min="0"
-                    step="100"
+                    step="any"
                     value={formData.incentive}
                     onChange={(e) => setFormData({ ...formData, incentive: e.target.value })}
-                    placeholder="e.g. 5000"
+                    placeholder="e.g. 20"
                     className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
                   />
                 </div>
