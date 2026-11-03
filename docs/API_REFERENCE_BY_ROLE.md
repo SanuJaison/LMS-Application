@@ -400,11 +400,15 @@ https://lms-application-pi.vercel.app/api/admin/create-sm
   "name": "Sanu",
   "email": "sanu@gmail.com",
   "contact_number": "9847000001",
-  "password": "password123"
+  "password": "password123",
+  "salary": 50000,
+  "incentive": 20
 }
 ```
 
-`name` and `password` (min 6 chars) are required.
+- `name` and `password` (min 6 chars) are required.
+- `salary` (number, optional, default: 0): Monthly base salary in ₹.
+- `incentive` (number, optional, default: 0): Statewide override incentive in ₹ earned per admission closed across all Kerala teams (e.g. ₹20 per admission).
 
 **Response `201`**
 
@@ -417,7 +421,10 @@ https://lms-application-pi.vercel.app/api/admin/create-sm
     "employee_id": "SM001",
     "name": "Sanu",
     "email": "sanu@gmail.com",
+    "contact_number": "9847000001",
     "designation": "Sales Manager",
+    "salary": 50000,
+    "incentive": 20,
     "reports_to": ""
   }
 }
@@ -1426,7 +1433,99 @@ https://lms-application-pi.vercel.app/api/sm/asms/ASM001
 
 ---
 
-### 6.4 POST /api/sm/create-asm — create a regional ASM or the Office Team
+### 6.4 GET /api/sm/create-asm — list predefined teams & availability
+
+**URL**
+
+```
+https://lms-application-pi.vercel.app/api/sm/create-asm
+```
+
+**Token:** SM / Admin
+
+Returns the **8 predefined teams** (7 regional Kerala 2-district teams + 1 central office team) with their team codes, assigned districts, zones, and live availability (whether an ASM has already been appointed or if the team is available to select).
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "count": 8,
+  "data": [
+    {
+      "team_code": "TVM",
+      "team_name": "TVM Team",
+      "districts": ["Thiruvananthapuram", "Kollam"],
+      "zone": "South Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "PTM",
+      "team_name": "PTM Team",
+      "districts": ["Pathanamthitta", "Alappuzha"],
+      "zone": "South Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "KTM",
+      "team_name": "KTM Team",
+      "districts": ["Kottayam", "Idukki"],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "EKM",
+      "team_name": "EKM Team",
+      "districts": ["Ernakulam", "Thrissur"],
+      "zone": "Central Zone",
+      "is_available": false,
+      "assigned_to": {
+        "employee_id": "ASM001",
+        "name": "Bipin Joseph"
+      }
+    },
+    {
+      "team_code": "PKD",
+      "team_name": "PKD Team",
+      "districts": ["Palakkad", "Malappuram"],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "CLT",
+      "team_name": "CLT Team",
+      "districts": ["Kozhikode", "Wayanad"],
+      "zone": "North Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "KZD",
+      "team_name": "KZD Team",
+      "districts": ["Kannur", "Kasaragod"],
+      "zone": "North Zone",
+      "is_available": true,
+      "assigned_to": null
+    },
+    {
+      "team_code": "OFFICE",
+      "team_name": "Office Team",
+      "districts": [],
+      "zone": "Central Zone",
+      "is_available": true,
+      "assigned_to": null
+    }
+  ]
+}
+```
+
+---
+
+### 6.4.1 POST /api/sm/create-asm — create a regional ASM or the Office Team
 
 **URL**
 
@@ -1444,9 +1543,15 @@ https://lms-application-pi.vercel.app/api/sm/create-asm
   "email": "bipin@kide.com",
   "contact_number": "9847000002",
   "password": "test1234",
-  "team_code": "EKM"
+  "team_code": "EKM",
+  "salary": 35000,
+  "incentive": 100
 }
 ```
+
+- `team_code` (string, required): One of `TVM`, `PTM`, `KTM`, `EKM`, `PKD`, `CLT`, `KZD` (or `OFFICE`). Automatically derives the team name and both assigned districts.
+- `salary` (number, optional, default: 0): Monthly base salary in ₹.
+- `incentive` (number, optional, default: 0): Team override incentive in ₹ earned per admission closed by subordinate BDEs (e.g. ₹100 per admission).
 
 **Body — office team**
 
@@ -1456,7 +1561,9 @@ https://lms-application-pi.vercel.app/api/sm/create-asm
   "email": "office@kide.com",
   "contact_number": "9847000009",
   "password": "test1234",
-  "team_code": "OFFICE"
+  "team_code": "OFFICE",
+  "salary": 35000,
+  "incentive": 100
 }
 ```
 
@@ -1473,6 +1580,8 @@ https://lms-application-pi.vercel.app/api/sm/create-asm
     "designation": "Area Sales Manager",
     "team": "EKM Team",
     "districts": ["Ernakulam", "Thrissur"],
+    "salary": 35000,
+    "incentive": 100,
     "reports_to": "SM001",
     "sm_name": "Sanu"
   }
@@ -1582,9 +1691,15 @@ https://lms-application-pi.vercel.app/api/asm/create-bde
   "contact_number": "9847000003",
   "password": "test1234",
   "district": "Ernakulam",
-  "asm_id": "ASM001"
+  "asm_id": "ASM001",
+  "salary": 20000,
+  "incentive": 1000
 }
 ```
+
+- `district` (string, required): Must match one of the assigned districts for the ASM's team (e.g. Ernakulam or Thrissur for EKM Team).
+- `salary` (number, optional, default: 0): Monthly base salary in ₹.
+- `incentive` (number, optional, default: 1000): Incentive in ₹ credited directly to BDE wallet upon lead closure.
 
 **Response `201`**
 
@@ -1599,6 +1714,8 @@ https://lms-application-pi.vercel.app/api/asm/create-bde
     "designation": "Business Development Executive",
     "team": "EKM Team",
     "district": "Ernakulam",
+    "salary": 20000,
+    "incentive": 1000,
     "reports_to": "ASM001",
     "asm_name": "Bipin Joseph"
   }
@@ -2236,7 +2353,7 @@ https://lms-application-pi.vercel.app/api/leads/LD-9730/followup
 
 ---
 
-### 6.20 POST /api/leads/{id}/close — close an admission (₹1,000 incentive)
+### 6.20 POST /api/leads/{id}/close — close an admission & multi-tier incentive distribution
 
 **URL**
 
@@ -2244,7 +2361,12 @@ https://lms-application-pi.vercel.app/api/leads/LD-9730/followup
 https://lms-application-pi.vercel.app/api/leads/LD-9730/close
 ```
 
-**Token:** employee
+**Token:** employee (BDE, ASM, or SM)
+
+When a lead is closed as an Admission, the system automatically distributes multi-tier incentives based on each role's configured rate:
+1. **Closing BDE Wallet**: Credited with the BDE's configured incentive (e.g. ₹1,000).
+2. **Parent ASM Wallet**: Automatically credited with the ASM's configured team override incentive (e.g. ₹100).
+3. **Statewide SM Wallet**: Automatically credited with the SM's configured statewide override incentive (e.g. ₹20).
 
 **Body**
 
@@ -2263,7 +2385,7 @@ https://lms-application-pi.vercel.app/api/leads/LD-9730/close
 ```json
 {
   "success": true,
-  "message": "Lead Rahul Krishna successfully closed as Admission (STU-004). ₹1,000 incentive credited to Vishnu Mohan.",
+  "message": "Lead Rahul Krishna successfully closed as Admission (STU-004). ₹1,000 incentive credited to Vishnu Mohan. ₹100 credited to ASM Bipin Joseph. ₹20 credited to SM Sanu.",
   "data": {
     "lead_id": "LD-9730",
     "student_id": "STU-004",
@@ -2271,8 +2393,11 @@ https://lms-application-pi.vercel.app/api/leads/LD-9730/close
     "status": 4,
     "admission_status": "Admitted",
     "incentive_earned": 1000,
-    "incentive_id": "6ae6d091c1cd50df3108c8bf",
+    "asm_incentive_earned": 100,
+    "sm_incentive_earned": 20,
     "bde": "Vishnu Mohan",
+    "asm": "Bipin Joseph",
+    "sm": "Sanu",
     "team": "EKM Team"
   }
 }
