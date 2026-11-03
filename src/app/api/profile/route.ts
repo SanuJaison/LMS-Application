@@ -38,6 +38,8 @@ export async function GET(req: Request) {
       zone: employee.zone || '',
       district: employee.district || '',
       reports_to: employee.reports_to || '',
+      salary: employee.salary ?? 0,
+      incentive: employee.incentive ?? 0,
       leave_balances: {
         casual: 12,
         medical: 8,

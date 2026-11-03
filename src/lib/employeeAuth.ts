@@ -116,6 +116,8 @@ export function serializeEmployee(employee: any) {
     zone: employee.zone || '',
     district: employee.district || '',
     reports_to: employee.reports_to || null,
+    salary: employee.salary ?? 0,
+    incentive: employee.incentive ?? 0,
     roles: [],
     permissions: [],
   };

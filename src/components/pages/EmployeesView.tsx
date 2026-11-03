@@ -649,12 +649,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
               No Sales Manager found yet. In KIDE hierarchy, create the single Sales Manager first who will supervise all 7 regional teams and the Office Team.
             </p>
           </div>
-          <button
-            onClick={() => openNewModal()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-lg shadow-md transition cursor-pointer whitespace-nowrap"
-          >
-            + Create Sales Manager
-          </button>
+          
         </div>
       )}
 
