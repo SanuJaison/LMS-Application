@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
-import { Team } from '@/models';
+import { Team, Wallet } from '@/models';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { requireRoles } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
@@ -367,6 +367,16 @@ export async function POST(req: Request) {
       },
       { upsert: true, new: true }
     );
+
+    // Initialize wallet for new ASM
+    await Wallet.create({
+      employee: newAsm.name,
+      employee_id: newAsm.employee_id,
+      balance: 0,
+      total_earned: 0,
+      total_paid: 0,
+      currency: 'INR',
+    });
 
     await logActivity({
       description: `Sales Manager ${smName} created Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) for ${assignedTeamName} with salary ₹${salary} and incentive ₹${incentive}`,

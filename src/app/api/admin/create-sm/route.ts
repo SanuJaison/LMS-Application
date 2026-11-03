@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
+import { Wallet } from '@/models';
 import { requireAdmin } from '@/lib/adminAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import bcrypt from 'bcryptjs';
@@ -169,6 +170,7 @@ export async function POST(req: Request) {
     while (usedNumbers.has(nextNum)) nextNum += 1;
     const employeeId = `SM${String(nextNum).padStart(3, '0')}`;
 
+    // Create SM employee and wallet
     const created: any = await Employee.create({
       employee_id: employeeId,
       name,
@@ -183,6 +185,15 @@ export async function POST(req: Request) {
       salary,
       incentive,
       status: 'active',
+    });
+
+    await Wallet.create({
+      employee: created.name,
+      employee_id: created.employee_id,
+      balance: 0,
+      total_earned: 0,
+      total_paid: 0,
+      currency: 'INR',
     });
 
     await logActivity({
