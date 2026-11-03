@@ -199,6 +199,47 @@ const sumRows = (rows: PersonMetrics[]) => ({
   pending_followups: rows.reduce((sum, row) => sum + (row.pending_followups || 0), 0),
 });
 
+function ProgressBar({
+  value,
+  target,
+  className = '',
+}: {
+  value: number;
+  target: number;
+  className?: string;
+}) {
+  const percentage =
+    target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
+  const barColor = percentage >= 100 ? 'bg-success' : 'bg-accent';
+
+  if (target <= 0) {
+    return (
+      <div className={className}>
+        <div className="h-1.5 w-full rounded-full bg-line/70 overflow-hidden">
+          <div className="h-full w-0 rounded-full bg-accent" />
+        </div>
+        <div className="mt-1 text-[10px] text-muted whitespace-nowrap">
+          No target set
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <div className="h-1.5 w-full rounded-full bg-line/70 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${barColor} transition-all`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <div className="mt-1 text-[10px] text-muted whitespace-nowrap">
+        {value} / {target} · {percentage}%
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps) {
   const [activeTab, setActiveTab] = useState<RoleTab>('SM');
   const [loading, setLoading] = useState(true);
@@ -537,6 +578,11 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
           <p className="text-[11px] text-muted mt-2">
             Achieved today: {activeMetrics.leads_today}
           </p>
+          <ProgressBar
+            value={activeMetrics.leads_today}
+            target={activeMetrics.daily_target}
+            className="mt-2"
+          />
         </div>
 
         <div className="bg-surface border border-line rounded-xl p-4">
@@ -555,6 +601,11 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
           <p className="text-[11px] text-muted mt-2">
             Achieved this month: {activeMetrics.leads_this_month}
           </p>
+          <ProgressBar
+            value={activeMetrics.leads_this_month}
+            target={activeMetrics.monthly_target}
+            className="mt-2"
+          />
         </div>
 
         <div className="bg-surface border border-line rounded-xl p-4">
@@ -678,10 +729,28 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                       </td>
                     )}
                     <td className="py-3 px-4 text-ink font-medium">
-                      {row.daily_target || '—'}
+                      <div>{row.daily_target || '—'}</div>
+                      {row.daily_target > 0 ? (
+                        <ProgressBar
+                          value={row.leads_today}
+                          target={row.daily_target}
+                          className="mt-1.5 w-24"
+                        />
+                      ) : (
+                        <div className="mt-1 text-[10px] text-muted">No target</div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-ink font-medium">
-                      {row.monthly_target || '—'}
+                      <div>{row.monthly_target || '—'}</div>
+                      {row.monthly_target > 0 ? (
+                        <ProgressBar
+                          value={row.leads_this_month}
+                          target={row.monthly_target}
+                          className="mt-1.5 w-24"
+                        />
+                      ) : (
+                        <div className="mt-1 text-[10px] text-muted">No target</div>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-ink">{row.total_leads}</td>
                     <td className="py-3 px-4 text-ink">{row.total_followups}</td>

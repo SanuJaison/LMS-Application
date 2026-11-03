@@ -1633,11 +1633,35 @@ https://lms-application-pi.vercel.app/api/asm/bdes
       "status": "active",
       "total_leads": 4,
       "admissions": 1,
-      "conversion_rate": 25
+      "conversion_rate": 25,
+      "daily_target": 5,
+      "daily_achieved": 2,
+      "daily_progress_percentage": 40,
+      "monthly_target": 100,
+      "monthly_achieved": 18,
+      "monthly_progress_percentage": 18,
+      "progress_percentage": 18
     }
   ]
 }
 ```
+
+**Target fields**
+
+Each BDE carries the targets already stored in `EmployeeTask` rows for that
+employee, so the admin Employee Tasks table can render real progress bars
+without new database fields.
+
+- `daily_target` / `monthly_target` come from the BDE's `EmployeeTask` rows whose
+  `task_template` contains `daily` / `monthly`. The current month's row is
+  preferred, then the newest row.
+- `daily_achieved` counts the BDE's leads created today (IST), and
+  `monthly_achieved` counts leads created this month (IST).
+- `daily_progress_percentage` and `monthly_progress_percentage` are capped at
+  `100`.
+- `progress_percentage` is an alias for the monthly progress, so a client can
+  render one performance bar without choosing a field.
+- When no target row exists the targets are `0` and the percentages are `0`.
 
 ---
 
@@ -1664,7 +1688,14 @@ https://lms-application-pi.vercel.app/api/asm/bdes/BDE001
     "reports_to": "ASM001",
     "total_leads": 4,
     "admissions": 1,
-    "conversion_rate": 25
+    "conversion_rate": 25,
+    "daily_target": 5,
+    "daily_achieved": 2,
+    "daily_progress_percentage": 40,
+    "monthly_target": 100,
+    "monthly_achieved": 18,
+    "monthly_progress_percentage": 18,
+    "progress_percentage": 18
   }
 }
 ```
@@ -2888,7 +2919,14 @@ https://lms-application-pi.vercel.app/api/asm/bdes
       "status": "active",
       "total_leads": 4,
       "admissions": 1,
-      "conversion_rate": 25
+      "conversion_rate": 25,
+      "daily_target": 5,
+      "daily_achieved": 2,
+      "daily_progress_percentage": 40,
+      "monthly_target": 100,
+      "monthly_achieved": 18,
+      "monthly_progress_percentage": 18,
+      "progress_percentage": 18
     }
   ]
 }
@@ -2920,7 +2958,14 @@ https://lms-application-pi.vercel.app/api/asm/bdes/BDE001
     "reports_to": "ASM001",
     "total_leads": 4,
     "admissions": 1,
-    "conversion_rate": 25
+    "conversion_rate": 25,
+    "daily_target": 5,
+    "daily_achieved": 2,
+    "daily_progress_percentage": 40,
+    "monthly_target": 100,
+    "monthly_achieved": 18,
+    "monthly_progress_percentage": 18,
+    "progress_percentage": 18
   }
 }
 ```
