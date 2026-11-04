@@ -8,9 +8,9 @@ import { logActivity, causerFromRequest } from '@/lib/activityLog';
 /**
  * POST /api/attendance/check-in
  * Records today's check-in for the signed-in employee.
- *
- * The employee is always taken from the Bearer token. `employee_id` / `name`
- * in the body are ignored, so one employee can no longer check in for another.
+ * Supports multiple check-ins in a single day.
+ * When checking in again after checking out, the latest check-in time is recorded,
+ * check_out is cleared, status becomes ONLINE, and a new session is appended.
  */
 export async function POST(req: Request) {
   try {
@@ -46,28 +46,54 @@ export async function POST(req: Request) {
 
     let record = await Attendance.findOne({
       $or: [
-        { employee_id: employeeId, date: today },
+        ...(employeeId ? [{ employee_id: employeeId, date: today }] : []),
         { name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i'), date: today },
       ],
     });
 
     if (record) {
-      if (record.check_in) {
+      const isAlreadyOnline = record.status === 'ONLINE' && record.check_in && !record.check_out;
+
+      if (isAlreadyOnline) {
+        if (latitude) (record as any).latitude = latitude;
+        if (longitude) (record as any).longitude = longitude;
+        if (address) (record as any).address = address;
+        await record.save();
+
         return NextResponse.json({
           success: true,
-          message: 'Already checked in today.',
+          message: `Already checked in at ${record.check_in}. Status is ONLINE.`,
           data: {
             date: today,
             check_in: record.check_in,
+            check_out: '',
             status: 'ONLINE',
+            is_checked_in: true,
+            hours_worked: record.hours_worked || 0,
+            sessions: record.sessions || [],
           },
         });
       }
+
+      // Re-checking in for an additional shift/session today!
       record.check_in = checkInTime;
+      record.check_out = '';
       record.status = 'ONLINE';
       if (latitude) (record as any).latitude = latitude;
       if (longitude) (record as any).longitude = longitude;
       if (address) (record as any).address = address;
+
+      if (!record.sessions) record.sessions = [];
+      record.sessions.push({
+        check_in: checkInTime,
+        check_out: '',
+        hours_worked: 0,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+        address,
+        created_at: new Date(),
+      });
+
       await record.save();
     } else {
       record = await Attendance.create({
@@ -77,10 +103,23 @@ export async function POST(req: Request) {
         district: employee?.district || 'Ernakulam',
         date: today,
         check_in: checkInTime,
+        check_out: '',
         status: 'ONLINE',
         hours_worked: 0,
         latitude,
         longitude,
+        address,
+        sessions: [
+          {
+            check_in: checkInTime,
+            check_out: '',
+            hours_worked: 0,
+            latitude: latitude ?? undefined,
+            longitude: longitude ?? undefined,
+            address,
+            created_at: new Date(),
+          },
+        ],
       });
     }
 
@@ -96,8 +135,11 @@ export async function POST(req: Request) {
       data: {
         date: today,
         check_in: checkInTime,
+        check_out: '',
         status: 'ONLINE',
-        hours_worked: 0,
+        is_checked_in: true,
+        hours_worked: record.hours_worked || 0,
+        sessions: record.sessions || [],
       },
     });
   } catch (error: any) {

@@ -17,17 +17,36 @@ export async function GET(req: Request) {
     if (!guard.ok) return guard.response;
 
     const employee = guard.auth.employee;
+    const employeeId = guard.auth.employeeId;
     const nameFilter = nameRegex(employee.name);
-    if (!nameFilter) {
+
+    const queryFilter: Record<string, any> = {
+      $or: [
+        ...(employeeId ? [{ employee_id: employeeId }] : []),
+        ...(nameFilter ? [{ name: nameFilter }] : []),
+      ],
+    };
+
+    if (queryFilter.$or.length === 0) {
       return ok({ today: null, records: [] }, 'No attendance found');
     }
 
-    const [today, records] = await Promise.all([
-      Attendance.findOne({ name: nameFilter, date: todayKey() }).lean(),
-      Attendance.find({ name: nameFilter }).sort({ date: -1 }).limit(31).lean(),
+    const todayFilter = {
+      ...queryFilter,
+      date: todayKey(),
+    };
+
+    const [rawToday, rawRecords] = await Promise.all([
+      Attendance.findOne(todayFilter).lean() as Promise<any>,
+      Attendance.find(queryFilter).sort({ date: -1 }).limit(31).lean() as Promise<any[]>,
     ]);
 
-    return ok({ today, records }, 'Attendance fetched successfully');
+    let today = rawToday;
+    if (today && today.status === 'ONLINE') {
+      today = { ...today, check_out: '' };
+    }
+
+    return ok({ today, records: rawRecords || [] }, 'Attendance fetched successfully');
   } catch (error: any) {
     console.error('GET /api/attendance error:', error);
     return ok({ today: null, records: [] }, 'Attendance unavailable');

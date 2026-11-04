@@ -7,10 +7,10 @@ import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
  * POST /api/attendance/check-out
- * Records today's check-out for the signed-in employee.
- *
- * Identity comes from the Bearer token. The Attendance `status` enum only
- * allows ONLINE / OFFLINE, so a completed day is stored as OFFLINE.
+ * Records check-out for the signed-in employee.
+ * Supports multiple check-ins and check-outs in a single day.
+ * Reflects the latest check_out time, calculates cumulative hours worked across all sessions,
+ * and records session details into attendance history.
  */
 export async function POST(req: Request) {
   try {
@@ -40,25 +40,50 @@ export async function POST(req: Request) {
 
     let record = await Attendance.findOne({
       $or: [
-        { employee_id: employeeId, date: today },
+        ...(employeeId ? [{ employee_id: employeeId, date: today }] : []),
         { name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i'), date: today },
       ],
     });
 
-    let hoursWorked = 8.0;
+    let currentSessionHours = 0;
     if (record && record.check_in) {
       const inMinutes = parseTimeToMinutes(record.check_in);
       const outMinutes = parseTimeToMinutes(checkOutTime);
       if (inMinutes !== null && outMinutes !== null && outMinutes > inMinutes) {
-        hoursWorked = parseFloat(((outMinutes - inMinutes) / 60).toFixed(2));
+        currentSessionHours = parseFloat(((outMinutes - inMinutes) / 60).toFixed(2));
       }
     }
 
     if (record) {
       record.check_out = checkOutTime;
       record.status = 'OFFLINE';
-      record.hours_worked = hoursWorked;
       if (notes) (record as any).notes = notes;
+
+      if (!record.sessions) record.sessions = [];
+
+      // Find the last open session (one without a check_out)
+      const lastSession = record.sessions.length > 0 ? record.sessions[record.sessions.length - 1] : null;
+      if (lastSession && !lastSession.check_out) {
+        lastSession.check_out = checkOutTime;
+        lastSession.hours_worked = currentSessionHours;
+        if (notes) lastSession.notes = notes;
+      } else {
+        record.sessions.push({
+          check_in: record.check_in || '',
+          check_out: checkOutTime,
+          hours_worked: currentSessionHours,
+          notes,
+          created_at: new Date(),
+        });
+      }
+
+      // Calculate total cumulative hours worked today across all sessions
+      const totalHours = record.sessions.reduce(
+        (sum: number, s: any) => sum + (Number(s.hours_worked) || 0),
+        0
+      );
+      record.hours_worked = parseFloat(totalHours.toFixed(2));
+
       await record.save();
     } else {
       record = await Attendance.create({
@@ -67,15 +92,25 @@ export async function POST(req: Request) {
         designation: employee?.designation || 'Business Development Executive',
         district: employee?.district || 'Ernakulam',
         date: today,
-        check_in: '09:00 AM',
+        check_in: '',
         check_out: checkOutTime,
         status: 'OFFLINE',
-        hours_worked: hoursWorked,
+        hours_worked: 0,
+        notes,
+        sessions: [
+          {
+            check_in: '',
+            check_out: checkOutTime,
+            hours_worked: 0,
+            notes,
+            created_at: new Date(),
+          },
+        ],
       });
     }
 
     await logActivity({
-      description: `Attendance Check-Out logged for ${employeeName} at ${checkOutTime} (${hoursWorked} hrs worked)`,
+      description: `Attendance Check-Out logged for ${employeeName} at ${checkOutTime} (${record.hours_worked} hrs worked)`,
       subjectType: 'Attendance',
       causer: causerFromRequest(req),
     });
@@ -85,10 +120,12 @@ export async function POST(req: Request) {
       message: `Checked out successfully at ${checkOutTime}.`,
       data: {
         date: today,
-        check_in: record.check_in,
+        check_in: record.check_in || '',
         check_out: checkOutTime,
-        hours_worked: hoursWorked,
+        hours_worked: record.hours_worked || 0,
         status: 'OFFLINE',
+        is_checked_in: false,
+        sessions: record.sessions || [],
       },
     });
   } catch (error: any) {

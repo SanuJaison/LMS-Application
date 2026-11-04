@@ -53,10 +53,16 @@ export async function GET(req: Request) {
       ],
     }).lean();
 
-    const isCheckedIn = Boolean(todayAtt && todayAtt.check_in && !todayAtt.check_out);
-    const checkInTime = todayAtt?.check_in || '--:--';
-    const checkOutTime = todayAtt?.check_out || '--:--';
-    const shiftStatus = todayAtt ? (isCheckedIn ? 'ONLINE' : 'COMPLETED') : 'NOT_STARTED';
+    const isCheckedIn = Boolean(
+      todayAtt &&
+      todayAtt.check_in &&
+      (todayAtt.status === 'ONLINE' || !todayAtt.check_out)
+    );
+    const checkInTime = todayAtt?.check_in || '';
+    const checkOutTime = isCheckedIn ? '' : (todayAtt?.check_out || '');
+    const shiftStatus = todayAtt
+      ? (isCheckedIn ? 'ONLINE' : (todayAtt.check_out ? 'COMPLETED' : 'OFFLINE'))
+      : 'NOT_STARTED';
 
     const wallet: any = await Wallet.findOne({
       $or: [
@@ -201,6 +207,8 @@ export async function GET(req: Request) {
         check_out_time: checkOutTime,
         shift_status: shiftStatus,
         is_checked_in: isCheckedIn,
+        hours_worked: todayAtt?.hours_worked ?? 0,
+        sessions: todayAtt?.sessions || [],
         location_lat: todayAtt?.latitude ?? 10.0159,
         location_lng: todayAtt?.longitude ?? 76.3419,
       },

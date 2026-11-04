@@ -18,7 +18,8 @@ import {
  *   - SM         -> own + whole subtree
  *   - admin      -> all (optionally narrowed with ?employee_id= / ?email=)
  *
- * Requires a Bearer token. No token now returns 401 instead of every record.
+ * Returns latest check_in and check_out times, cumulative hours worked (default 0),
+ * and all sessions/punches for each day.
  */
 export async function GET(req: Request) {
   try {
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
 
       if (!canAccessEmployee(scope, target.employee_id, target.name)) {
         return NextResponse.json(
-          { success: false, message: 'You cannot view this employee\'s attendance.' },
+          { success: false, message: "You cannot view this employee's attendance." },
           { status: 403 }
         );
       }
@@ -78,13 +79,31 @@ export async function GET(req: Request) {
       .limit(62)
       .lean();
 
-    const data = records.map((r: any) => ({
-      date: r.date,
-      check_in: r.check_in || '--:--',
-      check_out: r.check_out || '--:--',
-      hours_worked: r.hours_worked ?? 8,
-      status: r.status === 'ONLINE' ? 'PRESENT' : r.status || 'PRESENT',
-    }));
+    const data = records.map((r: any) => {
+      const fallbackSessions = r.check_in
+        ? [
+            {
+              check_in: r.check_in,
+              check_out: r.check_out || '',
+              hours_worked: r.hours_worked ?? 0,
+            },
+          ]
+        : [];
+      const sessionList = r.sessions && r.sessions.length > 0 ? r.sessions : fallbackSessions;
+
+      return {
+        id: r._id.toString(),
+        employee_id: r.employee_id || '',
+        name: r.name || '',
+        date: r.date,
+        check_in: r.check_in || '',
+        check_out: r.check_out || '',
+        hours_worked: r.hours_worked ?? 0,
+        status: r.status === 'ONLINE' ? 'ONLINE' : 'PRESENT',
+        sessions: sessionList,
+        punches: sessionList,
+      };
+    });
 
     return NextResponse.json({
       success: true,
