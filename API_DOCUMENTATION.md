@@ -939,23 +939,51 @@
 ### 5.2 List Assigned Leads
 - **Endpoint:** `GET /api/leads`
 - **Token Needed:** `BDE` (or Manager/Admin)
-- **Query Params (Optional):** `?status=1`, `?search=Arjun`, `?page=1&per_page=20`
+- **Query Params (Optional):**
+  - `?status=1` : **Pending & Follow-up Leads** (Returns all active leads needing follow-up: `New`, `Pending`, `Follow Up`, `Follow Uped` with full `followups` history array).
+  - `?status=4` / `?status=Admitted` : **Closed Admissions** (Won).
+  - `?status=5` / `?status=Lost` : **Closed / Lost Leads**.
+  - `?search=Arjun` : Search by student name, lead ID, phone, etc.
 - **Response `200 OK`:**
 ```json
 {
   "success": true,
-  "count": 15,
+  "count": 1,
   "data": [
     {
-      "id": 1092,
-      "lead_id": "LD-4091",
-      "student_id": "STU-001",
-      "name": "Arjun Menon",
-      "phone": "+91 98460 12345",
-      "course": "Flutter & Mobile App Development",
-      "district": "Ernakulam",
+      "id": 631978268,
+      "lead_id": "LD-7890",
+      "student_id": "STU-008",
+      "name": "Aslam",
+      "phone": "+91 9879879879",
+      "whatsapp_number": "+91 9879879879",
+      "course": {
+        "id": 6894000,
+        "name": "Full-Stack Web Development"
+      },
+      "district": {
+        "id": 7391334,
+        "name": "Ernakulam"
+      },
       "status": 1,
-      "admission_status": "New"
+      "admission_status": "Follow Uped",
+      "next_followup_date": "2026-11-05",
+      "student_interest": "Warm",
+      "notes": "Parent requested syllabus breakdown",
+      "followups": [
+        {
+          "id": 63197826801,
+          "lead_id": 631978268,
+          "followup_date": "2026-11-04T08:47:37.000Z",
+          "date": "2026-11-04T08:47:37.000Z",
+          "type": "Follow Uped",
+          "admission_status": "Follow Uped",
+          "notes": "Parent requested syllabus breakdown",
+          "remarks": "Parent requested syllabus breakdown",
+          "next_followup_date": "2026-11-05",
+          "student_interest": "Warm"
+        }
+      ]
     }
   ]
 }
