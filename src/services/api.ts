@@ -64,6 +64,9 @@ export async function loginUser(
       const data = await res.json();
       if (data.token && typeof window !== 'undefined') {
         localStorage.setItem('auth_token', data.token);
+        if (data.user) {
+          localStorage.setItem('user_session', JSON.stringify(data.user));
+        }
       }
       return data;
     }

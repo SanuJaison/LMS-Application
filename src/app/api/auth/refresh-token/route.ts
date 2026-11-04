@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     delete (payload as any).iat;
     delete (payload as any).exp;
 
-    const newToken = signToken(payload, '7d');
+    const newToken = signToken(payload, '30d');
 
     return NextResponse.json({
       success: true,

@@ -61,6 +61,6 @@ export function verifyToken(token: string): DecodedToken | null {
 /**
  * Signs payload into JWT token string.
  */
-export function signToken(payload: object, expiresIn: string | number = '7d'): string {
+export function signToken(payload: object, expiresIn: string | number = '30d'): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: expiresIn as any });
 }

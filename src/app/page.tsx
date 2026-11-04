@@ -62,25 +62,48 @@ export default function KeralaCRMApp() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token');
+      const cachedSession = localStorage.getItem('user_session');
+
+      // 1. Instantly restore from cached session so page never flickers or drops to login
+      if (token && cachedSession) {
+        try {
+          const parsed = JSON.parse(cachedSession);
+          if (parsed && (parsed.name || parsed.email || parsed.role)) {
+            setUser(parsed);
+            setIsAuthenticated(true);
+            setIsCheckingAuth(false);
+          }
+        } catch {
+          // ignore json parse error
+        }
+      }
+
       if (token) {
+        // 2. Validate in background with server
         fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then(async (res) => {
-            const data = await res.json().catch(() => ({}));
-            if (res.ok && data && data.success && data.user) {
-              setUser(data.user);
-              setIsAuthenticated(true);
-            } else {
-              // Stale or invalid token: fall back to the login screen.
+            // ONLY log out if the server explicitly tells us 401 Unauthorized
+            if (res.status === 401) {
               localStorage.removeItem('auth_token');
+              localStorage.removeItem('user_session');
               setIsAuthenticated(false);
+              return;
+            }
+
+            if (res.ok) {
+              const data = await res.json().catch(() => ({}));
+              if (data && data.success && data.user) {
+                setUser(data.user);
+                setIsAuthenticated(true);
+                localStorage.setItem('user_session', JSON.stringify(data.user));
+              }
             }
           })
           .catch((err) => {
-            console.error('Session verification error:', err);
-            localStorage.removeItem('auth_token');
-            setIsAuthenticated(false);
+            // Cold starts or transient network hiccups must NEVER log the user out!
+            console.warn('Session verification background notice:', err);
           })
           .finally(() => {
             setIsCheckingAuth(false);
@@ -156,6 +179,7 @@ export default function KeralaCRMApp() {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_session');
     }
     setIsAuthenticated(false);
     setUserMenuOpen(false);
@@ -179,6 +203,9 @@ export default function KeralaCRMApp() {
         onLoginSuccess={(loggedInUser) => {
           setUser(loggedInUser);
           setIsAuthenticated(true);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('user_session', JSON.stringify(loggedInUser));
+          }
           showToast('success', `Welcome back, ${loggedInUser.name || 'Admin'}! Authorized.`);
         }}
         isDarkMode={isDarkMode}

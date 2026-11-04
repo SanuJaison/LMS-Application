@@ -24,21 +24,34 @@ export default function LoginPage() {
 
       // Check for active token
       const token = localStorage.getItem('auth_token');
+      const cachedSession = localStorage.getItem('user_session');
+      if (token && cachedSession) {
+        // Already logged in! Redirect to dashboard immediately!
+        router.replace('/');
+        return;
+      }
+
       if (token) {
         // Verify token with backend
         fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.success && data.user) {
-              // Valid session -> redirect to dashboard
-              router.replace('/');
-            } else {
-              // Token expired/invalid
+          .then(async (res) => {
+            if (res.status === 401) {
               localStorage.removeItem('auth_token');
+              localStorage.removeItem('user_session');
               setIsVerifyingExistingSession(false);
+              return;
             }
+            if (res.ok) {
+              const data = await res.json().catch(() => ({}));
+              if (data && data.success && data.user) {
+                localStorage.setItem('user_session', JSON.stringify(data.user));
+                router.replace('/');
+                return;
+              }
+            }
+            setIsVerifyingExistingSession(false);
           })
           .catch(() => {
             setIsVerifyingExistingSession(false);
@@ -69,6 +82,9 @@ export default function LoginPage() {
     if (typeof window !== 'undefined') {
       if (token) {
         localStorage.setItem('auth_token', token);
+      }
+      if (user) {
+        localStorage.setItem('user_session', JSON.stringify(user));
       }
       const params = new URLSearchParams(window.location.search);
       const redirectPath = params.get('redirect') || '/';

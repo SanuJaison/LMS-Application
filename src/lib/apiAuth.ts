@@ -166,6 +166,43 @@ export async function authenticate(req: Request): Promise<AuthContext | null> {
     };
   }
 
+  // 4. Resilience Fallback: If DB query timed out or had connection drop,
+  // but JWT signature is verified and not expired, preserve the session!
+  if (isExplicitAdmin) {
+    return {
+      decoded,
+      employee: null,
+      role: 'ADMIN',
+      isAdmin: true,
+      employeeId: '',
+      name: decoded.name || 'Admin User',
+      team: '',
+    };
+  }
+
+  if (decoded.employee_id || decoded.role === 'employee') {
+    return {
+      decoded,
+      employee: {
+        _id: decoded.id || decoded._id,
+        employee_id: decoded.employee_id || '',
+        name: decoded.name || 'User',
+        email: decoded.email || '',
+        designation: decoded.designation || 'Business Development Executive',
+        team: decoded.team || '',
+        zone: decoded.zone || '',
+        district: decoded.district || '',
+        reports_to: decoded.reports_to || null,
+        status: 'active',
+      },
+      role: hierarchyRole({ designation: decoded.designation || 'BDE' }),
+      isAdmin: false,
+      employeeId: String(decoded.employee_id || ''),
+      name: String(decoded.name || 'User'),
+      team: String(decoded.team || ''),
+    };
+  }
+
   return null;
 }
 
