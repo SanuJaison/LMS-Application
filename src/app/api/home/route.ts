@@ -178,6 +178,20 @@ export async function GET(req: Request) {
     const conversionRate =
       assignedLeads > 0 ? Math.round((closedLeads / assignedLeads) * 100) : 0;
 
+    const rawSessions = Array.isArray(todayAtt?.sessions) ? todayAtt.sessions : [];
+    const sanitizedSessions = rawSessions.map((s: any) => ({
+      ...s,
+      check_in: s.check_in || '',
+      check_out: s.check_out || '',
+      hours_worked: Number(s.hours_worked) || 0,
+      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      address: s.address || '',
+      notes: s.notes || '',
+    }));
+
     const payload = {
       user: {
         id: numericId(employee?._id) || 101,
@@ -207,10 +221,10 @@ export async function GET(req: Request) {
         check_out_time: checkOutTime,
         shift_status: shiftStatus,
         is_checked_in: isCheckedIn,
-        hours_worked: todayAtt?.hours_worked ?? 0,
-        sessions: todayAtt?.sessions || [],
-        location_lat: todayAtt?.latitude ?? 10.0159,
-        location_lng: todayAtt?.longitude ?? 76.3419,
+        hours_worked: Number(todayAtt?.hours_worked) || 0,
+        sessions: sanitizedSessions,
+        location_lat: typeof todayAtt?.latitude === 'number' && !isNaN(todayAtt?.latitude) ? todayAtt.latitude : 10.0159,
+        location_lng: typeof todayAtt?.longitude === 'number' && !isNaN(todayAtt?.longitude) ? todayAtt.longitude : 76.3419,
       },
       eod_sync: {
         tasks_completed: ownClosedLeads,

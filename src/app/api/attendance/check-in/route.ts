@@ -70,7 +70,7 @@ export async function POST(req: Request) {
             status: 'ONLINE',
             is_checked_in: true,
             hours_worked: record.hours_worked || 0,
-            sessions: record.sessions || [],
+            sessions: sanitizeSessions(record.sessions),
           },
         });
       }
@@ -88,8 +88,8 @@ export async function POST(req: Request) {
         check_in: checkInTime,
         check_out: '',
         hours_worked: 0,
-        latitude: latitude ?? undefined,
-        longitude: longitude ?? undefined,
+        latitude: latitude ?? 10.0159,
+        longitude: longitude ?? 76.3419,
         address,
         created_at: new Date(),
       });
@@ -106,16 +106,16 @@ export async function POST(req: Request) {
         check_out: '',
         status: 'ONLINE',
         hours_worked: 0,
-        latitude,
-        longitude,
+        latitude: latitude ?? 10.0159,
+        longitude: longitude ?? 76.3419,
         address,
         sessions: [
           {
             check_in: checkInTime,
             check_out: '',
             hours_worked: 0,
-            latitude: latitude ?? undefined,
-            longitude: longitude ?? undefined,
+            latitude: latitude ?? 10.0159,
+            longitude: longitude ?? 76.3419,
             address,
             created_at: new Date(),
           },
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
         status: 'ONLINE',
         is_checked_in: true,
         hours_worked: record.hours_worked || 0,
-        sessions: record.sessions || [],
+        sessions: sanitizeSessions(record.sessions),
       },
     });
   } catch (error: any) {
@@ -149,6 +149,22 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function sanitizeSessions(sessions: any[]): any[] {
+  if (!Array.isArray(sessions)) return [];
+  return sessions.map((s: any) => ({
+    ...s,
+    check_in: s.check_in || '',
+    check_out: s.check_out || '',
+    hours_worked: Number(s.hours_worked) || 0,
+    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    address: s.address || '',
+    notes: s.notes || '',
+  }));
 }
 
 function escapeRegex(value: string): string {

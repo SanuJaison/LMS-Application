@@ -125,7 +125,7 @@ export async function POST(req: Request) {
         hours_worked: record.hours_worked || 0,
         status: 'OFFLINE',
         is_checked_in: false,
-        sessions: record.sessions || [],
+        sessions: sanitizeSessions(record.sessions),
       },
     });
   } catch (error: any) {
@@ -135,6 +135,22 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function sanitizeSessions(sessions: any[]): any[] {
+  if (!Array.isArray(sessions)) return [];
+  return sessions.map((s: any) => ({
+    ...s,
+    check_in: s.check_in || '',
+    check_out: s.check_out || '',
+    hours_worked: Number(s.hours_worked) || 0,
+    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    address: s.address || '',
+    notes: s.notes || '',
+  }));
 }
 
 function escapeRegex(value: string): string {

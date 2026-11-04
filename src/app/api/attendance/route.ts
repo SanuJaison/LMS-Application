@@ -46,9 +46,41 @@ export async function GET(req: Request) {
       today = { ...today, check_out: '' };
     }
 
-    return ok({ today, records: rawRecords || [] }, 'Attendance fetched successfully');
+    const sanitizedToday = sanitizeAttendanceRecord(today);
+    const sanitizedRecords = (rawRecords || []).map(sanitizeAttendanceRecord);
+
+    return ok({ today: sanitizedToday, records: sanitizedRecords }, 'Attendance fetched successfully');
   } catch (error: any) {
     console.error('GET /api/attendance error:', error);
     return ok({ today: null, records: [] }, 'Attendance unavailable');
   }
+}
+
+function sanitizeAttendanceRecord(r: any): any {
+  if (!r) return null;
+  const rawSessions = Array.isArray(r.sessions) ? r.sessions : [];
+  const sanitizedSessions = rawSessions.map((s: any) => ({
+    ...s,
+    check_in: s.check_in || '',
+    check_out: s.check_out || '',
+    hours_worked: Number(s.hours_worked) || 0,
+    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+    address: s.address || '',
+    notes: s.notes || '',
+  }));
+  const lat = typeof r.latitude === 'number' && !isNaN(r.latitude) ? r.latitude : 10.0159;
+  const lng = typeof r.longitude === 'number' && !isNaN(r.longitude) ? r.longitude : 76.3419;
+  return {
+    ...r,
+    latitude: lat,
+    longitude: lng,
+    location_lat: lat,
+    location_lng: lng,
+    hours_worked: Number(r.hours_worked) || 0,
+    sessions: sanitizedSessions,
+    punches: sanitizedSessions,
+  };
 }

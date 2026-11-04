@@ -36,6 +36,23 @@ export async function GET(req: Request) {
     );
     const isCheckedOut = Boolean(record && record.check_out && !isCheckedIn);
 
+    const rawSessions = Array.isArray(record?.sessions) ? record.sessions : [];
+    const sanitizedSessions = rawSessions.map((s: any) => ({
+      ...s,
+      check_in: s.check_in || '',
+      check_out: s.check_out || '',
+      hours_worked: Number(s.hours_worked) || 0,
+      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      address: s.address || '',
+      notes: s.notes || '',
+    }));
+
+    const lat = typeof record?.latitude === 'number' && !isNaN(record.latitude) ? record.latitude : 10.0159;
+    const lng = typeof record?.longitude === 'number' && !isNaN(record.longitude) ? record.longitude : 76.3419;
+
     const payload = {
       employee_id: employeeId,
       name: employeeName,
@@ -47,10 +64,13 @@ export async function GET(req: Request) {
       is_checked_in: isCheckedIn,
       checked_in: isCheckedIn,
       checked_out: isCheckedOut,
-      hours_worked: record?.hours_worked ?? 0,
-      sessions: record?.sessions || [],
-      latitude: record?.latitude ?? null,
-      longitude: record?.longitude ?? null,
+      hours_worked: Number(record?.hours_worked) || 0,
+      sessions: sanitizedSessions,
+      punches: sanitizedSessions,
+      latitude: lat,
+      longitude: lng,
+      location_lat: lat,
+      location_lng: lng,
     };
 
     return NextResponse.json({

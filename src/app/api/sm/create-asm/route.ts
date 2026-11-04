@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team, Wallet } from '@/models';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
-import { requireRoles } from '@/lib/apiAuth';
+import { requireAuth, requireRoles } from '@/lib/apiAuth';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -429,7 +429,7 @@ export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    const guard = await requireAuth(req);
     if (!guard.ok) return guard.response;
 
     const asms: any[] = await Employee.find({

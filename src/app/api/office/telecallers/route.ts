@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Lead } from '@/models/lead';
-import { requireRoles } from '@/lib/apiAuth';
+import { requireAuth } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   try {
     await connectDB();
 
-    const guard = await requireRoles(req, ['ASM', 'BDM', 'SM', 'ADMIN', 'MD']);
+    const guard = await requireAuth(req);
     if (!guard.ok) return guard.response;
 
     const telecallers = await Employee.find({
