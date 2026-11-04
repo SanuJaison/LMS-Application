@@ -32,24 +32,42 @@ export async function GET(req: Request) {
       ],
     }).lean();
 
+    const isSm = auth.role === 'SM' || Boolean(auth.employee?.designation?.toLowerCase().includes('sales manager') && !auth.employee?.designation?.toLowerCase().includes('area'));
+    const isAsm = auth.role === 'ASM' || Boolean(auth.employee?.designation?.toLowerCase().includes('area sales manager') || auth.employee?.designation?.toLowerCase().includes('office team lead'));
+
+    const leadFilter: Record<string, any> = {
+      $or: [
+        { status: 4 },
+        { admission_status: 'Admitted' },
+        { admission_status: 'Closed' },
+      ],
+    };
+
+    if (!isSm) {
+      if (isAsm) {
+        leadFilter.$and = [
+          {
+            $or: [
+              ...(employeeId ? [{ asm_id: employeeId }, { employee_id: employeeId }] : []),
+              ...(employeeName ? [{ asm_name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') }, { employee: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') }] : []),
+              ...(auth.employee?.team ? [{ team: new RegExp(`^${escapeRegex(auth.employee.team)}$`, 'i') }] : []),
+            ],
+          },
+        ];
+      } else {
+        leadFilter.$and = [
+          {
+            $or: [
+              ...(employeeId ? [{ employee_id: employeeId }, { bde_id: employeeId }] : []),
+              ...(employeeName ? [{ employee: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') }, { bde_name: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') }] : []),
+            ],
+          },
+        ];
+      }
+    }
+
     const [admissions, withdrawals] = await Promise.all([
-      Lead.find({
-        $and: [
-          {
-            $or: [
-              ...(employeeId ? [{ employee_id: employeeId }, { asm_id: employeeId }, { sm_id: employeeId }] : []),
-              ...(employeeName ? [{ employee: new RegExp(`^${escapeRegex(employeeName)}$`, 'i') }] : []),
-            ],
-          },
-          {
-            $or: [
-              { status: 4 },
-              { admission_status: 'Admitted' },
-              { admission_status: 'Closed' },
-            ],
-          },
-        ],
-      })
+      Lead.find(leadFilter)
         .sort({ updatedAt: -1 })
         .limit(50)
         .lean(),
@@ -70,7 +88,7 @@ export async function GET(req: Request) {
       student_id: l.student_id || '',
       student_name: l.name || '',
       course: l.course_name || l.interested_course || '',
-      incentive: l.incentive_earned ?? (auth.role === 'SM' ? 20 : auth.role === 'ASM' ? 100 : 1000),
+      incentive: isSm ? 20 : isAsm ? 100 : (l.incentive_amount || l.incentive_earned || 1000),
       type: 'credit',
       date: l.updatedAt || l.createdAt,
       status: 'Credited',

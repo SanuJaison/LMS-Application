@@ -12,12 +12,10 @@ import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAu
  * POST /api/leads/[id]/close
  * Closes a lead as "Admitted / Won".
  *
- * Requirements:
- * 1. Checks that the provided student_id matches the lead's student_id.
- *    If student_id does not match, the lead CANNOT close.
- * 2. Marks lead as Admitted / Closed.
- * 3. Credits ₹1,000 incentive to the BDE's wallet.
- * 4. Creates an individual Incentive record for this closed admission.
+ * Multi-Tier Incentive Structure:
+ * 1. BDE: Receives ₹1,000 direct commission into their wallet.
+ * 2. ASM: Receives ₹100 team override into their wallet.
+ * 3. SM:  Receives ₹20 state override into their wallet.
  */
 export async function POST(
   req: Request,
@@ -48,7 +46,6 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
 
     // Student ID Verification:
-    // "that student id is needed when follow up and closed if the student id is not same the lead should not close"
     const providedStudentId = String(body.student_id || '').trim();
     const existingStudentId = String(lead.student_id || '').trim();
 
@@ -76,7 +73,7 @@ export async function POST(
       );
     }
 
-    // Determine closer
+    // Determine closer (BDE)
     let bdeEmployee: any = null;
 
     if (lead.employee_id) {
@@ -94,13 +91,47 @@ export async function POST(
     const bdeId = bdeEmployee?.employee_id || lead.employee_id || 'BDE-UNKNOWN';
     const bdeName = bdeEmployee?.name || lead.employee || 'BDE';
     const team = bdeEmployee?.team || lead.team || '';
-    const asmId = bdeEmployee?.reports_to || lead.asm_id || '';
 
+    // Determine reporting ASM
+    let asmId = bdeEmployee?.reports_to || lead.asm_id || '';
     let asmName = lead.asm_name || '';
-    if (!asmName && asmId) {
-      const asmEmp: any = await Employee.findOne({ employee_id: asmId }).lean();
-      if (asmEmp) asmName = asmEmp.name;
+    let asmEmployee: any = null;
+
+    if (asmId) {
+      asmEmployee = await Employee.findOne({ employee_id: asmId }).lean();
+      if (asmEmployee) asmName = asmEmployee.name;
     }
+    if (!asmEmployee && team) {
+      asmEmployee = await Employee.findOne({
+        team: new RegExp(`^${escapeRegex(team.trim())}$`, 'i'),
+        $or: [
+          { designation: /area sales manager/i },
+          { designation: /office team lead/i },
+          { employee_id: /^ASM/i },
+        ],
+      }).lean();
+      if (asmEmployee) {
+        asmId = asmEmployee.employee_id || asmId;
+        asmName = asmEmployee.name || asmName;
+      }
+    }
+
+    // Determine State Sales Manager (SM)
+    let smEmployee: any = null;
+    if (asmEmployee?.reports_to) {
+      smEmployee = await Employee.findOne({ employee_id: asmEmployee.reports_to }).lean();
+    }
+    if (!smEmployee) {
+      smEmployee = await Employee.findOne({
+        $or: [
+          { designation: /sales manager/i },
+          { employee_id: /^SM/i },
+        ],
+        status: 'active',
+      }).lean();
+    }
+    const smId = smEmployee?.employee_id || 'SM001';
+    const smName = smEmployee?.name || 'Sales Manager';
 
     const finalStudentId = existingStudentId || providedStudentId;
     const course = body.course || lead.interested_course || lead.course || '';
@@ -112,6 +143,7 @@ export async function POST(
     // Check if incentive already generated for this admission
     const existingIncentive = await Incentive.findOne({
       lead_id: lead.lead_id || lead._id.toString(),
+      bde_id: bdeId,
     });
 
     const isNewlyClosed =
@@ -119,6 +151,11 @@ export async function POST(
       lead.admission_status !== 'Closed' &&
       lead.status !== 4 &&
       lead.status !== 5;
+
+    // Multi-tier incentive amounts: BDE ₹1,000, ASM ₹100, SM ₹20
+    const bdeIncentive = typeof bdeEmployee?.incentive === 'number' && bdeEmployee.incentive >= 0 ? bdeEmployee.incentive : 1000;
+    const asmIncentive = 100;
+    const smIncentive = 20;
 
     // Update lead document
     lead.admission_status = 'Admitted';
@@ -129,13 +166,15 @@ export async function POST(
     lead.payment_amount = payment;
     lead.payment_verification = paymentVerification;
     lead.admission_date = lead.admission_date || new Date();
-    const earnedIncentive = typeof bdeEmployee?.incentive === 'number' && bdeEmployee.incentive >= 0 ? bdeEmployee.incentive : 1000;
-    lead.incentive_amount = earnedIncentive;
+    lead.incentive_amount = bdeIncentive;
+    lead.incentive_earned = bdeIncentive;
     lead.incentive_status = 'Credited';
     lead.bde_id = bdeId;
     lead.bde_name = bdeName;
     lead.asm_id = asmId;
     lead.asm_name = asmName;
+    lead.sm_id = smId;
+    lead.sm_name = smName;
     lead.team = team;
     if (remarks) lead.remarks = remarks;
 
@@ -156,9 +195,10 @@ export async function POST(
 
     await lead.save();
 
-    // Incentive processing: ₹1,000 per closed admission
+    // Multi-tier incentive processing: BDE ₹1,000, ASM ₹100, SM ₹20
     let incentiveRecord = existingIncentive;
     if (!existingIncentive && isNewlyClosed) {
+      // 1. Record BDE Incentive
       incentiveRecord = await Incentive.create({
         lead_id: lead.lead_id || lead._id.toString(),
         student_id: finalStudentId,
@@ -169,17 +209,17 @@ export async function POST(
         asm_id: asmId,
         asm_name: asmName,
         team,
-        amount: earnedIncentive,
+        amount: bdeIncentive,
         status: 'Earned',
         admission_date: new Date(),
       });
 
-      // Credit incentive to BDE wallet
+      // 2. Credit BDE Wallet (+₹1,000)
       await Wallet.findOneAndUpdate(
         {
           $or: [
-            { employee_id: bdeId },
-            { employee: new RegExp(`^${bdeName.trim()}$`, 'i') },
+            ...(bdeId ? [{ employee_id: bdeId }] : []),
+            ...(bdeName ? [{ employee: new RegExp(`^${escapeRegex(bdeName.trim())}$`, 'i') }] : []),
           ],
         },
         {
@@ -189,32 +229,116 @@ export async function POST(
             currency: 'INR',
           },
           $inc: {
-            balance: 1000,
-            total_earned: 1000,
+            balance: bdeIncentive,
+            total_earned: bdeIncentive,
           },
         },
         { upsert: true, new: true }
       );
+
+      // 3. Credit reporting ASM Wallet (+₹100)
+      if (asmId || asmName) {
+        await Wallet.findOneAndUpdate(
+          {
+            $or: [
+              ...(asmId ? [{ employee_id: asmId }] : []),
+              ...(asmName ? [{ employee: new RegExp(`^${escapeRegex(asmName.trim())}$`, 'i') }] : []),
+            ],
+          },
+          {
+            $setOnInsert: {
+              employee: asmName || 'ASM',
+              employee_id: asmId,
+              currency: 'INR',
+            },
+            $inc: {
+              balance: asmIncentive,
+              total_earned: asmIncentive,
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        // Record ASM incentive
+        await Incentive.create({
+          lead_id: lead.lead_id || lead._id.toString(),
+          student_id: finalStudentId,
+          student_name: lead.name,
+          course,
+          bde_id: asmId,
+          bde_name: asmName,
+          asm_id: asmId,
+          asm_name: asmName,
+          team,
+          amount: asmIncentive,
+          status: 'Earned',
+          admission_date: new Date(),
+        }).catch((err: any) => console.error('ASM Incentive creation notice:', err.message));
+      }
+
+      // 4. Credit State Sales Manager SM Wallet (+₹20)
+      if (smId || smName) {
+        await Wallet.findOneAndUpdate(
+          {
+            $or: [
+              ...(smId ? [{ employee_id: smId }] : []),
+              ...(smName ? [{ employee: new RegExp(`^${escapeRegex(smName.trim())}$`, 'i') }] : []),
+            ],
+          },
+          {
+            $setOnInsert: {
+              employee: smName || 'Sales Manager',
+              employee_id: smId,
+              currency: 'INR',
+            },
+            $inc: {
+              balance: smIncentive,
+              total_earned: smIncentive,
+            },
+          },
+          { upsert: true, new: true }
+        );
+
+        // Record SM incentive
+        await Incentive.create({
+          lead_id: lead.lead_id || lead._id.toString(),
+          student_id: finalStudentId,
+          student_name: lead.name,
+          course,
+          bde_id: smId,
+          bde_name: smName,
+          asm_id: asmId,
+          asm_name: asmName,
+          team,
+          amount: smIncentive,
+          status: 'Earned',
+          admission_date: new Date(),
+        }).catch((err: any) => console.error('SM Incentive creation notice:', err.message));
+      }
     }
 
     await logActivity({
-      description: `Admission closed for student ${lead.name} (${finalStudentId}) by ${bdeName}. ₹ incentive credited.`,
+      description: `Admission closed for student ${lead.name} (${finalStudentId}) by ${bdeName}. Multi-tier incentives credited: ₹${bdeIncentive} to BDE ${bdeName}, ₹${asmIncentive} to ASM ${asmName || asmId}, ₹${smIncentive} to SM ${smName || smId}.`,
       subjectType: 'Admission',
       causer: causerFromRequest(req),
     });
 
     return NextResponse.json({
       success: true,
-      message: `Lead ${lead.name} successfully closed as Admission (${finalStudentId}). ₹1,000 incentive credited to ${bdeName}.`,
+      message: `Lead ${lead.name} successfully closed as Admission (${finalStudentId}). Multi-tier incentives credited: ₹${bdeIncentive} to ${bdeName}, ₹${asmIncentive} to ASM ${asmName || asmId}, ₹${smIncentive} to SM ${smName || smId}.`,
       data: {
         lead_id: lead.lead_id,
         student_id: finalStudentId,
         name: lead.name,
         status: 4,
         admission_status: 'Admitted',
-        incentive_earned: 1000,
+        incentive_earned: bdeIncentive,
+        asm_incentive: asmIncentive,
+        sm_incentive: smIncentive,
         incentive_id: incentiveRecord?._id?.toString() || null,
         bde: bdeName,
+        asm: asmName,
+        sm: smName,
         team,
       },
     });
