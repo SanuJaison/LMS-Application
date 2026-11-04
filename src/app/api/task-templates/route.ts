@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
 import { TaskTemplate } from '@/models/taskTemplate';
+import { requireAuth } from '@/lib/apiAuth';
+
+export const dynamic = 'force-dynamic';
 
 // 1. GET: Fetch task templates from database
 export async function GET(req: NextRequest) {
   try {
-    const denied = requireAdmin(req);
-    if (denied) return denied;
-
     await connectDB();
+
+    const adminDenied = requireAdmin(req);
+    if (adminDenied) {
+      const guard = await requireAuth(req);
+      if (!guard.ok) return guard.response;
+    }
+
     const search = req.nextUrl.searchParams.get('search');
     const query = search
       ? {
@@ -22,11 +29,19 @@ export async function GET(req: NextRequest) {
         }
       : {};
 
-    const templates = await TaskTemplate.find(query).sort({ createdAt: -1 });
-    return NextResponse.json(templates, { status: 200 });
+    const templates = await TaskTemplate.find(query).sort({ createdAt: -1 }).lean();
+    return NextResponse.json(
+      {
+        success: true,
+        count: templates.length,
+        data: templates,
+        templates,
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error('Error fetching task templates:', error);
-    return NextResponse.json({ message: error.message || 'Failed to fetch task templates' }, { status: 500 });
+    return NextResponse.json({ success: false, message: error.message || 'Failed to fetch task templates' }, { status: 500 });
   }
 }
 
