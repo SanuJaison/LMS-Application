@@ -207,7 +207,7 @@ export async function POST(req: Request) {
     lead.presentation = newFollowupEntry.presentation;
     lead.next_followup_date = newFollowupEntry.next_followup_date;
     lead.admission_status = admissionStatus;
-    lead.status = admissionStatus;
+    lead.status = 1; // Pending / Follow-up status
     lead.student_id = studentId;
     lead.remarks = newFollowupEntry.remarks;
     lead.notes = newFollowupEntry.remarks;

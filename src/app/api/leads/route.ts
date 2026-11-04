@@ -75,16 +75,42 @@ export async function GET(req: Request) {
 
     const status = searchParams.get('status') || searchParams.get('admission_status');
     if (status) {
-      // The mobile app sends a numeric status (1 New, 4 Admitted, 5 Closed)
-      const statusValues = /^\d+$/.test(status)
-        ? leadStatusValuesFromInt(Number(status))
-        : [status];
-      conditions.push({
-        $or: [
-          { admission_status: { $in: statusValues } },
-          { status: { $in: statusValues } },
-        ],
-      });
+      if (/^\d+$/.test(status)) {
+        const num = Number(status);
+        const statusValues = leadStatusValuesFromInt(num);
+        // For status 1 or 2 (Pending & Follow-up leads), match both 1 and 2 and pending strings
+        const numericStatuses =
+          num === 1 || num === 2 ? [1, 2, '1', '2'] : [num, String(num)];
+        conditions.push({
+          $or: [
+            { admission_status: { $in: statusValues } },
+            { status: { $in: [...statusValues, ...numericStatuses] } },
+          ],
+        });
+      } else {
+        const isPendingOrFollowup =
+          status === '1' ||
+          status.toLowerCase() === 'pending' ||
+          status.toLowerCase().includes('follow') ||
+          status.toLowerCase() === 'new';
+        if (isPendingOrFollowup) {
+          const statusValues = leadStatusValuesFromInt(1);
+          conditions.push({
+            $or: [
+              { admission_status: { $in: statusValues } },
+              { status: { $in: [...statusValues, 1, 2, '1', '2'] } },
+            ],
+          });
+        } else {
+          const regex = new RegExp('^' + escapeRegex(status.trim()) + '$', 'i');
+          conditions.push({
+            $or: [
+              { admission_status: regex },
+              { status: regex },
+            ],
+          });
+        }
+      }
     }
 
     const course = searchParams.get('course') || searchParams.get('interested_course');

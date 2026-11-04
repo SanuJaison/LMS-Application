@@ -17,7 +17,7 @@ import { escapeRegex, numericId, toLaravelDate } from '@/lib/employeeAuth';
  *   followups [{ id, lead_id, employee_id, followup_date, type, notes }]
  */
 
-// 1 = New, 2 = Follow Up, 3 = Presentation Scheduled, 4 = Admitted, 5 = Closed
+// 1 = New / Pending Follow Up, 2 = Follow Up, 3 = Presentation Scheduled, 4 = Admitted, 5 = Closed
 export function leadStatusToInt(value: any): number {
   const status = String(value ?? '').trim().toLowerCase();
 
@@ -48,7 +48,7 @@ export function leadStatusToInt(value: any): number {
     case 'interested':
     case 'pending':
     case 'in progress':
-      return 2;
+      return 1; // Pending status (Status 1 in Flutter app)
     case 'new':
     case 'new lead':
     case '':
@@ -72,8 +72,12 @@ export function leadStatusValuesFromInt(value: number): string[] {
         'Payment Pending',
         'Payment Pending Verification',
       ];
+    case 1:
     case 2:
       return [
+        'New',
+        'New Lead',
+        'Pending',
         'Follow Up',
         'Followup',
         'Follow Uped',
@@ -82,11 +86,10 @@ export function leadStatusValuesFromInt(value: number): string[] {
         'Followed Up',
         'Contacted',
         'Interested',
-        'Pending',
         'In Progress',
       ];
     default:
-      return ['New', 'New Lead'];
+      return ['New', 'New Lead', 'Pending', 'Follow Up', 'Follow Uped', 'Follow-up'];
   }
 }
 
@@ -306,21 +309,33 @@ export async function serializeLeadsForMobile(docs: any[]): Promise<any[]> {
           ? { id: 0, name: courseName }
           : null,
       followups: Array.isArray(doc.followups)
-        ? doc.followups.map((f: any) => ({
-            id: numericId(f._id) ?? 0,
-            lead_id: leadNumericId,
-            employee_id:
-              employeeMap.get(String(f.recorded_by || '').trim().toLowerCase()) ?? 0,
-            followup_date: f.date || '',
-            type: f.admission_status || null,
-            notes: f.remarks || null,
-            student_interest: f.student_interest || '',
-            lead_source: f.lead_source || '',
-            next_followup_date: f.next_followup_date || '',
-            payment_verification: f.payment_verification || '',
-            student_id: f.student_id || '',
-            course: f.course || '',
-          }))
+        ? doc.followups.map((f: any, index: number) => {
+            const fNumId =
+              typeof f.id === 'number'
+                ? f.id
+                : (numericId(f._id) ?? (leadNumericId * 100 + index + 1));
+            const noteText = f.remarks || f.notes || '';
+            const statusType = f.admission_status || f.type || 'Follow Up';
+            const fDate = f.date || f.followup_date || '';
+            return {
+              id: fNumId,
+              lead_id: leadNumericId,
+              employee_id:
+                employeeMap.get(String(f.recorded_by || '').trim().toLowerCase()) ?? 0,
+              followup_date: fDate,
+              date: fDate,
+              type: statusType,
+              admission_status: statusType,
+              notes: noteText,
+              remarks: noteText,
+              student_interest: f.student_interest || '',
+              lead_source: f.lead_source || '',
+              next_followup_date: f.next_followup_date || '',
+              payment_verification: f.payment_verification || '',
+              student_id: f.student_id || '',
+              course: f.course || '',
+            };
+          })
         : [],
     };
   });

@@ -67,18 +67,22 @@ export async function POST(
     if (remarks) lead.notes = remarks;
     lead.student_interest = interest;
     lead.admission_status = admissionStatus;
-    lead.status = 2; // Follow-up / Contacted
+    lead.status = 1; // Pending / Follow-up status
 
     if (!Array.isArray(lead.followups)) {
       lead.followups = [];
     }
 
+    const nowIso = new Date().toISOString();
     lead.followups.push({
-      date: new Date().toISOString(),
+      date: nowIso,
+      followup_date: nowIso,
       next_followup_date: nextDate,
       remarks,
+      notes: remarks,
       student_interest: interest,
       admission_status: admissionStatus,
+      type: admissionStatus,
       recorded_by: recorderName,
       lead_source: body.lead_source || lead.lead_source || '',
       payment_verification: body.payment_verification || lead.payment_verification || '',

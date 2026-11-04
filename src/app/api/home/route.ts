@@ -91,16 +91,30 @@ export async function GET(req: Request) {
       }).lean(),
     ]);
 
-    const dailyTarget = 15;
-    const dailyAchieved = ownLeads.filter((lead) => {
+    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs (statewide).
+    const scopedLeads = role === 'BDE' ? ownLeads : leads;
+
+    const dailyTargetRow = (targetRows as any[]).find(
+      (t) =>
+        t.task_template?.toLowerCase().includes('daily') ||
+        (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+    );
+    const dailyTarget = dailyTargetRow?.total_target ?? 15;
+
+    const dailyAchieved = scopedLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 10) === todayIso;
     }).length;
 
+    const monthlyTargetRow = (targetRows as any[]).find(
+      (t) => t.task_template?.toLowerCase().includes('monthly')
+    );
     const monthlyTarget =
-      (targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
-      dailyTarget * 26;
-    const monthlyAchieved = ownLeads.filter((lead) => {
+      monthlyTargetRow?.total_target ??
+      ((targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
+      dailyTarget * 26);
+
+    const monthlyAchieved = scopedLeads.filter((lead) => {
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       return created && created.toISOString().slice(0, 7) === monthKey;
     }).length;
@@ -111,15 +125,13 @@ export async function GET(req: Request) {
     ).length;
 
     // ------------------------------------------------------- role-scoped data
-    // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs.
-    const scopedLeads = role === 'BDE' ? ownLeads : leads;
 
     const assignedLeads = scopedLeads.length;
     const followUpLeads = scopedLeads.filter(isFollowUp).length;
     const closedLeads = scopedLeads.filter(isClosed).length;
     const ownClosedLeads = ownLeads.filter(isClosed).length;
 
-    const incentivesEarned = wallet?.total_earned ?? ownClosedLeads * 1000;
+    const incentivesEarned = wallet?.total_earned ?? (role === 'SM' ? closedLeads * (employee?.incentive || 0) : role === 'ASM' ? closedLeads * (employee?.incentive || 0) : ownClosedLeads * (employee?.incentive || 1000));
 
     // Subordinates: only people below the caller (never team-wide).
     const subordinates =
@@ -282,11 +294,14 @@ function belongsTo(lead: any, employeeId: string, name: string): boolean {
 }
 
 function isFollowUp(lead: any): boolean {
+  const adm = String(lead.admission_status || '').toLowerCase();
   return (
-    lead.admission_status === 'Follow-up' ||
-    lead.admission_status === 'Interested' ||
+    adm.includes('follow') ||
+    adm === 'interested' ||
     lead.status === 2 ||
-    lead.status === 3
+    lead.status === 3 ||
+    (Array.isArray(lead.followups) && lead.followups.length > 0) ||
+    Boolean(lead.next_followup_date)
   );
 }
 
