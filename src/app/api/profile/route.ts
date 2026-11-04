@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { serializeEmployee } from '@/lib/employeeAuth';
 import { requireEmployee } from '@/lib/apiAuth';
+import { hierarchyRole } from '@/lib/hierarchy';
 
 /**
  * GET /api/profile
@@ -28,6 +29,7 @@ export async function GET(req: Request) {
     const payload = {
       id: employee._id.toString(),
       name: employee.name || 'User',
+      role: guard.auth.role || hierarchyRole(employee),
       designation: employee.designation || 'Business Development Executive',
       designation_name: employee.designation || 'Business Development Executive',
       email: employee.email || '',

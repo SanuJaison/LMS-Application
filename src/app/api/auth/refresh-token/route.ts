@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       return unauthorized('Invalid or expired token. Please log in again.');
     }
 
-    const auth = await authenticate(req);
+    const auth = await authenticate(req, token);
     if (!auth) {
       return unauthorized('Invalid or expired token. Please log in again.');
     }

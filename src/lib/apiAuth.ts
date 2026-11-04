@@ -55,10 +55,10 @@ export function forbidden(message = 'You do not have permission to access this r
  * Resolve the caller from the Authorization header. Returns null for a missing,
  * invalid, expired or inactive identity.
  */
-export async function authenticate(req: Request): Promise<AuthContext | null> {
+export async function authenticate(req: Request, tokenOverride?: string): Promise<AuthContext | null> {
   await connectDB();
 
-  const token = extractTokenFromHeader(req);
+  const token = tokenOverride || extractTokenFromHeader(req);
   if (!token) return null;
 
   const decoded = verifyToken(token);
@@ -180,22 +180,34 @@ export async function authenticate(req: Request): Promise<AuthContext | null> {
     };
   }
 
-  if (decoded.employee_id || decoded.role === 'employee') {
+  if (
+    decoded.employee_id ||
+    decoded.role === 'employee' ||
+    decoded.role === 'SM' ||
+    decoded.role === 'ASM' ||
+    decoded.role === 'BDE' ||
+    decoded.role === 'BDM' ||
+    decoded.designation
+  ) {
+    const derivedRole = hierarchyRole({
+      employee_id: decoded.employee_id,
+      designation: decoded.designation || decoded.role || 'BDE',
+    });
     return {
       decoded,
       employee: {
-        _id: decoded.id || decoded._id,
+        _id: decoded.id || decoded._id || decoded.employee_id,
         employee_id: decoded.employee_id || '',
         name: decoded.name || 'User',
         email: decoded.email || '',
-        designation: decoded.designation || 'Business Development Executive',
+        designation: decoded.designation || derivedRole,
         team: decoded.team || '',
         zone: decoded.zone || '',
         district: decoded.district || '',
         reports_to: decoded.reports_to || null,
         status: 'active',
       },
-      role: hierarchyRole({ designation: decoded.designation || 'BDE' }),
+      role: derivedRole,
       isAdmin: false,
       employeeId: String(decoded.employee_id || ''),
       name: String(decoded.name || 'User'),

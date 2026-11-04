@@ -10,20 +10,28 @@ import { extractTokenFromHeader, verifyToken } from './jwt';
  *   x-admin-key: <ADMIN_KEY>
  *
  * Returns null when authorized, or a 401/403 NextResponse otherwise.
- * The old "allow anything from localhost / vercel" bypass has been removed.
  */
 export function requireAdmin(req: Request): NextResponse | null {
   const token = extractTokenFromHeader(req);
 
   if (token) {
     const decoded = verifyToken(token);
-    if (
-      decoded &&
-      (decoded.role === 'admin' ||
+    if (decoded) {
+      if (
+        decoded.role === 'admin' ||
         decoded.role === 'superadmin' ||
-        decoded.role === 'manager')
-    ) {
-      return null;
+        decoded.role === 'manager'
+      ) {
+        return null;
+      }
+      // Valid identity but not an admin role -> 403 Forbidden (NOT 401, so valid session is NOT invalidated)
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Admin authorization required. This action is restricted to administrators.',
+        },
+        { status: 403 }
+      );
     }
   }
 

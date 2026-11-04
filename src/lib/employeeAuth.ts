@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { extractTokenFromHeader, verifyToken } from '@/lib/jwt';
+import { hierarchyRole } from '@/lib/hierarchy';
 
 /**
  * Standard success envelope used by the mobile app (Laravel-style).
@@ -110,6 +111,7 @@ export function serializeEmployee(employee: any) {
     created_at: toLaravelDate(employee.createdAt),
     updated_at: toLaravelDate(employee.updatedAt),
     employee_id: employee.employee_id || '',
+    role: hierarchyRole(employee),
     designation_name: employee.designation || null,
     designation_id: null,
     team: employee.team || '',
