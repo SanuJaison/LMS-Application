@@ -156,19 +156,21 @@ export async function POST(req: Request) {
 function sanitizeSessions(sessions?: any[]): any[] {
   if (!Array.isArray(sessions)) return [];
   return sessions.map((s: any) => {
-    const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+    const raw = typeof s?.toObject === 'function' ? s.toObject() : (s?._doc || s || {});
+    const formatted = formatHoursWorked(raw.hours_worked, raw.check_in, raw.check_out);
     return {
-      ...s,
-      check_in: s.check_in || '',
-      check_out: s.check_out || '',
+      _id: raw._id ? String(raw._id) : undefined,
+      check_in: raw.check_in || '',
+      check_out: raw.check_out || '',
       hours_worked: formatted,
       hours_worked_formatted: formatted,
-      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-      address: s.address || '',
-      notes: s.notes || '',
+      latitude: typeof raw.latitude === 'number' && !isNaN(raw.latitude) ? raw.latitude : 10.0159,
+      longitude: typeof raw.longitude === 'number' && !isNaN(raw.longitude) ? raw.longitude : 76.3419,
+      location_lat: typeof raw.latitude === 'number' && !isNaN(raw.latitude) ? raw.latitude : 10.0159,
+      location_lng: typeof raw.longitude === 'number' && !isNaN(raw.longitude) ? raw.longitude : 76.3419,
+      address: raw.address || '',
+      notes: raw.notes || '',
+      created_at: raw.created_at,
     };
   });
 }
