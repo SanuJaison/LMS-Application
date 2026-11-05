@@ -1,5 +1,7 @@
 import { EmployeeTask } from '@/models/employeeTask';
-import { escapeRegex } from '@/lib/employeeAuth';
+import { Lead } from '@/models/lead';
+import { Employee } from '@/models/employee';
+import { escapeRegex, todayKey } from '@/lib/employeeAuth';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -116,7 +118,15 @@ export async function syncEmployeeTargets(
   const roleLabel = roleLabelFor(emp.designation, emp.employee_id);
   const empIdRegex = new RegExp(`^${escapeRegex(emp.employee_id)}$`, 'i');
 
-  if (dailyTarget !== undefined && !isNaN(Number(dailyTarget)) && roleLabel !== 'SM') {
+  if (roleLabel === 'SM') {
+    // SM never has a daily target; remove any accidental daily SM target rows
+    await EmployeeTask.deleteMany({
+      $or: [
+        { employee_id: empIdRegex, task_template: /daily/i },
+        { task_template: /daily\s+sm\s+target/i },
+      ],
+    }).catch(() => {});
+  } else if (dailyTarget !== undefined && !isNaN(Number(dailyTarget))) {
     const val = Math.max(0, Number(dailyTarget));
     const existingDaily: any = await EmployeeTask.findOne({
       employee_id: empIdRegex,
@@ -181,6 +191,7 @@ export function resolveEmployeeTargets(
 ): { daily_target: number; monthly_target: number } {
   const empId = String(emp?.employee_id || '').trim().toLowerCase();
   const empName = String(emp?.name || '').trim().toLowerCase();
+  const roleLabel = roleLabelFor(emp?.designation, emp?.employee_id);
   const { monthKey } = currentMonthBoundsIst();
 
   const myTasks = (Array.isArray(allEmployeeTasks) ? allEmployeeTasks : []).filter((t: any) => {
@@ -223,8 +234,166 @@ export function resolveEmployeeTargets(
       : 0;
 
   return {
-    daily_target: dailyFromTask !== undefined && dailyFromTask > 0 ? dailyFromTask : dailyFromEmp,
+    daily_target:
+      roleLabel === 'SM'
+        ? 0
+        : dailyFromTask !== undefined && dailyFromTask > 0
+          ? dailyFromTask
+          : dailyFromEmp,
     monthly_target:
       monthlyFromTask !== undefined && monthlyFromTask > 0 ? monthlyFromTask : monthlyFromEmp,
   };
+}
+
+export function isClosedLeadRecord(lead: any): boolean {
+  if (!lead) return false;
+  const adm = String(lead.admission_status || '').toLowerCase().trim();
+  const statusStr = String(lead.status || '').toLowerCase().trim();
+  return (
+    adm === 'admitted' ||
+    adm === 'closed' ||
+    adm === 'won' ||
+    statusStr === 'admitted' ||
+    statusStr === 'closed' ||
+    statusStr === 'won' ||
+    lead.status === 4 ||
+    lead.status === 5 ||
+    statusStr === '4' ||
+    statusStr === '5'
+  );
+}
+
+export function getClosedLeadDate(lead: any): Date {
+  if (lead?.admission_date) {
+    const d = new Date(lead.admission_date);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (Array.isArray(lead?.followups)) {
+    const admissionEntry = lead.followups.find((f: any) => {
+      const s = String(f?.admission_status || f?.type || '').toLowerCase();
+      return s.includes('admit') || s.includes('close') || s.includes('won');
+    });
+    if (admissionEntry?.date) {
+      const d = new Date(admissionEntry.date);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  if (lead?.updatedAt) {
+    const d = new Date(lead.updatedAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (lead?.createdAt) {
+    const d = new Date(lead.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+/**
+ * Recalculates and updates `achieved` and `is_completed` on current-month
+ * EmployeeTask documents (SM, ASM, BDE) whenever a lead is closed.
+ */
+export async function syncAllEmployeeTaskAchievements(): Promise<void> {
+  try {
+    const { monthKey, todayIso } = currentMonthBoundsIst();
+
+    // Remove any daily SM target rows if present
+    await EmployeeTask.deleteMany({
+      $or: [
+        { employee_id: /^SM/i, task_template: /daily/i },
+        { task_template: /daily\s+sm\s+target/i },
+      ],
+    }).catch(() => {});
+
+    const [allLeads, allEmployees, currentTasks] = await Promise.all([
+      Lead.find({}).lean(),
+      Employee.find({}).select('employee_id name designation reports_to team').lean(),
+      EmployeeTask.find({
+        $or: [
+          { period_start: new RegExp(`^${monthKey}`) },
+          { task_template: /target/i },
+        ],
+      }).lean(),
+    ]);
+
+    const closedLeads = (allLeads as any[]).filter(isClosedLeadRecord);
+    const closedThisMonth = closedLeads.filter(
+      (l) => todayKey(getClosedLeadDate(l)).slice(0, 7) === monthKey
+    );
+    const closedToday = closedLeads.filter(
+      (l) => todayKey(getClosedLeadDate(l)) === todayIso
+    );
+
+    const employees = allEmployees as any[];
+
+    for (const task of currentTasks as any[]) {
+      const taskEmpId = String(task.employee_id || '').trim();
+      const taskEmpName = String(task.employee || '').trim();
+      const template = String(task.task_template || '').toLowerCase();
+      const isDaily = template.includes('daily');
+      const role = roleLabelFor(
+        template.includes('sm')
+          ? 'Sales Manager'
+          : template.includes('asm')
+            ? 'Area Sales Manager'
+            : undefined,
+        taskEmpId
+      );
+
+      let achieved = 0;
+
+      if (role === 'SM') {
+        // SM target is statewide across all BDEs
+        achieved = closedThisMonth.length;
+      } else if (role === 'ASM') {
+        const subBdes = employees.filter(
+          (e) =>
+            String(e.reports_to || '').trim().toLowerCase() === taskEmpId.toLowerCase()
+        );
+        const validIds = new Set(
+          [taskEmpId, ...subBdes.map((b) => String(b.employee_id || ''))]
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const validNames = new Set(
+          [taskEmpName, ...subBdes.map((b) => String(b.name || ''))]
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const sourceList = isDaily ? closedToday : closedThisMonth;
+        achieved = sourceList.filter((l) => {
+          const lEmpId = String(l.employee_id || l.bde_id || '').trim().toLowerCase();
+          const lAsmId = String(l.asm_id || '').trim().toLowerCase();
+          const lEmpName = String(l.employee || l.bde_name || '').trim().toLowerCase();
+          return (
+            (lEmpId && validIds.has(lEmpId)) ||
+            (lAsmId && validIds.has(lAsmId)) ||
+            (lEmpName && validNames.has(lEmpName))
+          );
+        }).length;
+      } else {
+        const sourceList = isDaily ? closedToday : closedThisMonth;
+        achieved = sourceList.filter((l) => {
+          const lEmpId = String(l.employee_id || l.bde_id || '').trim().toLowerCase();
+          const lEmpName = String(l.employee || l.bde_name || '').trim().toLowerCase();
+          return (
+            (taskEmpId && lEmpId === taskEmpId.toLowerCase()) ||
+            (taskEmpName && lEmpName === taskEmpName.toLowerCase())
+          );
+        }).length;
+      }
+
+      const totalTarget = Number(task.total_target || 0);
+      const isCompleted = totalTarget > 0 && achieved >= totalTarget;
+
+      if (task.achieved !== achieved || task.is_completed !== isCompleted) {
+        await EmployeeTask.findByIdAndUpdate(task._id, {
+          achieved,
+          is_completed: isCompleted,
+        });
+      }
+    }
+  } catch (err) {
+    console.error('syncAllEmployeeTaskAchievements error:', err);
+  }
 }

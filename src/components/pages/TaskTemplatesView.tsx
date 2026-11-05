@@ -220,7 +220,9 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
     () =>
       leads.filter(
         (lead) =>
-          String(lead.createdAt || '').slice(0, 10) === todayIso
+          isClosedLead(lead) &&
+          String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 10) ===
+            todayIso
       ).length,
     [leads, todayIso]
   );
@@ -228,7 +230,10 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
   const leadsThisMonth = useMemo(
     () =>
       leads.filter(
-        (lead) => String(lead.createdAt || '').slice(0, 7) === todayKey
+        (lead) =>
+          isClosedLead(lead) &&
+          String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 7) ===
+            todayKey
       ).length,
     [leads, todayKey]
   );
@@ -239,7 +244,11 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
   );
 
   const monthAchieved = (month: string) =>
-    leads.filter((lead) => String(lead.createdAt || '').slice(0, 7) === month).length;
+    leads.filter(
+      (lead) =>
+        isClosedLead(lead) &&
+        String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 7) === month
+    ).length;
 
   const handleSaveTargets = async (event: React.FormEvent) => {
     event.preventDefault();

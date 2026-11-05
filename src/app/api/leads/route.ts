@@ -11,6 +11,7 @@ import {
   requireAuth,
 } from '@/lib/apiAuth';
 import { getNextStudentId } from '@/lib/studentId';
+import { syncAllEmployeeTaskAchievements } from '@/lib/targetSync';
 import {
   assignLegacyIds,
   findLeadByAnyId,
@@ -288,6 +289,7 @@ export async function POST(req: Request) {
     await assignLegacyIds([payload as any]);
 
     const created = await Lead.create(payload);
+    await syncAllEmployeeTaskAchievements();
 
     await logActivity({
       description: `Created lead "${created.name}" (${created.lead_id})`,
@@ -392,14 +394,27 @@ export async function PUT(req: Request) {
       updateData.employee_id = assignment.employee_id;
     }
 
-    // Auto-generate student_id if marked as Admitted without one
+    // Auto-generate student_id and set admission_date if marked as Admitted/Closed
+    const rawAdm = String(updateData.admission_status ?? updateData.status ?? '').toLowerCase().trim();
     const isAdmitted =
-      updateData.admission_status === 'Admitted' ||
-      updateData.admission_status === 'Won' ||
-      updateData.status === 'Won' ||
-      updateData.status === 4;
-    if (isAdmitted && !updateData.student_id) {
-      updateData.student_id = `STU-${Math.floor(1000 + Math.random() * 9000)}`;
+      rawAdm === 'admitted' ||
+      rawAdm === 'closed' ||
+      rawAdm === 'won' ||
+      rawAdm === '4' ||
+      rawAdm === '5' ||
+      updateData.status === 4 ||
+      updateData.status === 5;
+    if (isAdmitted) {
+      updateData.status = 4;
+      if (!updateData.admission_status || String(updateData.admission_status) === '4' || String(updateData.admission_status) === '5') {
+        updateData.admission_status = 'Admitted';
+      }
+      if (!updateData.admission_date && !existing.admission_date) {
+        updateData.admission_date = new Date();
+      }
+      if (!updateData.student_id && !existing.student_id) {
+        updateData.student_id = await getNextStudentId();
+      }
     }
 
     const updated = await Lead.findOneAndUpdate(query, updateData, { new: true });
@@ -407,6 +422,8 @@ export async function PUT(req: Request) {
     if (!updated) {
       return NextResponse.json({ success: false, message: 'Lead not found' }, { status: 404 });
     }
+
+    await syncAllEmployeeTaskAchievements();
 
     await logActivity({
       description: `Updated lead "${updated.name}" (${updated.lead_id})`,

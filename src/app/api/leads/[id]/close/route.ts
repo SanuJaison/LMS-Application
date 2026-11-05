@@ -5,6 +5,8 @@ import { Employee } from '@/models/employee';
 import { Wallet } from '@/models';
 import { Incentive } from '@/models/incentive';
 import { findLeadByAnyId } from '@/lib/mobileLead';
+import { getNextStudentId } from '@/lib/studentId';
+import { syncAllEmployeeTaskAchievements } from '@/lib/targetSync';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAuth';
 
@@ -49,18 +51,8 @@ export async function POST(
     const providedStudentId = String(body.student_id || '').trim();
     const existingStudentId = String(lead.student_id || '').trim();
 
-    if (!providedStudentId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'Validation failed: Student ID is required to close this lead as an admission.',
-        },
-        { status: 400 }
-      );
-    }
-
     if (
+      providedStudentId &&
       existingStudentId &&
       providedStudentId.toUpperCase() !== existingStudentId.toUpperCase()
     ) {
@@ -133,7 +125,7 @@ export async function POST(
     const smId = smEmployee?.employee_id || 'SM001';
     const smName = smEmployee?.name || 'Sales Manager';
 
-    const finalStudentId = existingStudentId || providedStudentId;
+    const finalStudentId = existingStudentId || providedStudentId || (await getNextStudentId());
     const course = body.course || lead.interested_course || lead.course || '';
     const payment = Number(body.payment ?? body.payment_amount ?? 0);
     const paymentVerification =
@@ -194,6 +186,7 @@ export async function POST(
     });
 
     await lead.save();
+    await syncAllEmployeeTaskAchievements();
 
     // Multi-tier incentive processing: BDE ₹1,000, ASM ₹100, SM ₹20
     let incentiveRecord = existingIncentive;

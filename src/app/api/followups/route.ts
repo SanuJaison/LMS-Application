@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
+import { syncAllEmployeeTaskAchievements } from '@/lib/targetSync';
 import {
   andFilter,
   canAccessEmployee,
@@ -181,14 +182,28 @@ export async function POST(req: Request) {
     }
 
     const todayDate = body.date || new Date().toISOString().split('T')[0];
-    const admissionStatus = body.admission_status || lead.admission_status || 'Follow Up';
-    const isAdmitted = admissionStatus === 'Admitted' || admissionStatus === 'Won';
+    const admissionStatus = body.admission_status || body.status || lead.admission_status || 'Follow Up';
+    const admLower = String(admissionStatus).toLowerCase().trim();
+    const isAdmitted =
+      admLower === 'admitted' ||
+      admLower === 'closed' ||
+      admLower === 'won' ||
+      admLower === '4' ||
+      admLower === '5' ||
+      body.status === 4 ||
+      body.status === 5;
 
     // Auto-generate or set Student ID upon admission
     let studentId = body.student_id || lead.student_id || '';
     if (isAdmitted && !studentId) {
       studentId = `STU-${Math.floor(1000 + Math.random() * 9000)}`;
     }
+
+    const finalAdmissionStatus = isAdmitted
+      ? String(admissionStatus) === '4' || String(admissionStatus) === '5'
+        ? 'Admitted'
+        : admissionStatus
+      : admissionStatus;
 
     // New Follow-up entry
     const newFollowupEntry = {
@@ -197,7 +212,7 @@ export async function POST(req: Request) {
       student_interest: body.student_interest || lead.student_interest || 'Medium',
       presentation: body.presentation || lead.presentation || 'Not Scheduled',
       next_followup_date: body.next_followup_date || '',
-      admission_status: admissionStatus,
+      admission_status: finalAdmissionStatus,
       proof_url: (body.proof_url || '').trim(),
       recorded_by: auth.name || lead.employee || 'Counselor',
     };
@@ -206,8 +221,11 @@ export async function POST(req: Request) {
     lead.student_interest = newFollowupEntry.student_interest;
     lead.presentation = newFollowupEntry.presentation;
     lead.next_followup_date = newFollowupEntry.next_followup_date;
-    lead.admission_status = admissionStatus;
-    lead.status = 1; // Pending / Follow-up status
+    lead.admission_status = finalAdmissionStatus;
+    lead.status = isAdmitted ? 4 : 1;
+    if (isAdmitted && !lead.admission_date) {
+      lead.admission_date = new Date();
+    }
     lead.student_id = studentId;
     lead.remarks = newFollowupEntry.remarks;
     lead.notes = newFollowupEntry.remarks;
@@ -221,6 +239,7 @@ export async function POST(req: Request) {
     lead.followups = [newFollowupEntry, ...(lead.followups || [])];
 
     await lead.save();
+    await syncAllEmployeeTaskAchievements();
 
     return NextResponse.json({
       success: true,

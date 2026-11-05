@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Lead } from '@/models/lead';
 import { findLeadByAnyId } from '@/lib/mobileLead';
+import { syncAllEmployeeTaskAchievements } from '@/lib/targetSync';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { canAccessEmployee, forbidden, getScope, requireAuth } from '@/lib/apiAuth';
 
@@ -60,14 +61,32 @@ export async function POST(
     const nextDate = body.next_followup_date || body.followup_date || '';
     const remarks = String(body.remarks || body.notes || '').trim();
     const interest = body.student_interest || lead.student_interest || 'Warm';
-    const admissionStatus = body.admission_status || lead.admission_status || 'Follow-up';
+    const rawAdmStatus = body.admission_status || body.status || lead.admission_status || 'Follow-up';
+    const admLower = String(rawAdmStatus).toLowerCase().trim();
+    const isAdmitted =
+      admLower === 'admitted' ||
+      admLower === 'closed' ||
+      admLower === 'won' ||
+      admLower === '4' ||
+      admLower === '5' ||
+      body.status === 4 ||
+      body.status === 5;
+
+    const admissionStatus = isAdmitted
+      ? String(rawAdmStatus) === '4' || String(rawAdmStatus) === '5'
+        ? 'Admitted'
+        : String(rawAdmStatus)
+      : String(rawAdmStatus);
 
     lead.next_followup_date = nextDate;
     if (remarks) lead.remarks = remarks;
     if (remarks) lead.notes = remarks;
     lead.student_interest = interest;
     lead.admission_status = admissionStatus;
-    lead.status = 1; // Pending / Follow-up status
+    lead.status = isAdmitted ? 4 : 1;
+    if (isAdmitted && !lead.admission_date) {
+      lead.admission_date = new Date();
+    }
 
     if (!Array.isArray(lead.followups)) {
       lead.followups = [];
@@ -91,6 +110,7 @@ export async function POST(
     });
 
     await lead.save();
+    await syncAllEmployeeTaskAchievements();
 
     await logActivity({
       description: `Follow-up recorded for lead ${lead.name} (${lead.lead_id}). Next date: ${nextDate || 'None'}`,

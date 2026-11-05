@@ -175,10 +175,16 @@ const buildPersonMetrics = (
     daily_target: Number(dailyRow?.total_target ?? (employee as any).daily_target ?? 0),
     monthly_target: Number(monthlyRow?.total_target ?? (employee as any).monthly_target ?? 0),
     leads_today: employeeLeads.filter(
-      (lead) => String(lead.createdAt || '').slice(0, 10) === todayIso()
+      (lead) =>
+        isClosedLead(lead) &&
+        String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 10) ===
+          todayIso()
     ).length,
     leads_this_month: employeeLeads.filter(
-      (lead) => String(lead.createdAt || '').slice(0, 7) === currentMonthKey()
+      (lead) =>
+        isClosedLead(lead) &&
+        String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 7) ===
+          currentMonthKey()
     ).length,
     total_leads: totalLeads,
     total_followups: employeeLeads.filter(isFollowUpLead).length,
