@@ -609,10 +609,17 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-ink font-semibold">{item.name || item.employee}</div>
-                        <div className="text-[10px] text-muted">{item.employee_id || 'BDE'}</div>
+                        <div className="text-[10px] text-muted">
+                          {item.employee_id || 'BDE'}
+                          {item.designation ? ` • ${item.designation}` : ''}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
-                        {item.team || 'Regional Team'}
+                        {item.team ||
+                          (item.designation?.toLowerCase().includes('sales manager') &&
+                          !item.designation?.toLowerCase().includes('area')
+                            ? 'Statewide'
+                            : 'Regional Team')}
                       </td>
                       <td className="py-3 px-4 font-bold text-ink">
                         ₹{(Number(item.amount) || 0).toLocaleString('en-IN')}

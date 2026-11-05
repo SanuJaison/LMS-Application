@@ -35,12 +35,24 @@ export async function GET(req: Request) {
     const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const filters: Record<string, any>[] = [
-      scopeFilter(scope, {
-        idFields: ['employee_id', 'asm_id'],
-        nameFields: ['employee', 'name', 'asm_name'],
-      }),
-    ];
+    const mineParam = (searchParams.get('mine') || '').trim().toLowerCase();
+    const filters: Record<string, any>[] = [];
+
+    if (mineParam === 'true' || mineParam === '1') {
+      filters.push({
+        $or: [
+          ...(auth.employeeId ? [{ employee_id: auth.employeeId }] : []),
+          ...(auth.name ? [{ employee: auth.name }, { name: auth.name }] : []),
+        ],
+      });
+    } else if (!auth.isAdmin && auth.role !== 'SM' && auth.role !== 'MD') {
+      filters.push(
+        scopeFilter(scope, {
+          idFields: ['employee_id', 'asm_id', 'sm_id'],
+          nameFields: ['employee', 'name', 'asm_name', 'sm_name'],
+        })
+      );
+    }
 
     const statusParam = (searchParams.get('status') || '').trim();
     if (statusParam) {
@@ -66,8 +78,8 @@ export async function GET(req: Request) {
     const requestId = (searchParams.get('request_id') || '').trim();
     if (requestId) filters.push({ request_id: requestId });
 
-    // Only admins may narrow by arbitrary employee.
-    if (auth.isAdmin) {
+    // Admins and managers can narrow by employee_id.
+    if (auth.isAdmin || auth.role === 'SM' || auth.role === 'ASM' || auth.role === 'BDM') {
       const employeeId = (searchParams.get('employee_id') || '').trim();
       if (employeeId) filters.push({ employee_id: employeeId });
     }
@@ -88,11 +100,18 @@ export async function GET(req: Request) {
       asm_name: r.asm_name || '',
       sm_id: r.sm_id || '',
       sm_name: r.sm_name || '',
+      email: r.email || '',
+      phone: r.phone || '',
+      contact: r.contact || r.upi_id || r.phone || r.email || '',
+      upi_id: r.upi_id || '',
+      bank_name: r.bank_name || '',
+      account_number: r.account_number || '',
+      ifsc_code: r.ifsc_code || '',
       amount: r.amount || 0,
       available_balance: r.available_balance || 0,
       status: r.status || 'Submitted to ASM',
       status_label: displayStatus(r.status),
-      remarks: r.remarks || r.notes || '',
+      remarks: r.remarks || r.notes || r.description || '',
       approval_history: r.approval_history || [],
       transaction_reference: r.transaction_reference || '',
       payment_date: r.payment_date || null,

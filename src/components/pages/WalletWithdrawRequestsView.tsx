@@ -10,28 +10,40 @@ import {
   Loader2,
   ChevronDown,
   Columns3,
+  CheckCircle,
 } from 'lucide-react';
 import {
   fetchResourceList,
   createResourceItem,
   updateResourceItem,
   deleteResourceItem,
+  authHeaders,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 
 export interface WalletWithdrawRequestItem {
   _id?: string;
   id?: string;
+  request_id?: string;
   name?: string;
   title?: string;
   employee?: string;
+  employee_id?: string;
+  designation?: string;
+  team?: string;
   email?: string;
   phone?: string;
   contact?: string;
+  upi_id?: string;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
   amount?: number;
   description?: string;
   notes?: string;
+  remarks?: string;
   status: string;
+  transaction_reference?: string;
   createdAt?: string;
 }
 
@@ -43,6 +55,7 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
   const [requests, setRequests] = useState<WalletWithdrawRequestItem[]>([]);
   const [employees, setEmployees] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -98,9 +111,14 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
         (r) =>
           r.employee?.toLowerCase().includes(q) ||
           r.name?.toLowerCase().includes(q) ||
+          r.employee_id?.toLowerCase().includes(q) ||
+          r.designation?.toLowerCase().includes(q) ||
+          r.request_id?.toLowerCase().includes(q) ||
           r.email?.toLowerCase().includes(q) ||
+          r.upi_id?.toLowerCase().includes(q) ||
           r.contact?.toLowerCase().includes(q) ||
           r.description?.toLowerCase().includes(q) ||
+          r.remarks?.toLowerCase().includes(q) ||
           r.status?.toLowerCase().includes(q)
       );
     }
@@ -147,10 +165,41 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
     setEditingItem(item);
     setFormEmployee(item.employee || item.name || '');
     setFormAmount(item.amount ? String(item.amount) : '');
-    setFormContact(item.contact || item.email || item.phone || '');
-    setFormNotes(item.description || item.notes || '');
+    setFormContact(item.contact || item.upi_id || item.email || item.phone || '');
+    setFormNotes(item.description || item.notes || item.remarks || '');
     setFormStatus(item.status || 'Pending');
     setCreateModalOpen(true);
+  };
+
+  const handleWorkflowAction = async (
+    item: WalletWithdrawRequestItem,
+    action: string
+  ) => {
+    const id = rowId(item);
+    setActionLoadingId(id);
+    try {
+      const res = await fetch('/api/wallet/workflow', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          id,
+          request_id: item.request_id,
+          action,
+          remarks: `Processed by Admin (${action})`,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast?.('success', json.message || 'Status updated');
+        await loadData();
+      } else {
+        showToast?.('danger', json.message || 'Action failed');
+      }
+    } catch {
+      showToast?.('danger', 'Failed to process workflow action');
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -172,6 +221,7 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
         phone: formContact.trim(),
         description: formNotes.trim(),
         notes: formNotes.trim(),
+        remarks: formNotes.trim(),
         status: formStatus || 'Pending',
       };
 
@@ -205,6 +255,17 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
     }
   };
 
+  const getStatusBadgeClass = (status?: string) => {
+    const st = (status || 'Pending').toLowerCase();
+    if (st === 'paid' || st === 'approved' || st === 'active') {
+      return 'border border-success/40 bg-success/10 text-success';
+    }
+    if (st === 'rejected') {
+      return 'border border-danger/40 bg-danger/10 text-danger';
+    }
+    return 'border border-warning/40 bg-warning/10 text-warning';
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Breadcrumbs */}
@@ -234,7 +295,7 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
             <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Search by employee, ID, status..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -274,10 +335,10 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
                     <ChevronDown className="w-3.5 h-3.5 text-muted" />
                   </div>
                 </th>
-                <th className="py-3.5 px-6 font-semibold">Contact</th>
+                <th className="py-3.5 px-6 font-semibold">Contact / UPI</th>
                 <th className="py-3.5 px-6 font-semibold">Notes</th>
                 <th className="py-3.5 px-6 font-semibold">Status</th>
-                <th className="py-3.5 px-6 text-right"></th>
+                <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-2 text-[13px]">
@@ -293,31 +354,70 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
               ) : paginatedRequests.length > 0 ? (
                 paginatedRequests.map((item, idx) => {
                   const id = rowId(item) || String(idx);
-                  const st = (item.status || 'Pending').toLowerCase();
+                  const isBusy = actionLoadingId === id;
 
                   return (
                     <tr key={id} className="hover:bg-hover/60 transition text-ink">
-                      <td className="py-3.5 px-6 font-normal text-ink">{item.employee || item.name || '—'}</td>
-                      <td className="py-3.5 px-6 text-ink">
+                      <td className="py-3.5 px-6 font-normal text-ink">
+                        <div className="font-semibold text-ink">
+                          {item.employee || item.name || '—'}
+                        </div>
+                        {(item.employee_id || item.designation) && (
+                          <div className="text-[11px] text-muted">
+                            {item.employee_id}
+                            {item.employee_id && item.designation ? ' • ' : ''}
+                            {item.designation}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-6 text-ink font-semibold">
                         ₹{(item.amount || 0).toLocaleString()}
                       </td>
-                      <td className="py-3.5 px-6 text-ink/80">{item.contact || item.email || item.phone || '—'}</td>
-                      <td className="py-3.5 px-6 text-ink/80">{item.description || item.notes || '—'}</td>
+                      <td className="py-3.5 px-6 text-ink/80">
+                        {item.upi_id || item.contact || item.email || item.phone || '—'}
+                      </td>
+                      <td className="py-3.5 px-6 text-ink/80">
+                        {item.description || item.notes || item.remarks || '—'}
+                      </td>
                       <td className="py-3.5 px-6">
                         <span
-                          className={`inline-block px-3 py-0.5 rounded text-xs font-medium ${
-                            st === 'pending'
-                              ? 'border border-warning/40 bg-warning/10 text-warning'
-                              : st === 'approved' || st === 'active'
-                              ? 'border border-success/40 bg-success/10 text-success'
-                              : 'border border-danger/40 bg-danger/10 text-danger'
-                          }`}
+                          className={`inline-block px-3 py-0.5 rounded text-xs font-medium ${getStatusBadgeClass(
+                            item.status
+                          )}`}
                         >
                           {item.status || 'Pending'}
                         </span>
                       </td>
                       <td className="py-3.5 px-6 text-right">
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-2.5 flex-wrap">
+                          {item.status === 'Forwarded to Accounts' && (
+                            <>
+                              <button
+                                onClick={() => handleWorkflowAction(item, 'sanction')}
+                                disabled={isBusy}
+                                className="px-2.5 py-1 rounded bg-accent hover:bg-accent-hover text-white text-xs font-semibold cursor-pointer"
+                              >
+                                Sanction
+                              </button>
+                              <button
+                                onClick={() => handleWorkflowAction(item, 'reject')}
+                                disabled={isBusy}
+                                className="px-2 py-1 rounded bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-xs cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {item.status === 'Approved' && (
+                            <button
+                              onClick={() => handleWorkflowAction(item, 'pay')}
+                              disabled={isBusy}
+                              className="px-2.5 py-1 rounded bg-success hover:bg-success/90 text-white text-xs font-semibold cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Mark Paid</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => setViewItem(item)}
                             className="inline-flex items-center gap-1.5 text-[13px] text-ink/80 hover:text-ink transition cursor-pointer"
@@ -420,10 +520,10 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Contact / Email</label>
+                <label className="block text-xs font-semibold text-ink/80 mb-1.5">Contact / Email / UPI</label>
                 <input
                   type="text"
-                  placeholder="Email or phone"
+                  placeholder="UPI ID, email, or phone"
                   value={formContact}
                   onChange={(e) => setFormContact(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-field border border-line rounded-lg text-ink text-[13px] focus:outline-none focus:ring-1 focus:ring-accent"
@@ -449,10 +549,13 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
                     onChange={(e) => setFormStatus(e.target.value)}
                     className="w-full appearance-none px-3.5 py-2.5 bg-field border border-line rounded-lg text-ink text-[13px] focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                   >
+                    <option value="Submitted to ASM" className="bg-surface text-ink">Submitted to ASM</option>
+                    <option value="Forwarded to SM" className="bg-surface text-ink">Forwarded to SM</option>
+                    <option value="Forwarded to Accounts" className="bg-surface text-ink">Forwarded to Accounts</option>
                     <option value="Pending" className="bg-surface text-ink">Pending</option>
                     <option value="Approved" className="bg-surface text-ink">Approved</option>
+                    <option value="Paid" className="bg-surface text-ink">Paid</option>
                     <option value="Rejected" className="bg-surface text-ink">Rejected</option>
-                    <option value="Active" className="bg-surface text-ink">Active</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-muted absolute right-3 top-3 pointer-events-none" />
                 </div>
@@ -493,21 +596,37 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
               </button>
             </div>
             <div className="p-6 space-y-3 text-[13px]">
+              {viewItem.request_id && (
+                <div>
+                  <span className="text-xs text-muted block">Request ID</span>
+                  <span className="text-ink font-mono font-semibold">{viewItem.request_id}</span>
+                </div>
+              )}
               <div>
                 <span className="text-xs text-muted block">Employee</span>
-                <span className="text-ink font-medium">{viewItem.employee || viewItem.name || '—'}</span>
+                <span className="text-ink font-medium">
+                  {viewItem.employee || viewItem.name || '—'}
+                  {viewItem.employee_id ? ` (${viewItem.employee_id})` : ''}
+                </span>
+                {viewItem.designation && (
+                  <span className="block text-xs text-muted">{viewItem.designation}</span>
+                )}
               </div>
               <div>
                 <span className="text-xs text-muted block">Amount</span>
                 <span className="text-success font-bold text-base">₹{(viewItem.amount || 0).toLocaleString()}</span>
               </div>
               <div>
-                <span className="text-xs text-muted block">Contact</span>
-                <span className="text-ink">{viewItem.contact || viewItem.email || '—'}</span>
+                <span className="text-xs text-muted block">Contact / UPI</span>
+                <span className="text-ink">
+                  {viewItem.upi_id || viewItem.contact || viewItem.email || viewItem.phone || '—'}
+                </span>
               </div>
               <div>
                 <span className="text-xs text-muted block">Notes</span>
-                <span className="text-ink">{viewItem.description || viewItem.notes || '—'}</span>
+                <span className="text-ink">
+                  {viewItem.description || viewItem.notes || viewItem.remarks || '—'}
+                </span>
               </div>
               <div>
                 <span className="text-xs text-muted block">Status</span>

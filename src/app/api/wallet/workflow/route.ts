@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!auth.isAdmin) {
+    if (!auth.isAdmin && auth.role !== 'SM' && auth.role !== 'MD') {
       const scope = await getScope(auth);
       const inScope =
         canAccessEmployee(scope, request.employee_id, request.employee) ||

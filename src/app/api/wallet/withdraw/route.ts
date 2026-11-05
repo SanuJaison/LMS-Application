@@ -76,30 +76,69 @@ export async function POST(req: Request) {
 
     const requestId = `WDR-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const isSm = auth.role === 'SM';
+    const isAsm = auth.role === 'ASM' || auth.role === 'BDM';
+
+    const initialStatus = isSm
+      ? 'Forwarded to Accounts'
+      : isAsm
+        ? 'Forwarded to SM'
+        : 'Submitted to ASM';
+
+    const defaultDesignation = isSm
+      ? 'Sales Manager'
+      : isAsm
+        ? 'Area Sales Manager'
+        : 'Business Development Executive';
+
+    const stepDescription = isSm
+      ? 'Step 1 - SM Request: Submitted to Admin/Accounts'
+      : isAsm
+        ? 'Step 1 - ASM Request: Submitted to SM'
+        : 'Step 1 - BDE Request: Submitted to ASM';
+
+    const targetLabel = isSm ? 'Admin/Accounts' : isAsm ? 'SM' : 'ASM';
+
+    const email = String(body.email || employee?.email || '').trim();
+    const phone = String(
+      body.phone || body.contact_number || employee?.contact_number || employee?.phone || ''
+    ).trim();
+    const upiId = String(body.upi_id || employee?.upi_id || '').trim();
+    const contactDisplay = upiId || phone || email || '';
+    const noteText =
+      body.remarks || body.notes || body.description || 'Incentive withdrawal request';
+
     const newRequest = await WalletWithdrawRequest.create({
       request_id: requestId,
       name: employeeName,
+      title: employeeName,
       employee: employeeName,
       employee_id: employeeId,
-      designation: employee?.designation || 'Business Development Executive',
-      team,
-      asm_id: asmId,
-      asm_name: asmName,
+      designation: employee?.designation || defaultDesignation,
+      team: team || (isSm ? 'Statewide' : ''),
+      asm_id: isSm ? '' : isAsm ? employeeId : asmId,
+      asm_name: isSm ? '' : isAsm ? employeeName : asmName,
+      sm_id: isSm ? employeeId : asmId,
+      sm_name: isSm ? employeeName : asmName,
+      email,
+      phone,
+      contact: contactDisplay,
       amount,
       available_balance: currentBalance,
-      upi_id: body.upi_id || employee?.upi_id || '',
+      upi_id: upiId,
       bank_name: body.bank_name || employee?.bank_name || '',
       account_number: body.account_number || employee?.account_number || '',
       ifsc_code: body.ifsc_code || employee?.ifsc_code || '',
-      remarks: body.remarks || body.notes || 'Incentive withdrawal request',
-      notes: body.remarks || body.notes || 'Incentive withdrawal request',
-      status: 'Submitted to ASM',
+      description: noteText,
+      remarks: noteText,
+      notes: noteText,
+      status: initialStatus,
       approval_history: [
         {
-          step: 'Step 1 - BDE Request',
+          step: stepDescription,
           actor: employeeName,
-          role: 'BDE',
-          action: 'Submitted to ASM',
+          role: auth.role,
+          action: initialStatus,
           remarks: body.remarks || 'Requested incentive withdrawal',
           timestamp: new Date(),
         },
@@ -112,18 +151,23 @@ export async function POST(req: Request) {
     }
 
     await logActivity({
-      description: `Incentive withdrawal request of ₹${amount} submitted by ${employeeName} to ASM ${asmName || asmId || ''}`,
+      description: `Incentive withdrawal request of ₹${amount} submitted by ${employeeName} (${employeeId}) to ${targetLabel}`,
       subjectType: 'Incentive Withdrawal',
       causer: causerFromRequest(req),
     });
 
     return NextResponse.json({
       success: true,
-      message: `Incentive withdrawal request for ₹${amount} submitted successfully to ASM.`,
+      message: `Incentive withdrawal request for ₹${amount} submitted successfully to ${targetLabel}.`,
       data: {
+        id: newRequest._id.toString(),
         request_id: requestId,
+        employee_id: employeeId,
+        employee: employeeName,
+        designation: employee?.designation || defaultDesignation,
         amount,
-        status: 'Submitted to ASM',
+        status: initialStatus,
+        status_label: 'Pending',
         asm_name: asmName,
         remaining_balance: wallet?.balance ?? 0,
       },
