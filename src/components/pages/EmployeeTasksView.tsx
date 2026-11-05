@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Calendar,
   CheckCircle2,
+  Clock,
   FileSpreadsheet,
   Hourglass,
   Loader2,
@@ -56,7 +57,9 @@ interface TaskLike {
 }
 
 interface PersonMetrics extends EmployeeLike {
+  daily_target: number;
   monthly_target: number;
+  leads_today: number;
   leads_this_month: number;
   total_leads: number;
   total_followups: number;
@@ -123,11 +126,12 @@ const leadMatchesEmployee = (lead: any, employee: EmployeeLike) => {
 
 const targetRowFor = (
   employee: EmployeeLike,
-  tasks: TaskLike[]
+  tasks: TaskLike[],
+  kind: 'daily' | 'monthly'
 ) => {
   const employeeId = String(employee.employee_id || '').toLowerCase();
   const employeeName = String(employee.name || '').toLowerCase().trim();
-  const matcher = /monthly/i;
+  const matcher = kind === 'daily' ? /daily/i : /monthly/i;
 
   const rows = tasks.filter((task) => {
     const sameEmployee =
@@ -160,14 +164,19 @@ const buildPersonMetrics = (
   employeeLeads: any[],
   tasks: TaskLike[]
 ): PersonMetrics => {
-  const monthlyRow = targetRowFor(employee, tasks);
+  const dailyRow = targetRowFor(employee, tasks, 'daily');
+  const monthlyRow = targetRowFor(employee, tasks, 'monthly');
 
   const totalLeads = employeeLeads.length;
   const admissions = employeeLeads.filter(isClosedLead).length;
 
   return {
     ...employee,
+    daily_target: Number(dailyRow?.total_target || 0),
     monthly_target: Number(monthlyRow?.total_target || 0),
+    leads_today: employeeLeads.filter(
+      (lead) => String(lead.createdAt || '').slice(0, 10) === todayIso()
+    ).length,
     leads_this_month: employeeLeads.filter(
       (lead) => String(lead.createdAt || '').slice(0, 7) === currentMonthKey()
     ).length,
@@ -181,7 +190,9 @@ const buildPersonMetrics = (
 };
 
 const sumRows = (rows: PersonMetrics[]) => ({
+  daily_target: rows.reduce((sum, row) => sum + (row.daily_target || 0), 0),
   monthly_target: rows.reduce((sum, row) => sum + (row.monthly_target || 0), 0),
+  leads_today: rows.reduce((sum, row) => sum + (row.leads_today || 0), 0),
   leads_this_month: rows.reduce((sum, row) => sum + (row.leads_this_month || 0), 0),
   total_leads: rows.reduce((sum, row) => sum + (row.total_leads || 0), 0),
   total_followups: rows.reduce((sum, row) => sum + (row.total_followups || 0), 0),
@@ -415,7 +426,9 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     if (activeTab === 'SM') {
       return (
         smMetrics || {
+          daily_target: 0,
           monthly_target: 0,
+          leads_today: 0,
           leads_this_month: 0,
           total_leads: 0,
           total_followups: 0,
@@ -500,7 +513,8 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Employee Tasks</h1>
           <p className="text-xs text-muted mt-1">
-            Monthly targets, total leads, follow-ups and pending follow-ups for SM, ASM and BDE.
+            Monthly targets for the SM, plus daily and monthly targets for ASM and BDE,
+            with total leads, follow-ups and pending follow-ups.
           </p>
         </div>
 
@@ -548,7 +562,36 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${
+          activeTab === 'SM' ? 'lg:grid-cols-4' : 'lg:grid-cols-4 2xl:grid-cols-5'
+        }`}
+      >
+        {activeTab !== 'SM' && (
+          <div className="bg-surface border border-line rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                Daily Target
+              </span>
+              <span className="p-1.5 rounded-lg bg-accent/10 text-accent">
+                <Clock className="w-4 h-4" />
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-ink">{activeMetrics.daily_target}</span>
+              <span className="text-xs text-muted">/ day</span>
+            </div>
+            <p className="text-[11px] text-muted mt-2">
+              Achieved today: {activeMetrics.leads_today}
+            </p>
+            <ProgressBar
+              value={activeMetrics.leads_today}
+              target={activeMetrics.daily_target}
+              className="mt-2"
+            />
+          </div>
+        )}
+
         <div className="bg-surface border border-line rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
@@ -724,6 +767,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
               <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4">{activeTab === 'SM' ? 'ASM' : 'BDE'}</th>
                 {activeTab !== 'SM' && <th className="py-3 px-4">ASM</th>}
+                <th className="py-3 px-4">Daily target</th>
                 <th className="py-3 px-4">Monthly target</th>
                 <th className="py-3 px-4">Leads</th>
                 <th className="py-3 px-4">Follow-ups</th>
@@ -734,7 +778,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
             <tbody className="divide-y divide-line-2">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-muted">
+                  <td colSpan={7} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading performance data…</span>
@@ -761,6 +805,18 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                         {row.reports_to_name || '—'}
                       </td>
                     )}
+                    <td className="py-3 px-4 text-ink font-medium">
+                      <div>{row.daily_target || '—'}</div>
+                      {row.daily_target > 0 ? (
+                        <ProgressBar
+                          value={row.leads_today}
+                          target={row.daily_target}
+                          className="mt-1.5 w-24"
+                        />
+                      ) : (
+                        <div className="mt-1 text-[10px] text-muted">No target</div>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-ink font-medium">
                       <div>{row.monthly_target || '—'}</div>
                       {row.monthly_target > 0 ? (
@@ -799,7 +855,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="py-12 text-center text-subtle"
                   >
                     {emptyMessage}
@@ -824,6 +880,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
         <Target className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
         <p>
           Targets come from the existing EmployeeTask records. No new fields are created.
+          The SM has a monthly target only; ASM and BDE keep both daily and monthly targets.
           The SM tab shows the Sales Manager&apos;s own performance plus the ASM data they see;
           the ASM tab shows the BDE data each ASM sees.
         </p>

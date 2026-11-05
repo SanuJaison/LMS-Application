@@ -184,6 +184,7 @@ export interface DashboardStats {
   leadGenerationTrend: {
     months: string[];
     data: number[];
+    wonData?: number[];
   };
   leadsByDistrict: {
     labels: string[];

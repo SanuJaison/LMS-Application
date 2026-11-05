@@ -111,7 +111,7 @@ export default function DashboardView() {
 
   // Dynamic coordinates for Leads Won Line Chart
   const wonTrendCoords = useMemo<{ cx: number; cy: number; val: number }[]>(() => {
-    const list: number[] = (statsData?.leadGenerationTrend as any)?.wonData || [];
+    const list: number[] = statsData?.leadGenerationTrend?.wonData || [];
     if (!list.length) return [];
     const createdList = statsData?.leadGenerationTrend?.data || [];
     const maxVal = Math.max(...createdList, 5);
@@ -122,6 +122,11 @@ export default function DashboardView() {
       return { cx, cy, val };
     });
   }, [statsData?.leadGenerationTrend]);
+
+  const hasLeadTrend = (statsData?.leadGenerationTrend?.data || []).some(
+    (value) => value > 0
+  );
+  const hasStatusData = donutData.some((slice) => slice.value > 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -271,17 +276,21 @@ export default function DashboardView() {
 
             {/* Donut Legend */}
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-6 text-[11px] text-ink/80">
-              {donutData.map((slice: DonutSlice, idx: number) => (
-                <div key={idx} className="flex items-center gap-1.5">
-                  <span
-                    className="w-2.5 h-2.5 rounded-sm"
-                    style={{ backgroundColor: slice.color }}
-                  />
-                  <span>
-                    {slice.label} ({slice.value})
-                  </span>
-                </div>
-              ))}
+              {hasStatusData ? (
+                donutData.map((slice: DonutSlice, idx: number) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-sm"
+                      style={{ backgroundColor: slice.color }}
+                    />
+                    <span>
+                      {slice.label} ({slice.value})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <span className="text-subtle">No leads captured yet.</span>
+              )}
             </div>
           </div>
         </div>
@@ -304,7 +313,7 @@ export default function DashboardView() {
               </text>
               <text x="20" y="175" className="fill-subtle" fontSize="10">0</text>
 
-              {(statsData?.leadGenerationTrend?.months || ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']).map((m, idx, arr) => {
+              {(statsData?.leadGenerationTrend?.months || []).map((m, idx, arr) => {
                 const step = 420 / (arr.length - 1 || 1);
                 return (
                   <text
@@ -375,6 +384,11 @@ export default function DashboardView() {
               <span>Leads Won / Admitted</span>
             </div>
           </div>
+          {!hasLeadTrend && (
+            <p className="text-center text-[11px] text-subtle mt-1">
+              No leads captured in the last 6 months.
+            </p>
+          )}
         </div>
       </div>
 

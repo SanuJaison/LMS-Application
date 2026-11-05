@@ -219,6 +219,15 @@ export async function GET(req: Request) {
       return r === 'ASM' || r === 'BDM';
     });
 
+    const subordinateIds = subordinates.map((s) => s.employee_id).filter(Boolean);
+    const subordinateAttendances: any[] = subordinateIds.length > 0
+      ? await Attendance.find({ employee_id: { $in: subordinateIds }, date: today }).lean()
+      : [];
+    const attMap = new Map<string, any>();
+    subordinateAttendances.forEach((a) => {
+      if (a.employee_id) attMap.set(a.employee_id, a);
+    });
+
     const subordinateList = bdeSubordinates.map((bde) => {
       const bdeLeads = scopedLeads.filter((lead) =>
         belongsTo(lead, bde.employee_id, bde.name)
@@ -227,6 +236,9 @@ export async function GET(req: Request) {
       const conv =
         bdeLeads.length > 0 ? Math.round((bdeClosed / bdeLeads.length) * 100) : 0;
 
+      const bdeAtt = attMap.get(bde.employee_id);
+      const isOnline = bdeAtt?.status === 'ONLINE' || Boolean(bdeAtt?.check_in && !bdeAtt?.check_out);
+
       return {
         id: numericId(bde._id) || 1,
         employee_id: bde.employee_id || '',
@@ -234,10 +246,10 @@ export async function GET(req: Request) {
         designation: bde.designation || 'Business Development Executive',
         conversion_percentage: `${conv}%`,
         leads_assigned: `${bdeLeads.length}`,
-        online_status: bde.status === 'active' ? 'ONLINE' : 'OFFLINE',
-        online_time: '09:00 AM',
-        location_lat: 10.0159,
-        location_lng: 76.3419,
+        online_status: isOnline ? 'ONLINE' : 'OFFLINE',
+        online_time: bdeAtt?.check_in || '',
+        location_lat: typeof bdeAtt?.latitude === 'number' && !isNaN(bdeAtt.latitude) ? bdeAtt.latitude : null,
+        location_lng: typeof bdeAtt?.longitude === 'number' && !isNaN(bdeAtt.longitude) ? bdeAtt.longitude : null,
       };
     });
 
@@ -253,10 +265,10 @@ export async function GET(req: Request) {
         check_out: s.check_out || '',
         hours_worked: formatted,
         hours_worked_formatted: formatted,
-        latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-        longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-        location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-        location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+        latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : null,
+        longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : null,
+        location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : null,
+        location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : null,
         address: s.address || '',
         notes: s.notes || '',
       };
@@ -294,8 +306,8 @@ export async function GET(req: Request) {
         hours_worked: formatHoursWorked(todayAtt?.hours_worked, checkInTime, checkOutTime),
         hours_worked_formatted: formatHoursWorked(todayAtt?.hours_worked, checkInTime, checkOutTime),
         sessions: sanitizedSessions,
-        location_lat: typeof todayAtt?.latitude === 'number' && !isNaN(todayAtt?.latitude) ? todayAtt.latitude : 10.0159,
-        location_lng: typeof todayAtt?.longitude === 'number' && !isNaN(todayAtt?.longitude) ? todayAtt.longitude : 76.3419,
+        location_lat: typeof todayAtt?.latitude === 'number' && !isNaN(todayAtt?.latitude) ? todayAtt.latitude : null,
+        location_lng: typeof todayAtt?.longitude === 'number' && !isNaN(todayAtt?.longitude) ? todayAtt.longitude : null,
       },
       eod_sync: {
         tasks_completed: dailyAchieved,
@@ -336,24 +348,30 @@ export async function GET(req: Request) {
       },
       team_subordinate_status: {
         bdes: subordinateList,
-        asms: asmSubordinates.map((asm) => ({
-          id: numericId(asm._id) || 1,
-          employee_id: asm.employee_id || '',
-          name: asm.name,
-          designation: asm.designation || 'Area Sales Manager',
-          team: asm.team || '',
-          leads_assigned: `${scopedLeads.filter((l) => l.asm_id === asm.employee_id).length}`,
-          online_status: asm.status === 'active' ? 'ONLINE' : 'OFFLINE',
-        })),
+        asms: asmSubordinates.map((asm) => {
+          const asmAtt = attMap.get(asm.employee_id);
+          const isOnline = asmAtt?.status === 'ONLINE' || Boolean(asmAtt?.check_in && !asmAtt?.check_out);
+          return {
+            id: numericId(asm._id) || 1,
+            employee_id: asm.employee_id || '',
+            name: asm.name,
+            designation: asm.designation || 'Area Sales Manager',
+            team: asm.team || '',
+            leads_assigned: `${scopedLeads.filter((l) => l.asm_id === asm.employee_id).length}`,
+            online_status: isOnline ? 'ONLINE' : 'OFFLINE',
+          };
+        }),
       },
-      territory_report: [
-        {
-          district_name: employee?.district || 'Ernakulam',
-          target: 100,
-          achieved: ownClosedLeads,
-          growth_rate: '+12.5%',
-        },
-      ],
+      territory_report: employee?.district
+        ? [
+            {
+              district_name: employee.district,
+              target: monthlyTarget,
+              achieved: ownClosedLeads,
+              growth_rate: monthlyPercentage > 0 ? `+${monthlyPercentage}%` : '0%',
+            },
+          ]
+        : [],
     };
 
     return NextResponse.json({
