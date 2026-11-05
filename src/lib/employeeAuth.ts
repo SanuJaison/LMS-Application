@@ -144,3 +144,41 @@ export function parseTimeToMinutes(value?: string | null): number | null {
 
   return hours * 60 + minutes;
 }
+
+
+export function formatHoursWorked(
+  hoursOrMinutes?: number | string | null,
+  checkIn?: string | null,
+  checkOut?: string | null
+): string {
+  let totalMinutes = 0;
+
+  if (checkIn && checkOut) {
+    const inM = parseTimeToMinutes(checkIn);
+    const outM = parseTimeToMinutes(checkOut);
+    if (inM !== null && outM !== null && outM >= inM) {
+      totalMinutes = outM - inM;
+    }
+  }
+
+  if (totalMinutes === 0 && hoursOrMinutes !== null && hoursOrMinutes !== undefined) {
+    const str = String(hoursOrMinutes).trim();
+    if (str.includes(':') || str.includes('hour') || str.includes('hr')) {
+      return str;
+    }
+    const num = parseFloat(str);
+    if (!isNaN(num) && num > 0) {
+      totalMinutes = num > 24 ? Math.round(num) : Math.round(num * 60);
+    }
+  }
+
+  if (totalMinutes <= 0) return '0 hours';
+
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+
+  if (m === 0) {
+    return `${h} ${h === 1 ? 'hour' : 'hours'}`;
+  }
+  return `${h}:${String(m).padStart(2, '0')} hours`;
+}

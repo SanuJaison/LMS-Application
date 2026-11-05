@@ -1,3 +1,4 @@
+import { formatHoursWorked } from '@/lib/employeeAuth';
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
@@ -90,18 +91,22 @@ export async function GET(req: Request) {
           ]
         : [];
       const rawSessions = r.sessions && r.sessions.length > 0 ? r.sessions : fallbackSessions;
-      const sessionList = rawSessions.map((s: any) => ({
-        ...s,
-        check_in: s.check_in || '',
-        check_out: s.check_out || '',
-        hours_worked: Number(s.hours_worked) || 0,
-        latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-        longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-        location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-        location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-        address: s.address || '',
-        notes: s.notes || '',
-      }));
+      const sessionList = rawSessions.map((s: any) => {
+        const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+        return {
+          ...s,
+          check_in: s.check_in || '',
+          check_out: s.check_out || '',
+          hours_worked: formatted,
+          hours_worked_formatted: formatted,
+          latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+          longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+          location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+          location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+          address: s.address || '',
+          notes: s.notes || '',
+        };
+      });
 
       return {
         id: r._id.toString(),
@@ -110,7 +115,8 @@ export async function GET(req: Request) {
         date: r.date,
         check_in: r.check_in || '',
         check_out: r.check_out || '',
-        hours_worked: Number(r.hours_worked) || 0,
+        hours_worked: formatHoursWorked(r.hours_worked, r.check_in, r.check_out),
+        hours_worked_formatted: formatHoursWorked(r.hours_worked, r.check_in, r.check_out),
         status: r.status === 'ONLINE' ? 'ONLINE' : 'PRESENT',
         sessions: sessionList,
         punches: sessionList,

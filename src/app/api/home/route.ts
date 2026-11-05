@@ -6,7 +6,7 @@ import { Attendance } from '@/models/attendence';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Task, Wallet } from '@/models';
 import { hierarchyRole } from '@/lib/hierarchy';
-import { numericId, todayKey } from '@/lib/employeeAuth';
+import { numericId, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import {
   getScope,
   leadScopeFilter,
@@ -182,18 +182,22 @@ export async function GET(req: Request) {
       assignedLeads > 0 ? Math.round((closedLeads / assignedLeads) * 100) : 0;
 
     const rawSessions = Array.isArray(todayAtt?.sessions) ? todayAtt.sessions : [];
-    const sanitizedSessions = rawSessions.map((s: any) => ({
-      ...s,
-      check_in: s.check_in || '',
-      check_out: s.check_out || '',
-      hours_worked: Number(s.hours_worked) || 0,
-      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-      address: s.address || '',
-      notes: s.notes || '',
-    }));
+    const sanitizedSessions = rawSessions.map((s: any) => {
+      const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+      return {
+        ...s,
+        check_in: s.check_in || '',
+        check_out: s.check_out || '',
+        hours_worked: formatted,
+        hours_worked_formatted: formatted,
+        latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+        longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+        location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+        location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+        address: s.address || '',
+        notes: s.notes || '',
+      };
+    });
 
     const payload = {
       user: {
@@ -224,7 +228,8 @@ export async function GET(req: Request) {
         check_out_time: checkOutTime,
         shift_status: shiftStatus,
         is_checked_in: isCheckedIn,
-        hours_worked: Number(todayAtt?.hours_worked) || 0,
+        hours_worked: formatHoursWorked(todayAtt?.hours_worked, checkInTime, checkOutTime),
+        hours_worked_formatted: formatHoursWorked(todayAtt?.hours_worked, checkInTime, checkOutTime),
         sessions: sanitizedSessions,
         location_lat: typeof todayAtt?.latitude === 'number' && !isNaN(todayAtt?.latitude) ? todayAtt.latitude : 10.0159,
         location_lng: typeof todayAtt?.longitude === 'number' && !isNaN(todayAtt?.longitude) ? todayAtt.longitude : 76.3419,

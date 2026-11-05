@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAttendanceSession {
   check_in: string;
   check_out?: string;
-  hours_worked?: number;
+  hours_worked?: string | number;
   latitude?: number;
   longitude?: number;
   address?: string;
@@ -19,7 +19,7 @@ export interface IAttendance extends Document {
   date: string; // YYYY-MM-DD
   check_in?: string;
   check_out?: string;
-  hours_worked: number;
+  hours_worked: string | number;
   status: 'ONLINE' | 'OFFLINE';
   sessions?: IAttendanceSession[];
   latitude?: number;
@@ -77,7 +77,7 @@ const AttendanceSchema = new Schema<IAttendance>(
       {
         check_in: { type: String, default: '' },
         check_out: { type: String, default: '' },
-        hours_worked: { type: Number, default: 0 },
+        hours_worked: { type: Schema.Types.Mixed, default: "0 hours" },
         latitude: { type: Number, default: null },
         longitude: { type: Number, default: null },
         address: { type: String, default: '' },

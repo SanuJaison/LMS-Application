@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
 import { requireEmployee } from '@/lib/apiAuth';
-import { formatTime, parseTimeToMinutes, todayKey } from '@/lib/employeeAuth';
+import { formatTime, parseTimeToMinutes, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         (sum: number, s: any) => sum + (Number(s.hours_worked) || 0),
         0
       );
-      record.hours_worked = parseFloat(totalHours.toFixed(2));
+      record.hours_worked = formatHoursWorked(totalHours);
 
       await record.save();
     } else {
@@ -122,7 +122,8 @@ export async function POST(req: Request) {
         date: today,
         check_in: record.check_in || '',
         check_out: checkOutTime,
-        hours_worked: record.hours_worked || 0,
+        hours_worked: formatHoursWorked(record.hours_worked, record.check_in, checkOutTime),
+        hours_worked_formatted: formatHoursWorked(record.hours_worked, record.check_in, checkOutTime),
         status: 'OFFLINE',
         is_checked_in: false,
         sessions: sanitizeSessions(record.sessions),
@@ -139,18 +140,22 @@ export async function POST(req: Request) {
 
 function sanitizeSessions(sessions: any[]): any[] {
   if (!Array.isArray(sessions)) return [];
-  return sessions.map((s: any) => ({
-    ...s,
-    check_in: s.check_in || '',
-    check_out: s.check_out || '',
-    hours_worked: Number(s.hours_worked) || 0,
-    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    address: s.address || '',
-    notes: s.notes || '',
-  }));
+  return sessions.map((s: any) => {
+    const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+    return {
+      ...s,
+      check_in: s.check_in || '',
+      check_out: s.check_out || '',
+      hours_worked: formatted,
+      hours_worked_formatted: formatted,
+      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      address: s.address || '',
+      notes: s.notes || '',
+    };
+  });
 }
 
 function escapeRegex(value: string): string {

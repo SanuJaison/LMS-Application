@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
-import { nameRegex, ok, todayKey } from '@/lib/employeeAuth';
+import { nameRegex, ok, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import { requireEmployee } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
@@ -59,27 +59,33 @@ export async function GET(req: Request) {
 function sanitizeAttendanceRecord(r: any): any {
   if (!r) return null;
   const rawSessions = Array.isArray(r.sessions) ? r.sessions : [];
-  const sanitizedSessions = rawSessions.map((s: any) => ({
-    ...s,
-    check_in: s.check_in || '',
-    check_out: s.check_out || '',
-    hours_worked: Number(s.hours_worked) || 0,
-    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    address: s.address || '',
-    notes: s.notes || '',
-  }));
+  const sanitizedSessions = rawSessions.map((s: any) => {
+    const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+    return {
+      ...s,
+      check_in: s.check_in || '',
+      check_out: s.check_out || '',
+      hours_worked: formatted,
+      hours_worked_formatted: formatted,
+      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      address: s.address || '',
+      notes: s.notes || '',
+    };
+  });
   const lat = typeof r.latitude === 'number' && !isNaN(r.latitude) ? r.latitude : 10.0159;
   const lng = typeof r.longitude === 'number' && !isNaN(r.longitude) ? r.longitude : 76.3419;
+  const formattedHours = formatHoursWorked(r.hours_worked, r.check_in, r.check_out);
   return {
     ...r,
     latitude: lat,
     longitude: lng,
     location_lat: lat,
     location_lng: lng,
-    hours_worked: Number(r.hours_worked) || 0,
+    hours_worked: formattedHours,
+    hours_worked_formatted: formattedHours,
     sessions: sanitizedSessions,
     punches: sanitizedSessions,
   };

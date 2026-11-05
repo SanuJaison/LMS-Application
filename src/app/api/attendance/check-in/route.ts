@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Attendance } from '@/models/attendence';
 import { requireEmployee } from '@/lib/apiAuth';
-import { formatTime, todayKey } from '@/lib/employeeAuth';
+import { formatTime, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 
 /**
@@ -69,7 +69,8 @@ export async function POST(req: Request) {
             check_out: '',
             status: 'ONLINE',
             is_checked_in: true,
-            hours_worked: record.hours_worked || 0,
+            hours_worked: formatHoursWorked(record.hours_worked, record.check_in, record.check_out),
+        hours_worked_formatted: formatHoursWorked(record.hours_worked, record.check_in, record.check_out),
             sessions: sanitizeSessions(record.sessions),
           },
         });
@@ -153,18 +154,22 @@ export async function POST(req: Request) {
 
 function sanitizeSessions(sessions: any[]): any[] {
   if (!Array.isArray(sessions)) return [];
-  return sessions.map((s: any) => ({
-    ...s,
-    check_in: s.check_in || '',
-    check_out: s.check_out || '',
-    hours_worked: Number(s.hours_worked) || 0,
-    latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
-    location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
-    address: s.address || '',
-    notes: s.notes || '',
-  }));
+  return sessions.map((s: any) => {
+    const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
+    return {
+      ...s,
+      check_in: s.check_in || '',
+      check_out: s.check_out || '',
+      hours_worked: formatted,
+      hours_worked_formatted: formatted,
+      latitude: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      longitude: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      location_lat: typeof s.latitude === 'number' && !isNaN(s.latitude) ? s.latitude : 10.0159,
+      location_lng: typeof s.longitude === 'number' && !isNaN(s.longitude) ? s.longitude : 76.3419,
+      address: s.address || '',
+      notes: s.notes || '',
+    };
+  });
 }
 
 function escapeRegex(value: string): string {
