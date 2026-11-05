@@ -177,6 +177,24 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     return manager ? `${manager.name} (${manager.employee_id})` : reportsTo;
   };
 
+  const formatCurrency = (value?: number): string =>
+    value === undefined || value === null || Number.isNaN(Number(value))
+      ? '—'
+      : `₹${Number(value).toLocaleString('en-IN')}`;
+
+  const formatDateTime = (value?: string): string => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   const isSMDesignation = (designationName?: string): boolean => {
     if (!designationName) return false;
     const prefix = designationPrefix(designationName);
@@ -1060,7 +1078,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       {/* VIEW EMPLOYEE MODAL */}
       {viewingEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5 border-b border-line pb-3">
               <div>
                 <h3 className="font-bold text-ink text-base">{viewingEmployee.name}</h3>
@@ -1074,41 +1092,91 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Employee ID</span>
-                <span className="text-ink font-mono font-medium">{viewingEmployee.employee_id}</span>
+            <div className="space-y-4 text-xs">
+              <div>
+                <h4 className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-2">
+                  Employment details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Employee ID</span>
+                    <span className="text-ink font-mono font-medium">{viewingEmployee.employee_id || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Contact</span>
+                    <span className="text-ink font-medium">{viewingEmployee.contact_number || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Designation</span>
+                    <span className="text-ink font-medium">{viewingEmployee.designation || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Team</span>
+                    <span className="text-ink font-medium">{viewingEmployee.team || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Reports To</span>
+                    <span className="text-ink font-medium">
+                      {managerLabel(viewingEmployee.reports_to)}
+                    </span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Zone</span>
+                    <span className="text-ink font-medium">{viewingEmployee.zone || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">District</span>
+                    <span className="text-ink font-medium">{viewingEmployee.district || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Status</span>
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-success/10 text-success border border-success/30 uppercase">
+                      {viewingEmployee.status || 'active'}
+                    </span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Salary</span>
+                    <span className="text-ink font-medium">{formatCurrency(viewingEmployee.salary)}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Incentive</span>
+                    <span className="text-ink font-medium">{formatCurrency(viewingEmployee.incentive)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Contact</span>
-                <span className="text-ink font-medium">{viewingEmployee.contact_number}</span>
+
+              <div>
+                <h4 className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-2">
+                  Payment details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Bank Name</span>
+                    <span className="text-ink font-medium">{viewingEmployee.bank_name || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Account Holder</span>
+                    <span className="text-ink font-medium">{viewingEmployee.account_holder_name || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Account Number</span>
+                    <span className="text-ink font-mono font-medium">{viewingEmployee.account_number || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">IFSC Code</span>
+                    <span className="text-ink font-mono font-medium">{viewingEmployee.ifsc_code || '—'}</span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2">
+                    <span className="text-muted block mb-0.5">UPI ID</span>
+                    <span className="text-ink font-medium">{viewingEmployee.upi_id || '—'}</span>
+                  </div>
+                </div>
               </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Designation</span>
-                <span className="text-ink font-medium">{viewingEmployee.designation || '—'}</span>
-              </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Team</span>
-                <span className="text-ink font-medium">{viewingEmployee.team || '—'}</span>
-              </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Reports To</span>
+
+              <div className="bg-field p-3 rounded-lg border border-line flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <span className="text-muted">Created on</span>
                 <span className="text-ink font-medium">
-                  {managerLabel(viewingEmployee.reports_to)}
-                </span>
-              </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">Zone</span>
-                <span className="text-ink font-medium">{viewingEmployee.zone || 'Central Zone'}</span>
-              </div>
-              <div className="bg-field p-3 rounded-lg border border-line">
-                <span className="text-muted block mb-0.5">District</span>
-                <span className="text-ink font-medium">{viewingEmployee.district || 'Ernakulam'}</span>
-              </div>
-              <div className="bg-field p-3 rounded-lg border border-line sm:col-span-2 flex justify-between items-center">
-                <span className="text-muted">Status</span>
-                <span className="px-2.5 py-0.5 rounded text-[10px] font-semibold bg-success/10 text-success border border-success/30 uppercase">
-                  {viewingEmployee.status || 'Active'}
+                  {formatDateTime(viewingEmployee.createdAt || viewingEmployee.created_at)}
                 </span>
               </div>
             </div>

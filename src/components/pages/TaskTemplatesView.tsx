@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
-  Clock,
   Loader2,
   Pencil,
   RefreshCw,
@@ -56,7 +55,6 @@ interface TargetRow {
 
 interface MonthGroup {
   month: string;
-  daily?: TargetRow;
   monthly?: TargetRow;
 }
 
@@ -80,7 +78,6 @@ const monthLabel = (key: string) => {
   });
 };
 
-const isDaily = (row: TargetRow) => /daily/i.test(row.task_template || '');
 const isMonthly = (row: TargetRow) => /monthly/i.test(row.task_template || '');
 
 const rowCreatedTime = (row: TargetRow) =>
@@ -127,12 +124,10 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
   const todayIso = new Date().toISOString().slice(0, 10);
 
   const [targetMonth, setTargetMonth] = useState(todayKey);
-  const [dailyTargetInput, setDailyTargetInput] = useState(15);
-  const [monthlyTargetInput, setMonthlyTargetInput] = useState(390);
+  const [monthlyTargetInput, setMonthlyTargetInput] = useState(0);
   const [notes, setNotes] = useState('');
 
   const [editingGroup, setEditingGroup] = useState<MonthGroup | null>(null);
-  const [editDaily, setEditDaily] = useState(0);
   const [editMonthly, setEditMonthly] = useState(0);
   const [editNotes, setEditNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -199,9 +194,6 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
       if (!map.has(month)) map.set(month, { month });
       const group = map.get(month)!;
 
-      if (isDaily(row) && (!group.daily || rowCreatedTime(row) > rowCreatedTime(group.daily))) {
-        group.daily = row;
-      }
       if (
         isMonthly(row) &&
         (!group.monthly || rowCreatedTime(row) > rowCreatedTime(group.monthly))
@@ -220,9 +212,8 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
 
   useEffect(() => {
     const group = monthGroups.find((item) => item.month === targetMonth);
-    setDailyTargetInput(group?.daily?.total_target ?? 15);
-    setMonthlyTargetInput(group?.monthly?.total_target ?? 390);
-    setNotes(group?.monthly?.notes || group?.daily?.notes || '');
+    setMonthlyTargetInput(group?.monthly?.total_target ?? 0);
+    setNotes(group?.monthly?.notes || '');
   }, [targetMonth, monthGroups]);
 
   const leadsToday = useMemo(
@@ -257,8 +248,8 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
       showToast?.('danger', 'Create a Sales Manager before assigning targets.');
       return;
     }
-    if (dailyTargetInput <= 0 || monthlyTargetInput <= 0) {
-      showToast?.('danger', 'Daily and monthly targets must be greater than zero.');
+    if (monthlyTargetInput <= 0) {
+      showToast?.('danger', 'Monthly target must be greater than zero.');
       return;
     }
 
@@ -266,41 +257,19 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
     try {
       const group = monthGroups.find((item) => item.month === targetMonth);
       const monthLeads = monthAchieved(targetMonth);
-      const dailyAchieved = targetMonth === todayKey ? leadsToday : 0;
 
-      const basePayload = {
+      const monthlyPayload = {
         employee: smEmployee.name || '',
         employee_id: smEmployee.employee_id || '',
         period_start: `${targetMonth}-01`,
         period_end: monthEnd(targetMonth),
         metric_type: 'Leads Generated',
         notes,
-      };
-
-      const dailyPayload = {
-        ...basePayload,
-        task_template: 'Daily SM Target',
-        total_target: Number(dailyTargetInput),
-        achieved: dailyAchieved,
-        is_completed: dailyAchieved >= Number(dailyTargetInput),
-      };
-
-      const monthlyPayload = {
-        ...basePayload,
         task_template: 'Monthly SM Target',
         total_target: Number(monthlyTargetInput),
         achieved: monthLeads,
         is_completed: monthLeads >= Number(monthlyTargetInput),
       };
-
-      if (group?.daily?._id) {
-        await updateResourceItem('employeeTasks', {
-          id: group.daily._id,
-          ...dailyPayload,
-        });
-      } else {
-        await createResourceItem('employeeTasks', dailyPayload);
-      }
 
       if (group?.monthly?._id) {
         await updateResourceItem('employeeTasks', {
@@ -311,7 +280,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
         await createResourceItem('employeeTasks', monthlyPayload);
       }
 
-      showToast?.('success', `Targets saved for ${monthLabel(targetMonth)}.`);
+      showToast?.('success', `Monthly target saved for ${monthLabel(targetMonth)}.`);
       await loadData();
     } catch (error) {
       console.error('Failed to save SM targets:', error);
@@ -323,57 +292,34 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
 
   const openEdit = (group: MonthGroup) => {
     setEditingGroup(group);
-    setEditDaily(group.daily?.total_target ?? 0);
     setEditMonthly(group.monthly?.total_target ?? 0);
-    setEditNotes(group.monthly?.notes || group.daily?.notes || '');
+    setEditNotes(group.monthly?.notes || '');
   };
 
   const handleUpdate = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!editingGroup || !smEmployee) return;
-    if (editDaily <= 0 || editMonthly <= 0) {
-      showToast?.('danger', 'Daily and monthly targets must be greater than zero.');
+    if (editMonthly <= 0) {
+      showToast?.('danger', 'Monthly target must be greater than zero.');
       return;
     }
 
     setIsUpdating(true);
     try {
       const monthLeads = monthAchieved(editingGroup.month);
-      const dailyAchieved = editingGroup.month === todayKey ? leadsToday : 0;
 
-      const basePayload = {
+      const monthlyPayload = {
         employee: smEmployee.name || '',
         employee_id: smEmployee.employee_id || '',
         period_start: `${editingGroup.month}-01`,
         period_end: monthEnd(editingGroup.month),
         metric_type: 'Leads Generated',
         notes: editNotes,
-      };
-
-      const dailyPayload = {
-        ...basePayload,
-        task_template: 'Daily SM Target',
-        total_target: Number(editDaily),
-        achieved: dailyAchieved,
-        is_completed: dailyAchieved >= Number(editDaily),
-      };
-
-      const monthlyPayload = {
-        ...basePayload,
         task_template: 'Monthly SM Target',
         total_target: Number(editMonthly),
         achieved: monthLeads,
         is_completed: monthLeads >= Number(editMonthly),
       };
-
-      if (editingGroup.daily?._id) {
-        await updateResourceItem('employeeTasks', {
-          id: editingGroup.daily._id,
-          ...dailyPayload,
-        });
-      } else {
-        await createResourceItem('employeeTasks', dailyPayload);
-      }
 
       if (editingGroup.monthly?._id) {
         await updateResourceItem('employeeTasks', {
@@ -384,7 +330,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
         await createResourceItem('employeeTasks', monthlyPayload);
       }
 
-      showToast?.('success', 'Targets updated.');
+      showToast?.('success', 'Target updated.');
       setEditingGroup(null);
       await loadData();
     } catch (error) {
@@ -396,14 +342,14 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
   };
 
   const handleDelete = async (group: MonthGroup) => {
-    if (!window.confirm(`Delete the targets for ${monthLabel(group.month)}?`)) return;
+    if (!window.confirm(`Delete the monthly target for ${monthLabel(group.month)}?`)) return;
 
-    const ids = [group.daily?._id, group.monthly?._id].filter(Boolean) as string[];
+    const ids = [group.monthly?._id].filter(Boolean) as string[];
     if (ids.length === 0) return;
 
     try {
       await deleteResourceItem('employeeTasks', ids.length === 1 ? ids[0] : ids);
-      showToast?.('success', `Targets deleted for ${monthLabel(group.month)}.`);
+      showToast?.('success', `Monthly target deleted for ${monthLabel(group.month)}.`);
       await loadData();
     } catch (error) {
       console.error('Failed to delete SM targets:', error);
@@ -416,10 +362,8 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
     return monthGroups.slice(start, start + perPage);
   }, [monthGroups, currentPage, perPage]);
 
-  const activeDailyTarget = currentGroup?.daily?.total_target ?? dailyTargetInput;
-  const activeMonthlyTarget = currentGroup?.monthly?.total_target ?? monthlyTargetInput;
+  const activeMonthlyTarget = currentGroup?.monthly?.total_target ?? 0;
   const activeMonthlyAchieved = monthAchieved(targetMonth);
-  const activeDailyAchieved = targetMonth === todayKey ? leadsToday : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -433,7 +377,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">SM Targets</h1>
           <p className="text-xs text-muted mt-1">
-            Assign daily and monthly targets to the Sales Manager.
+            Assign monthly targets to the Sales Manager.
           </p>
         </div>
 
@@ -457,7 +401,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
           <div>
             <h3 className="text-sm font-semibold text-ink">No Sales Manager found</h3>
             <p className="text-xs text-muted mt-0.5">
-              Create the Sales Manager in Employees first, then assign daily and monthly targets here.
+              Create the Sales Manager in Employees first, then assign monthly targets here.
             </p>
           </div>
         </div>
@@ -496,25 +440,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
       )}
 
       {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-surface border border-line rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-              Daily Target
-            </span>
-            <span className="p-1.5 rounded-lg bg-accent/10 text-accent">
-              <Clock className="w-4 h-4" />
-            </span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-ink">{activeDailyTarget}</span>
-            <span className="text-xs text-muted">/ day</span>
-          </div>
-          <p className="text-[11px] text-muted mt-2">
-            Achieved today: {activeDailyAchieved}
-          </p>
-        </div>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-surface border border-line rounded-xl p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">
@@ -525,11 +451,15 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-ink">{activeMonthlyTarget}</span>
-            <span className="text-xs text-muted">/ month</span>
+            <span className="text-2xl font-bold text-ink">
+              {activeMonthlyTarget > 0 ? activeMonthlyTarget : '—'}
+            </span>
+            {activeMonthlyTarget > 0 && <span className="text-xs text-muted">/ month</span>}
           </div>
           <p className="text-[11px] text-muted mt-2">
-            {monthLabel(targetMonth)} • achieved {activeMonthlyAchieved}
+            {activeMonthlyTarget > 0
+              ? `${monthLabel(targetMonth)} • achieved ${activeMonthlyAchieved}`
+              : 'No target assigned'}
           </p>
         </div>
 
@@ -570,11 +500,11 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
         <div className="px-5 py-4 border-b border-line flex items-center gap-2">
           <Target className="w-4 h-4 text-accent" />
-          <h2 className="text-sm font-bold text-ink">Assign / update Sales Manager targets</h2>
+          <h2 className="text-sm font-bold text-ink">Assign / update Sales Manager monthly target</h2>
         </div>
 
         <form onSubmit={handleSaveTargets} className="p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
                 Target month
@@ -589,24 +519,6 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
 
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                Daily target
-              </label>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                required
-                value={dailyTargetInput}
-                onChange={(event) =>
-                  setDailyTargetInput(Math.max(1, parseInt(event.target.value, 10) || 1))
-                }
-                className="w-full px-3 py-2 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder="e.g. 15"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
                 Monthly target
               </label>
               <input
@@ -614,9 +526,9 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
                 min={1}
                 step={1}
                 required
-                value={monthlyTargetInput}
+                value={monthlyTargetInput || ''}
                 onChange={(event) =>
-                  setMonthlyTargetInput(Math.max(1, parseInt(event.target.value, 10) || 1))
+                  setMonthlyTargetInput(parseInt(event.target.value, 10) || 0)
                 }
                 className="w-full px-3 py-2 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 placeholder="e.g. 390"
@@ -660,7 +572,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
           <div>
             <h2 className="text-sm font-bold text-ink">Target history</h2>
             <p className="text-[11px] text-muted mt-0.5">
-              Daily and monthly targets already saved for the Sales Manager.
+              Monthly targets already saved for the Sales Manager.
             </p>
           </div>
           <span className="text-xs text-muted">
@@ -673,7 +585,6 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
             <thead>
               <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-4">Month</th>
-                <th className="py-3 px-4">Daily target</th>
                 <th className="py-3 px-4">Monthly target</th>
                 <th className="py-3 px-4">Achieved</th>
                 <th className="py-3 px-4">Status</th>
@@ -683,7 +594,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
             <tbody className="divide-y divide-line-2">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-muted">
+                  <td colSpan={5} className="py-16 text-center text-muted">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Loader2 className="w-6 h-6 animate-spin text-accent" />
                       <span>Loading targets…</span>
@@ -692,7 +603,6 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
                 </tr>
               ) : paginatedGroups.length > 0 ? (
                 paginatedGroups.map((group) => {
-                  const dailyTarget = group.daily?.total_target ?? 0;
                   const monthlyTarget = group.monthly?.total_target ?? 0;
                   const achieved = monthAchieved(group.month);
                   const completed = monthlyTarget > 0 && achieved >= monthlyTarget;
@@ -700,7 +610,6 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
                   return (
                     <tr key={group.month} className="hover:bg-hover/60 transition">
                       <td className="py-3 px-4 font-medium text-ink whitespace-nowrap">{monthLabel(group.month)}</td>
-                      <td className="py-3 px-4 text-ink">{dailyTarget || '—'}</td>
                       <td className="py-3 px-4 text-ink">{monthlyTarget || '—'}</td>
                       <td className="py-3 px-4 text-muted">{achieved}</td>
                       <td className="py-3 px-4">
@@ -745,8 +654,8 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-subtle">
-                    No SM targets saved yet. Use the form above to assign daily and monthly targets.
+                  <td colSpan={5} className="py-12 text-center text-subtle">
+                    No SM targets saved yet. Use the form above to assign a monthly target.
                   </td>
                 </tr>
               )}
@@ -769,7 +678,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
           <div className="w-full max-w-lg bg-elevated border border-line rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-bold text-ink text-base">
-                Edit targets — {monthLabel(editingGroup.month)}
+                Edit monthly target — {monthLabel(editingGroup.month)}
               </h3>
               <button
                 type="button"
@@ -781,37 +690,20 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
             </div>
 
             <form onSubmit={handleUpdate} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                    Daily target
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={editDaily}
-                    onChange={(event) =>
-                      setEditDaily(Math.max(1, parseInt(event.target.value, 10) || 1))
-                    }
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                    Monthly target
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={editMonthly}
-                    onChange={(event) =>
-                      setEditMonthly(Math.max(1, parseInt(event.target.value, 10) || 1))
-                    }
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
+                  Monthly target
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={editMonthly || ''}
+                  onChange={(event) =>
+                    setEditMonthly(parseInt(event.target.value, 10) || 0)
+                  }
+                  className="w-full px-3 py-2 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
+                />
               </div>
 
               <div>

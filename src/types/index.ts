@@ -39,6 +39,12 @@ export interface Employee {
   team?: string;
   reports_to?: string;
   upi_id?: string;
+  salary?: number;
+  incentive?: number;
+  bank_name?: string;
+  account_holder_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
   status: 'active' | 'inactive';
   created_at?: string;
   createdAt?: string;
