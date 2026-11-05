@@ -82,7 +82,7 @@ export async function GET(req: Request) {
         .lean(),
     ]);
 
-    const ledger = admissions.map((l: any) => ({
+    const ledger = (wallet?.total_earned ? admissions : []).map((l: any) => ({
       id: l._id.toString(),
       lead_id: l.lead_id || '',
       student_id: l.student_id || '',

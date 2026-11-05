@@ -137,17 +137,10 @@ export async function GET(req: Request) {
     const closedLeads = scopedLeads.filter(isClosed).length;
     const ownClosedLeads = ownLeads.filter(isClosed).length;
 
-    const defaultIncentive =
-      role === 'SM'
-        ? closedLeads * (typeof employee?.incentive === 'number' && employee.incentive > 0 ? employee.incentive : 20)
-        : role === 'ASM'
-          ? closedLeads * (typeof employee?.incentive === 'number' && employee.incentive > 0 ? employee.incentive : 100)
-          : ownClosedLeads * (typeof employee?.incentive === 'number' && employee.incentive > 0 ? employee.incentive : 1000);
-
     const incentivesEarned =
-      typeof wallet?.total_earned === 'number' && wallet.total_earned > 0
+      typeof wallet?.total_earned === 'number'
         ? wallet.total_earned
-        : defaultIncentive;
+        : (role === 'BDE' ? ownClosedLeads * (typeof employee?.incentive === 'number' && employee.incentive > 0 ? employee.incentive : 1000) : 0);
 
     // Subordinates: only people below the caller (never team-wide).
     const subordinates =

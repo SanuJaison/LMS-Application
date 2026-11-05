@@ -31,12 +31,28 @@ export async function GET(req: Request) {
     const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const filters: Record<string, any>[] = [
-      scopeFilter(scope, {
-        idFields: ['bde_id', 'asm_id'],
-        nameFields: ['bde_name', 'asm_name'],
-      }),
-    ];
+    const isEmployee = !auth.isAdmin;
+    const viewTeam = searchParams.get('view') === 'team';
+
+    const filters: Record<string, any>[] = [];
+
+    if (isEmployee && !viewTeam) {
+      // By default, an employee (BDE, ASM, SM) views their own earned incentives
+      filters.push({
+        $or: [
+          ...(auth.employeeId ? [{ bde_id: auth.employeeId }] : []),
+          ...(auth.name ? [{ bde_name: new RegExp(`^${escapeRegex(auth.name)}$`, 'i') }] : []),
+        ],
+      });
+    } else {
+      // Admins or managers requesting team view see the hierarchy subtree
+      filters.push(
+        scopeFilter(scope, {
+          idFields: ['bde_id', 'asm_id'],
+          nameFields: ['bde_name', 'asm_name'],
+        })
+      );
+    }
 
     // Only admins may narrow by arbitrary employee/team.
     if (auth.isAdmin) {
@@ -80,4 +96,8 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+}
+
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
