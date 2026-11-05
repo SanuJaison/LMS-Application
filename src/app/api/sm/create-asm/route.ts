@@ -55,9 +55,12 @@ const REGIONAL_TEAMS_CONFIG: Record<
 
 /** Accept KZE as an alias for KZD (team 7). */
 function normalizeTeamCode(value: string): string {
-  const code = String(value || '').trim().toUpperCase();
-  if (code === 'KZE') return 'KZD';
-  return code;
+  const raw = String(value || '').trim().toUpperCase();
+  if (raw === 'KZE') return 'KZD';
+  if (raw.startsWith('OFFICE')) return 'OFFICE';
+  const match = raw.match(/^([A-Z]{3})/);
+  if (match && REGIONAL_TEAMS_CONFIG[match[1]]) return match[1];
+  return raw;
 }
 
 function isAsm(employee: any): boolean {
@@ -172,7 +175,8 @@ export async function POST(req: Request) {
     const smName = smEmployee.name || 'Sales Manager';
 
     // Normalize team code (TVM, PTM, KTM, EKM, PKD, CLT, KZD / KZE, OFFICE).
-    const normalizedCode = normalizeTeamCode(team_code);
+    const rawTeam = team_code || body.team_name || body.team || '';
+    const normalizedCode = normalizeTeamCode(rawTeam);
     const isOffice = normalizedCode === 'OFFICE';
     const teamConfig = REGIONAL_TEAMS_CONFIG[normalizedCode];
 
@@ -229,17 +233,19 @@ export async function POST(req: Request) {
             }).lean()
           : null;
 
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Team "${assignedTeamName}" is already assigned to Area Sales Manager ${
-            leadEmployee?.name || lead.name || existingTeamDoc.team_lead
-          }${
-            lead.employeeId ? ` (${lead.employeeId})` : ''
-          }. An ASM team can only have one assigned ASM.`,
-        },
-        { status: 400 }
-      );
+      if (leadEmployee && leadEmployee.status !== 'inactive') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Team "${assignedTeamName}" is already assigned to Area Sales Manager ${
+              leadEmployee?.name || lead.name || existingTeamDoc.team_lead
+            }${
+              lead.employeeId ? ` (${lead.employeeId})` : ''
+            }. An ASM team can only have one assigned ASM.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Rule: A district can belong to only one team.
@@ -248,6 +254,13 @@ export async function POST(req: Request) {
 
       const teams: any[] = await Team.find({}).lean();
       for (const team of teams) {
+        // Exclude the current team itself! A team can own its own districts.
+        const isSameTeam =
+          (team.name && assignedTeamName && team.name.trim().toLowerCase() === assignedTeamName.trim().toLowerCase()) ||
+          (team.name && normalizedCode && team.name.trim().toUpperCase().startsWith(normalizedCode));
+
+        if (isSameTeam) continue;
+
         const districts = [
           ...(Array.isArray(team.districts) ? team.districts : []),
           team.district || '',
