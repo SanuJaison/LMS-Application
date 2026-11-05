@@ -172,8 +172,8 @@ const buildPersonMetrics = (
 
   return {
     ...employee,
-    daily_target: Number(dailyRow?.total_target || 0),
-    monthly_target: Number(monthlyRow?.total_target || 0),
+    daily_target: Number(dailyRow?.total_target ?? (employee as any).daily_target ?? 0),
+    monthly_target: Number(monthlyRow?.total_target ?? (employee as any).monthly_target ?? 0),
     leads_today: employeeLeads.filter(
       (lead) => String(lead.createdAt || '').slice(0, 10) === todayIso()
     ).length,
@@ -439,7 +439,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     return sumRows(activeTab === 'ASM' ? asmRows : bdeRows);
   }, [activeTab, smMetrics, asmRows, bdeRows]);
 
-  const activeRows = activeTab === 'SM' ? asmRows : bdeRows;
+  const activeRows = activeTab === 'BDE' ? bdeRows : asmRows;
 
   const filteredRows = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -481,25 +481,19 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
   ];
 
   const tableTitle =
-    activeTab === 'SM'
-      ? 'ASM performance'
-      : activeTab === 'ASM'
-        ? 'BDE performance under ASMs'
-        : 'BDE performance';
+    activeTab === 'BDE'
+      ? 'BDE performance'
+      : 'ASM performance';
 
   const tableSubtitle =
-    activeTab === 'SM'
-      ? 'The same ASM data the Sales Manager sees, with targets, leads and follow-ups.'
-      : activeTab === 'ASM'
-        ? 'The same BDE data each ASM sees, with targets, leads and follow-ups.'
-        : 'Individual BDE targets, leads and follow-up counts.';
+    activeTab === 'BDE'
+      ? 'Individual BDE targets, leads and follow-up counts.'
+      : 'Area Sales Manager daily and monthly targets, leads and follow-ups.';
 
   const emptyMessage =
-    activeTab === 'SM'
-      ? 'No ASMs yet. The Sales Manager creates ASMs from the SM app.'
-      : activeTab === 'ASM'
-        ? 'No BDEs yet. Each ASM creates BDEs from the ASM app.'
-        : 'No BDEs yet. Once BDEs are created they appear here with their targets and follow-ups.';
+    activeTab === 'BDE'
+      ? 'No BDEs yet. Each ASM creates BDEs from the ASM app.'
+      : 'No ASMs yet. The Sales Manager creates ASMs from the SM app.';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -749,7 +743,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
               <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder={activeTab === 'SM' ? 'Search ASMs…' : 'Search BDEs…'}
+                placeholder={activeTab === 'BDE' ? 'Search BDEs…' : 'Search ASMs…'}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
@@ -765,14 +759,14 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4">{activeTab === 'SM' ? 'ASM' : 'BDE'}</th>
-                {activeTab !== 'SM' && <th className="py-3 px-4">ASM</th>}
+                <th className="py-3 px-4">{activeTab === 'BDE' ? 'BDE' : 'ASM'}</th>
+                {activeTab === 'BDE' && <th className="py-3 px-4">ASM</th>}
                 <th className="py-3 px-4">Daily target</th>
                 <th className="py-3 px-4">Monthly target</th>
                 <th className="py-3 px-4">Leads</th>
                 <th className="py-3 px-4">Follow-ups</th>
                 <th className="py-3 px-4">Pending</th>
-                {activeTab === 'SM' && <th className="py-3 px-4">BDEs</th>}
+                {activeTab !== 'BDE' && <th className="py-3 px-4">BDEs</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-line-2">
@@ -800,7 +794,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                         {row.team ? ` · ${row.team}` : ''}
                       </div>
                     </td>
-                    {activeTab !== 'SM' && (
+                    {activeTab === 'BDE' && (
                       <td className="py-3 px-4 text-muted whitespace-nowrap">
                         {row.reports_to_name || '—'}
                       </td>
@@ -847,7 +841,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                         {row.pending_followups}
                       </span>
                     </td>
-                    {activeTab === 'SM' && (
+                    {activeTab !== 'BDE' && (
                       <td className="py-3 px-4 text-muted">{row.bdes_count ?? 0}</td>
                     )}
                   </tr>

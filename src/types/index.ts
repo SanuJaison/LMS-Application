@@ -41,6 +41,8 @@ export interface Employee {
   upi_id?: string;
   salary?: number;
   incentive?: number;
+  daily_target?: number;
+  monthly_target?: number;
   bank_name?: string;
   account_holder_name?: string;
   account_number?: string;

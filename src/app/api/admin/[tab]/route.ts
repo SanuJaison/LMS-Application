@@ -4,6 +4,11 @@ import { requireAdmin } from '@/lib/adminAuth';
 import { causerFromRequest, logActivity } from '@/lib/activityLog';
 import { teamNamesFromTeams } from '@/lib/hierarchy';
 import { getNextStudentId } from '@/lib/studentId';
+import {
+  parseTargetInput,
+  resolveEmployeeTargets,
+  syncEmployeeTargets,
+} from '@/lib/targetSync';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -393,12 +398,20 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
     // The employee `team` is derived from the Teams assignment (team lead),
     // not stored on the employee record.
     if (params.tab === 'employees') {
-      const teams = (await Team.find({}, { name: 1, team_lead: 1 }).lean()) as any[];
-      const teamMap = teamNamesFromTeams(docs as any[], teams);
-      data = data.map((row: any) => ({
-        ...row,
-        team: teamMap.get(String(row.employee_id || '').trim().toUpperCase()) || '',
-      }));
+      const [teams, allEmployeeTasks] = await Promise.all([
+        Team.find({}, { name: 1, team_lead: 1 }).lean(),
+        EmployeeTask.find({}).sort({ createdAt: -1 }).lean(),
+      ]);
+      const teamMap = teamNamesFromTeams(docs as any[], teams as any[]);
+      data = data.map((row: any) => {
+        const resolvedTargets = resolveEmployeeTargets(row, allEmployeeTasks as any[]);
+        return {
+          ...row,
+          team: teamMap.get(String(row.employee_id || '').trim().toUpperCase()) || row.team || '',
+          daily_target: resolvedTargets.daily_target,
+          monthly_target: resolvedTargets.monthly_target,
+        };
+      });
     }
 
     return NextResponse.json({ success: true, data });
@@ -474,6 +487,21 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
     }
 
     const created = await Model.create(payload);
+
+    if (params.tab === 'employees') {
+      const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
+      if (hasDaily || hasMonthly) {
+        await syncEmployeeTargets(
+          {
+            employee_id: (created as any).employee_id,
+            name: (created as any).name,
+            designation: (created as any).designation,
+          },
+          hasDaily ? dailyTarget : undefined,
+          hasMonthly ? monthlyTarget : undefined
+        );
+      }
+    }
 
     if (params.tab !== 'activities') {
       const { noun, subject } = activityLabel(params.tab);
@@ -579,6 +607,21 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
 
     if (!updated) {
       return NextResponse.json({ success: false, message: 'Record not found' }, { status: 404 });
+    }
+
+    if (params.tab === 'employees') {
+      const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
+      if (hasDaily || hasMonthly) {
+        await syncEmployeeTargets(
+          {
+            employee_id: (updated as any).employee_id,
+            name: (updated as any).name,
+            designation: (updated as any).designation,
+          },
+          hasDaily ? dailyTarget : undefined,
+          hasMonthly ? monthlyTarget : undefined
+        );
+      }
     }
 
     if (params.tab !== 'activities') {

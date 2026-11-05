@@ -4,24 +4,14 @@ import { Employee } from '@/models/employee';
 import { Team, Wallet } from '@/models';
 import { requireRoles, getScope, canAccessEmployee } from '@/lib/apiAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import { parseTargetInput, syncEmployeeTargets } from '@/lib/targetSync';
 import bcrypt from 'bcryptjs';
 
 /**
  * POST /api/asm/create-bde
  * Enables an Area Sales Manager (ASM) or Office Team Lead to create a
  * Business Development Executive (BDE) or Tele-caller.
- * The ASM / Office Lead can set salary and incentive for the BDE.
- *
- * Rules:
- * - BDE / Tele-caller is automatically assigned under the creating ASM / Office Lead (reports_to = asm.employee_id).
- * - Inherits the ASM's team, zone, and district.
- * - If created by the Office Team Lead, designation defaults to "Tele-caller" and ID prefix is "TC".
- * - BDE / Tele-caller count is unlimited.
- * - Visible in ASM/Office side and Admin side.
- *
- * Authorization:
- * - ASM / BDM / Office Lead -> always creates under themselves; `asm_id` in the body is ignored.
- * - SM / admin -> may target an ASM / Office Lead via `asm_id` (SM only within its own subtree).
+ * The ASM / Office Lead can set salary, incentive, daily_target, and monthly_target for the BDE.
  */
 export async function POST(req: Request) {
   try {
@@ -42,12 +32,19 @@ export async function POST(req: Request) {
       designation,
       salary: rawSalary,
       incentive: rawIncentive,
+      bank_name,
+      account_holder_name,
+      account_number,
+      ifsc_code,
+      upi_id,
     } = body;
 
     const salary =
       rawSalary !== undefined && !isNaN(Number(rawSalary))
         ? Math.max(0, Number(rawSalary))
         : 0;
+
+    const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -164,7 +161,6 @@ export async function POST(req: Request) {
     const assignedZone = asmEmployee.zone || 'Central Zone';
 
     // A BDE must sit in one of the districts owned by its ASM's team.
-    // The Office Team covers central office / statewide operations without district locking.
     const teamDoc: any = assignedTeam
       ? await Team.findOne({
           name: new RegExp(`^${escapeRegex(assignedTeam)}$`, 'i'),
@@ -254,8 +250,27 @@ export async function POST(req: Request) {
       reports_to: assignedAsmId,
       salary,
       incentive,
+      daily_target: dailyTarget,
+      monthly_target: monthlyTarget,
+      bank_name: String(bank_name || '').trim(),
+      account_holder_name: String(account_holder_name || '').trim(),
+      account_number: String(account_number || '').trim(),
+      ifsc_code: String(ifsc_code || '').trim().toUpperCase(),
+      upi_id: String(upi_id || '').trim(),
       status: 'active',
     });
+
+    if (hasDaily || hasMonthly) {
+      await syncEmployeeTargets(
+        {
+          employee_id: newEmployee.employee_id,
+          name: newEmployee.name,
+          designation: newEmployee.designation,
+        },
+        hasDaily ? dailyTarget : undefined,
+        hasMonthly ? monthlyTarget : undefined
+      );
+    }
 
     // Create wallet for new employee
     await Wallet.create({
@@ -276,7 +291,7 @@ export async function POST(req: Request) {
     }
 
     await logActivity({
-      description: `${isOfficeTeam ? 'Office Team Lead' : 'ASM'} ${assignedAsmName} (${assignedAsmId}) created ${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) under team ${assignedTeam} with salary ₹${salary} and incentive ₹${incentive}`,
+      description: `${isOfficeTeam ? 'Office Team Lead' : 'ASM'} ${assignedAsmName} (${assignedAsmId}) created ${assignedDesignation} ${newEmployee.name} (${newEmployee.employee_id}) under team ${assignedTeam} with salary ₹${salary}, incentive ₹${incentive}, daily target ${dailyTarget}, monthly target ${monthlyTarget}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -297,6 +312,12 @@ export async function POST(req: Request) {
           zone: newEmployee.zone,
           salary: newEmployee.salary ?? 0,
           incentive: newEmployee.incentive ?? 0,
+          daily_target: dailyTarget,
+          monthly_target: monthlyTarget,
+          targets: {
+            daily_target: dailyTarget,
+            monthly_target: monthlyTarget,
+          },
           reports_to: assignedAsmId,
           asm_name: assignedAsmName,
         },

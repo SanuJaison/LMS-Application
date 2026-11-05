@@ -119,14 +119,9 @@ export async function GET(req: Request) {
       myTargetRows.find(
         (t) =>
           t.task_template?.toLowerCase().includes('daily') ||
-          (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+          (t.period_start && String(t.period_start).slice(0, 10) === todayIso && !t.task_template?.toLowerCase().includes('monthly'))
       ) ||
-      myTargetRows.find((t) => !t.task_template?.toLowerCase().includes('monthly')) ||
-      (targetRows as any[]).find(
-        (t) =>
-          t.task_template?.toLowerCase().includes('daily') ||
-          (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
-      );
+      myTargetRows.find((t) => !t.task_template?.toLowerCase().includes('monthly'));
 
     const dailyTaskRow = myTasks.find(
       (t) =>
@@ -140,12 +135,14 @@ export async function GET(req: Request) {
         ? dailyTargetRow.total_target
         : typeof dailyTaskRow?.target_count === 'number' && dailyTaskRow.target_count > 0
           ? dailyTaskRow.target_count
-          : 15;
+          : typeof (employee as any)?.daily_target === 'number' && (employee as any).daily_target > 0
+            ? (employee as any).daily_target
+            : 0;
 
     // 2. Monthly Target
-    const monthlyTargetRow =
-      myTargetRows.find((t) => t.task_template?.toLowerCase().includes('monthly')) ||
-      (targetRows as any[]).find((t) => t.task_template?.toLowerCase().includes('monthly'));
+    const monthlyTargetRow = myTargetRows.find((t) =>
+      t.task_template?.toLowerCase().includes('monthly')
+    );
 
     const monthlyTaskRow = myTasks.find(
       (t) =>
@@ -159,7 +156,9 @@ export async function GET(req: Request) {
         ? monthlyTargetRow.total_target
         : typeof monthlyTaskRow?.target_count === 'number' && monthlyTaskRow.target_count > 0
           ? monthlyTaskRow.target_count
-          : dailyTarget * 26;
+          : typeof (employee as any)?.monthly_target === 'number' && (employee as any).monthly_target > 0
+            ? (employee as any).monthly_target
+            : 0;
 
     // Closed leads in scope
     const closedScopedLeads = scopedLeads.filter(isClosed);

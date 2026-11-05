@@ -18,6 +18,8 @@ export interface IEmployee extends Document {
   password?: string;
   salary?: number;
   incentive?: number;
+  daily_target?: number;
+  monthly_target?: number;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -105,6 +107,14 @@ const EmployeeSchema = new Schema<IEmployee>(
       default: 0,
     },
     incentive: {
+      type: Number,
+      default: 0,
+    },
+    daily_target: {
+      type: Number,
+      default: 0,
+    },
+    monthly_target: {
       type: Number,
       default: 0,
     },

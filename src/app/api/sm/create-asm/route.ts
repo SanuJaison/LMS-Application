@@ -4,6 +4,7 @@ import { Employee } from '@/models/employee';
 import { Team, Wallet } from '@/models';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { requireAuth, requireRoles } from '@/lib/apiAuth';
+import { parseTargetInput, syncEmployeeTargets } from '@/lib/targetSync';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -96,15 +97,7 @@ function parseTeamLead(teamLead: string): { name: string; employeeId: string } {
  * POST /api/sm/create-asm
  * Enables the Sales Manager (SM) to create an Area Sales Manager (ASM) for one
  * of the seven regional teams, or the single Office Team (no districts).
- * The SM can set monthly salary and incentive for the ASM.
- *
- * Rules enforced here:
- * - The organisation has exactly one Sales Manager.
- * - At most 7 regional ASMs (one per team) + one Office Team lead.
- * - Each regional team owns exactly 2 districts.
- * - A district that is already assigned cannot be assigned to another team.
- * - A team can have only one ASM; an ASM can lead only one team.
- * - The Office Team covers no districts and can be created only once.
+ * The SM can set monthly salary, incentive, daily_target, and monthly_target for the ASM.
  */
 export async function POST(req: Request) {
   try {
@@ -120,6 +113,11 @@ export async function POST(req: Request) {
       custom_team_name,
       salary: rawSalary,
       incentive: rawIncentive,
+      bank_name,
+      account_holder_name,
+      account_number,
+      ifsc_code,
+      upi_id,
     } = body;
 
     const salary =
@@ -130,6 +128,8 @@ export async function POST(req: Request) {
       rawIncentive !== undefined && !isNaN(Number(rawIncentive))
         ? Math.max(0, Number(rawIncentive))
         : 0;
+
+    const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
 
     if (!name || !String(name).trim()) {
       return NextResponse.json(
@@ -206,12 +206,12 @@ export async function POST(req: Request) {
         ],
         status: 'active',
       }).lean();
-      if (existingOffice || existingOfficeLead) {
+      if (existingOfficeLead) {
         return NextResponse.json(
           {
             success: false,
             message:
-              'The Office Team already exists. Only one Office Team can be created.',
+              'The Office Team already has an assigned lead. Only one Office Team Lead can be created.',
           },
           { status: 400 }
         );
@@ -359,8 +359,28 @@ export async function POST(req: Request) {
       reports_to: smId,
       salary,
       incentive,
+      daily_target: dailyTarget,
+      monthly_target: monthlyTarget,
+      bank_name: String(bank_name || '').trim(),
+      account_holder_name: String(account_holder_name || '').trim(),
+      account_number: String(account_number || '').trim(),
+      ifsc_code: String(ifsc_code || '').trim().toUpperCase(),
+      upi_id: String(upi_id || '').trim(),
       status: 'active',
     });
+
+    // Also sync daily and monthly targets into EmployeeTask so Employee Tasks & Home API see them
+    if (hasDaily || hasMonthly) {
+      await syncEmployeeTargets(
+        {
+          employee_id: newAsm.employee_id,
+          name: newAsm.name,
+          designation: newAsm.designation,
+        },
+        hasDaily ? dailyTarget : undefined,
+        hasMonthly ? monthlyTarget : undefined
+      );
+    }
 
     // Create or update the Team document.
     await Team.findOneAndUpdate(
@@ -392,7 +412,7 @@ export async function POST(req: Request) {
     });
 
     await logActivity({
-      description: `Sales Manager ${smName} created Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) for ${assignedTeamName} with salary ₹${salary} and incentive ₹${incentive}`,
+      description: `Sales Manager ${smName} created Area Sales Manager ${newAsm.name} (${newAsm.employee_id}) for ${assignedTeamName} with salary ₹${salary}, incentive ₹${incentive}, daily target ${dailyTarget}, monthly target ${monthlyTarget}`,
       subjectType: 'Employee',
       causer: causerFromRequest(req),
     });
@@ -414,6 +434,24 @@ export async function POST(req: Request) {
           districts: assignedDistricts,
           salary: newAsm.salary ?? 0,
           incentive: newAsm.incentive ?? 0,
+          daily_target: dailyTarget,
+          monthly_target: monthlyTarget,
+          targets: {
+            daily_target: dailyTarget,
+            monthly_target: monthlyTarget,
+            daily: {
+              total_leads: dailyTarget,
+              completed_leads: 0,
+              pending_leads: dailyTarget,
+              completion_percentage: 0,
+            },
+            monthly: {
+              total_leads: monthlyTarget,
+              completed_leads: 0,
+              pending_leads: monthlyTarget,
+              completion_percentage: 0,
+            },
+          },
           reports_to: smId,
           sm_name: smName,
         },

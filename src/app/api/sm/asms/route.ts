@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
-import { Team } from '@/models';
+import { Team, EmployeeTask } from '@/models';
 import { Lead } from '@/models/lead';
 import { andFilter, getScope, requireRoles, scopeFilter } from '@/lib/apiAuth';
+import {
+  parseTargetInput,
+  resolveEmployeeTargets,
+  syncEmployeeTargets,
+} from '@/lib/targetSync';
 
 // Always read fresh data: Next.js 14 otherwise statically caches this GET at
 // build time, so newly created ASMs never show up on Vercel.
@@ -68,8 +73,6 @@ function getLeadCompletionDate(lead: any): Date {
  * their daily, monthly, and overall lead targets & achievement metrics.
  *   - SM    -> only ASMs that report to that SM
  *   - admin -> all ASMs
- *
- * Requires an SM or admin token. BDE/ASM tokens get 403.
  */
 export async function GET(req: Request) {
   try {
@@ -114,6 +117,9 @@ export async function GET(req: Request) {
     }
 
     const teams = await Team.find().lean();
+    const allEmployeeTasks: any[] = await EmployeeTask.find({})
+      .sort({ createdAt: -1 })
+      .lean();
     const bdes = await Employee.find({
       $or: [
         { designation: /business development executive/i },
@@ -123,7 +129,7 @@ export async function GET(req: Request) {
       .select('employee_id name reports_to team status')
       .lean();
 
-    // Fetch leads to calculate daily and monthly targets
+    // Fetch leads to calculate daily and monthly achievements
     const allLeads: any[] = await Lead.find({})
       .select(
         'asm_id asm_name team employee employee_id admission_status status createdAt updatedAt admission_date'
@@ -178,39 +184,35 @@ export async function GET(req: Request) {
       const overallPercentage =
         overallTotal > 0 ? Math.round((overallCompleted / overallTotal) * 100) : 0;
 
-      // Daily leads (IST today)
-      const dailyCreated = asmLeads.filter((l: any) => {
-        const d = getLeadCreationDate(l);
-        return d >= startOfDay && d <= endOfDay;
-      });
+      // Resolve assigned daily and monthly targets from EmployeeTask / Employee
+      const { daily_target: assignedDaily, monthly_target: assignedMonthly } =
+        resolveEmployeeTargets(asm, allEmployeeTasks);
+
+      // Daily leads closed (IST today)
       const dailyCompleted = asmLeads.filter((l: any) => {
         if (!isLeadCompleted(l)) return false;
         const d = getLeadCompletionDate(l);
         return d >= startOfDay && d <= endOfDay;
       });
 
-      const dailyTotal = Math.max(dailyCreated.length, dailyCompleted.length);
+      const dailyTotal = assignedDaily;
       const dailyAchieved = dailyCompleted.length;
       const dailyPending = Math.max(0, dailyTotal - dailyAchieved);
       const dailyPercentage =
-        dailyTotal > 0 ? Math.round((dailyAchieved / dailyTotal) * 100) : 0;
+        dailyTotal > 0 ? Math.min(100, Math.round((dailyAchieved / dailyTotal) * 100)) : 0;
 
-      // Monthly leads (IST current month)
-      const monthlyCreated = asmLeads.filter((l: any) => {
-        const d = getLeadCreationDate(l);
-        return d >= startOfMonth && d <= endOfMonth;
-      });
+      // Monthly leads closed (IST current month)
       const monthlyCompleted = asmLeads.filter((l: any) => {
         if (!isLeadCompleted(l)) return false;
         const d = getLeadCompletionDate(l);
         return d >= startOfMonth && d <= endOfMonth;
       });
 
-      const monthlyTotal = Math.max(monthlyCreated.length, monthlyCompleted.length);
+      const monthlyTotal = assignedMonthly;
       const monthlyAchieved = monthlyCompleted.length;
       const monthlyPending = Math.max(0, monthlyTotal - monthlyAchieved);
       const monthlyPercentage =
-        monthlyTotal > 0 ? Math.round((monthlyAchieved / monthlyTotal) * 100) : 0;
+        monthlyTotal > 0 ? Math.min(100, Math.round((monthlyAchieved / monthlyTotal) * 100)) : 0;
 
       return {
         id: asm._id.toString(),
@@ -225,6 +227,11 @@ export async function GET(req: Request) {
         reports_to: asm.reports_to || '',
         salary: asm.salary ?? 0,
         incentive: asm.incentive ?? 0,
+        bank_name: asm.bank_name || '',
+        account_holder_name: asm.account_holder_name || '',
+        account_number: asm.account_number || '',
+        ifsc_code: asm.ifsc_code || '',
+        upi_id: asm.upi_id || '',
         bdes_count: assignedBdes.length,
         status: asm.status || 'active',
 
@@ -232,11 +239,13 @@ export async function GET(req: Request) {
         daily_target: dailyTotal,
         daily_achieved: dailyAchieved,
         daily_pending: dailyPending,
+        daily_remaining: dailyPending,
         daily_completion_percentage: dailyPercentage,
 
         monthly_target: monthlyTotal,
         monthly_achieved: monthlyAchieved,
         monthly_pending: monthlyPending,
+        monthly_remaining: monthlyPending,
         monthly_completion_percentage: monthlyPercentage,
 
         total_leads: overallTotal,
@@ -246,16 +255,32 @@ export async function GET(req: Request) {
 
         // Structured targets breakdown
         targets: {
+          daily_target: dailyTotal,
+          daily_achieved: dailyAchieved,
+          daily_pending: dailyPending,
+          daily_remaining: dailyPending,
+          daily_percentage: dailyPercentage,
+          monthly_target: monthlyTotal,
+          monthly_achieved: monthlyAchieved,
+          monthly_pending: monthlyPending,
+          monthly_remaining: monthlyPending,
+          monthly_percentage: monthlyPercentage,
           daily: {
+            target: dailyTotal,
             total_leads: dailyTotal,
             completed_leads: dailyAchieved,
+            achieved: dailyAchieved,
             pending_leads: dailyPending,
+            remaining: dailyPending,
             completion_percentage: dailyPercentage,
           },
           monthly: {
+            target: monthlyTotal,
             total_leads: monthlyTotal,
             completed_leads: monthlyAchieved,
+            achieved: monthlyAchieved,
             pending_leads: monthlyPending,
+            remaining: monthlyPending,
             completion_percentage: monthlyPercentage,
           },
           overall: {
@@ -308,6 +333,128 @@ export async function GET(req: Request) {
     console.error('GET /api/sm/asms error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to list ASMs' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT / PATCH /api/sm/asms
+ * Updates an ASM's details, salary, incentive, daily_target, and monthly_target.
+ */
+export async function PUT(req: Request) {
+  return updateAsm(req);
+}
+
+export async function PATCH(req: Request) {
+  return updateAsm(req);
+}
+
+async function updateAsm(req: Request) {
+  try {
+    await connectDB();
+
+    const guard = await requireRoles(req, ['SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const { searchParams } = new URL(req.url);
+    const body = await req.json().catch(() => ({}));
+
+    const targetId = String(
+      searchParams.get('id') ||
+        searchParams.get('employee_id') ||
+        body.id ||
+        body._id ||
+        body.employee_id ||
+        body.asm_id ||
+        ''
+    ).trim();
+
+    if (!targetId) {
+      return NextResponse.json(
+        { success: false, message: 'ASM id or employee_id is required' },
+        { status: 400 }
+      );
+    }
+
+    const asm: any =
+      (targetId.match(/^[0-9a-fA-F]{24}$/) ? await Employee.findById(targetId) : null) ||
+      (await Employee.findOne({
+        $or: [
+          { employee_id: new RegExp(`^${targetId}$`, 'i') },
+          { email: targetId.toLowerCase() },
+        ],
+      }));
+
+    if (!asm) {
+      return NextResponse.json(
+        { success: false, message: `ASM "${targetId}" not found` },
+        { status: 404 }
+      );
+    }
+
+    const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
+
+    if (body.name !== undefined) asm.name = String(body.name).trim();
+    if (body.email !== undefined) asm.email = String(body.email).trim().toLowerCase();
+    if (body.contact_number !== undefined) asm.contact_number = String(body.contact_number).trim();
+    if (body.salary !== undefined && !isNaN(Number(body.salary))) {
+      asm.salary = Math.max(0, Number(body.salary));
+    }
+    if (body.incentive !== undefined && !isNaN(Number(body.incentive))) {
+      asm.incentive = Math.max(0, Number(body.incentive));
+    }
+    if (hasDaily) asm.daily_target = dailyTarget;
+    if (hasMonthly) asm.monthly_target = monthlyTarget;
+    if (body.status !== undefined) asm.status = String(body.status).trim().toLowerCase();
+    if (body.bank_name !== undefined) asm.bank_name = String(body.bank_name).trim();
+    if (body.account_holder_name !== undefined) {
+      asm.account_holder_name = String(body.account_holder_name).trim();
+    }
+    if (body.account_number !== undefined) {
+      asm.account_number = String(body.account_number).trim();
+    }
+    if (body.ifsc_code !== undefined) {
+      asm.ifsc_code = String(body.ifsc_code).trim().toUpperCase();
+    }
+    if (body.upi_id !== undefined) asm.upi_id = String(body.upi_id).trim();
+
+    await asm.save();
+
+    if (hasDaily || hasMonthly) {
+      await syncEmployeeTargets(
+        {
+          employee_id: asm.employee_id,
+          name: asm.name,
+          designation: asm.designation,
+        },
+        hasDaily ? dailyTarget : undefined,
+        hasMonthly ? monthlyTarget : undefined
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `ASM ${asm.name} (${asm.employee_id}) updated successfully`,
+      data: {
+        id: asm._id.toString(),
+        employee_id: asm.employee_id,
+        name: asm.name,
+        email: asm.email,
+        contact_number: asm.contact_number,
+        designation: asm.designation,
+        team: asm.team,
+        salary: asm.salary ?? 0,
+        incentive: asm.incentive ?? 0,
+        daily_target: asm.daily_target ?? 0,
+        monthly_target: asm.monthly_target ?? 0,
+        status: asm.status,
+      },
+    });
+  } catch (error: any) {
+    console.error('PUT /api/sm/asms error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to update ASM' },
       { status: 500 }
     );
   }

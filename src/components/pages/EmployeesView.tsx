@@ -96,6 +96,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     designation: 'Business Development Executive',
     salary: '',
     incentive: '',
+    daily_target: '',
+    monthly_target: '',
     zone: 'Central Zone',
     district: 'Ernakulam',
     reports_to: '',
@@ -344,6 +346,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       designation: 'Sales Manager',
       salary: '',
       incentive: '',
+      daily_target: '',
+      monthly_target: '',
       zone: 'Kerala',
       district: '',
       reports_to: '',
@@ -371,6 +375,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       designation: emp.designation || '',
       salary: (emp as any).salary !== undefined ? String((emp as any).salary) : '',
       incentive: (emp as any).incentive !== undefined ? String((emp as any).incentive) : '',
+      daily_target: (emp as any).daily_target !== undefined ? String((emp as any).daily_target) : '',
+      monthly_target: (emp as any).monthly_target !== undefined ? String((emp as any).monthly_target) : '',
       zone: emp.zone || 'Central Zone',
       district: emp.district || 'Ernakulam',
       reports_to: emp.reports_to || '',
@@ -436,6 +442,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
         designation: formData.designation.trim(),
         salary: formData.salary ? Number(formData.salary) : 0,
         incentive: formData.incentive ? Number(formData.incentive) : 0,
+        daily_target: isTopLevel ? 0 : formData.daily_target ? Number(formData.daily_target) : 0,
+        monthly_target: formData.monthly_target ? Number(formData.monthly_target) : 0,
         zone: isTopLevel
           ? ''
           : isSaveBDE && selectedAsmTeam
@@ -1142,6 +1150,24 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     <span className="text-muted block mb-0.5">Incentive</span>
                     <span className="text-ink font-medium">{formatCurrency(viewingEmployee.incentive)}</span>
                   </div>
+                  {!isTopLevelDesignation(viewingEmployee.designation) && (
+                    <div className="bg-field p-3 rounded-lg border border-line">
+                      <span className="text-muted block mb-0.5">Daily Target</span>
+                      <span className="text-ink font-medium">
+                        {viewingEmployee.daily_target
+                          ? `${viewingEmployee.daily_target} leads / day`
+                          : '—'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Monthly Target</span>
+                    <span className="text-ink font-medium">
+                      {viewingEmployee.monthly_target
+                        ? `${viewingEmployee.monthly_target} leads / month`
+                        : '—'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1351,6 +1377,39 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     value={formData.incentive}
                     onChange={(e) => setFormData({ ...formData, incentive: e.target.value })}
                     placeholder="e.g. 20"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className={`grid grid-cols-1 ${isTopLevel ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-3`}>
+                {!isTopLevel && (
+                  <div>
+                    <label className="block text-ink/80 font-semibold mb-1">
+                      Daily Target (Leads / Day)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formData.daily_target}
+                      onChange={(e) => setFormData({ ...formData, daily_target: e.target.value })}
+                      placeholder="e.g. 15"
+                      className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-ink/80 font-semibold mb-1">
+                    Monthly Target (Leads / Month)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.monthly_target}
+                    onChange={(e) => setFormData({ ...formData, monthly_target: e.target.value })}
+                    placeholder="e.g. 300"
                     className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
                   />
                 </div>
