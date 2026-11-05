@@ -26,15 +26,33 @@ export async function GET(req: Request) {
     const guard = await requireAuth(req);
     if (!guard.ok) return guard.response;
 
-    const scope = await getScope(guard.auth);
+    const { auth } = guard;
+    const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const filters: Record<string, any>[] = [
-      scopeFilter(scope, {
-        idFields: ['employee_id', 'asm_id'],
-        nameFields: ['employee_name', 'asm_name'],
-      }),
-    ];
+    const mineParam = (searchParams.get('mine') || '').trim().toLowerCase();
+    const filters: Record<string, any>[] = [];
+
+    if (mineParam === 'true' || mineParam === '1') {
+      filters.push({
+        $or: [
+          ...(auth.employeeId ? [{ employee_id: auth.employeeId }] : []),
+          ...(auth.name ? [{ employee_name: auth.name }] : []),
+        ],
+      });
+    } else if (!auth.isAdmin && auth.role !== 'SM' && auth.role !== 'MD') {
+      filters.push(
+        scopeFilter(scope, {
+          idFields: ['employee_id', 'asm_id', 'sm_id'],
+          nameFields: ['employee_name', 'asm_name', 'sm_name'],
+        })
+      );
+    }
+
+    if (auth.isAdmin || auth.role === 'SM' || auth.role === 'ASM' || auth.role === 'BDM') {
+      const employeeId = (searchParams.get('employee_id') || '').trim();
+      if (employeeId) filters.push({ employee_id: employeeId });
+    }
 
     const statusParam = searchParams.get('status');
     if (statusParam) {

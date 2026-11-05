@@ -32,7 +32,10 @@ export async function POST(req: Request) {
       if (asmEmp) asmName = asmEmp.name;
     }
 
-    const defaultSalary = employee?.salary && Number(employee.salary) >= 5000 ? Number(employee.salary) : 5000;
+    const defaultSalary =
+      employee?.salary && Number(employee.salary) >= 5000
+        ? Number(employee.salary)
+        : 5000;
     const amount = Number(body.amount ?? defaultSalary);
     if (amount < 5000) {
       return NextResponse.json(
@@ -68,25 +71,50 @@ export async function POST(req: Request) {
 
     const requestId = `SAL-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const isSm = auth.role === 'SM';
+    const isAsm = auth.role === 'ASM' || auth.role === 'BDM';
+
+    const initialStatus = isSm
+      ? 'Forwarded to Accounts'
+      : isAsm
+        ? 'Forwarded to SM'
+        : 'Submitted to ASM';
+
+    const defaultDesignation = isSm
+      ? 'Sales Manager'
+      : isAsm
+        ? 'Area Sales Manager'
+        : 'Business Development Executive';
+
+    const stepDescription = isSm
+      ? 'Step 1 - SM Request: Submitted to Admin/Accounts'
+      : isAsm
+        ? 'Step 1 - ASM Request: Submitted to SM'
+        : 'Step 1 - BDE Request: Submitted to ASM';
+
+    const targetLabel = isSm ? 'Admin/Accounts' : isAsm ? 'SM' : `ASM ${asmName || asmId}`.trim();
+
     const newRequest = await SalaryRequest.create({
       request_id: requestId,
       employee_id: employeeId,
       employee_name: employeeName,
-      designation: employee?.designation || 'Business Development Executive',
-      team,
-      asm_id: asmId,
-      asm_name: asmName,
+      designation: employee?.designation || defaultDesignation,
+      team: team || (isSm ? 'Statewide' : ''),
+      asm_id: isSm ? '' : isAsm ? employeeId : asmId,
+      asm_name: isSm ? '' : isAsm ? employeeName : asmName,
+      sm_id: isSm ? employeeId : asmId,
+      sm_name: isSm ? employeeName : asmName,
       amount,
       period,
       attendance_days: Number(body.attendance_days ?? 30),
       remarks: body.remarks || 'Monthly minimum salary request',
-      status: 'Submitted to ASM',
+      status: initialStatus,
       approval_history: [
         {
-          step: 'Step 1 - BDE Request',
+          step: stepDescription,
           actor: employeeName,
-          role: 'BDE',
-          action: 'Submitted salary request to assigned ASM',
+          role: auth.role,
+          action: initialStatus,
           remarks: body.remarks || 'Monthly salary request',
           timestamp: new Date(),
         },
@@ -94,14 +122,14 @@ export async function POST(req: Request) {
     });
 
     await logActivity({
-      description: `Salary request of ₹${amount} for ${period} submitted by ${employeeName} to ASM ${asmName || asmId}`,
+      description: `Salary request of ₹${amount} for ${period} submitted by ${employeeName} (${employeeId}) to ${targetLabel}`,
       subjectType: 'Salary Request',
       causer: causerFromRequest(req),
     });
 
     return NextResponse.json({
       success: true,
-      message: `Salary request of ₹${amount} submitted to ASM ${asmName} for review.`,
+      message: `Salary request of ₹${amount} submitted to ${targetLabel} for review.`,
       data: newRequest,
     });
   } catch (error: any) {
