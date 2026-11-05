@@ -85,8 +85,9 @@ export async function GET(req: Request) {
             employee: new RegExp(`^${escape(n)}$`, 'i'),
           })),
         ],
-        period_start: new RegExp(`^${escape(monthKey)}`),
-      }).lean(),
+      })
+        .sort({ createdAt: -1 })
+        .lean(),
       Task.find({
         $or: [
           ...(visibleIds.length > 0 ? [{ assigned_to_id: { $in: visibleIds } }] : []),
@@ -100,30 +101,92 @@ export async function GET(req: Request) {
     // BDE: own leads. ASM: own + BDEs. SM: own + ASMs + BDEs (statewide).
     const scopedLeads = role === 'BDE' ? ownLeads : leads;
 
-    const dailyTargetRow = (targetRows as any[]).find(
+    // Targets specifically assigned to this user
+    const myTargetRows = (targetRows as any[]).filter(
       (t) =>
-        t.task_template?.toLowerCase().includes('daily') ||
-        (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+        (employeeId && t.employee_id === employeeId) ||
+        (employeeName && String(t.employee || '').toLowerCase() === employeeName.toLowerCase())
     );
-    const dailyTarget = dailyTargetRow?.total_target ?? 15;
 
-    const dailyAchieved = scopedLeads.filter((lead) => {
-      const created = lead.createdAt ? new Date(lead.createdAt) : null;
-      return created && created.toISOString().slice(0, 10) === todayIso;
-    }).length;
-
-    const monthlyTargetRow = (targetRows as any[]).find(
-      (t) => t.task_template?.toLowerCase().includes('monthly')
+    const myTasks = (taskRows as any[]).filter(
+      (t) =>
+        (employeeId && t.assigned_to_id === employeeId) ||
+        (employeeName && String(t.assigned_to || '').toLowerCase() === employeeName.toLowerCase())
     );
+
+    // 1. Daily Target
+    const dailyTargetRow =
+      myTargetRows.find(
+        (t) =>
+          t.task_template?.toLowerCase().includes('daily') ||
+          (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+      ) ||
+      myTargetRows.find((t) => !t.task_template?.toLowerCase().includes('monthly')) ||
+      (targetRows as any[]).find(
+        (t) =>
+          t.task_template?.toLowerCase().includes('daily') ||
+          (t.period_start && String(t.period_start).slice(0, 10) === todayIso)
+      );
+
+    const dailyTaskRow = myTasks.find(
+      (t) =>
+        (t.title?.toLowerCase().includes('daily') || t.task_template?.toLowerCase().includes('daily')) &&
+        typeof t.target_count === 'number' &&
+        t.target_count > 0
+    );
+
+    const dailyTarget =
+      typeof dailyTargetRow?.total_target === 'number' && dailyTargetRow.total_target > 0
+        ? dailyTargetRow.total_target
+        : typeof dailyTaskRow?.target_count === 'number' && dailyTaskRow.target_count > 0
+          ? dailyTaskRow.target_count
+          : 15;
+
+    // 2. Monthly Target
+    const monthlyTargetRow =
+      myTargetRows.find((t) => t.task_template?.toLowerCase().includes('monthly')) ||
+      (targetRows as any[]).find((t) => t.task_template?.toLowerCase().includes('monthly'));
+
+    const monthlyTaskRow = myTasks.find(
+      (t) =>
+        (t.title?.toLowerCase().includes('monthly') || t.task_template?.toLowerCase().includes('monthly')) &&
+        typeof t.target_count === 'number' &&
+        t.target_count > 0
+    );
+
     const monthlyTarget =
-      monthlyTargetRow?.total_target ??
-      ((targetRows as any[]).reduce((sum, t) => sum + (t.total_target || 0), 0) ||
-      dailyTarget * 26);
+      typeof monthlyTargetRow?.total_target === 'number' && monthlyTargetRow.total_target > 0
+        ? monthlyTargetRow.total_target
+        : typeof monthlyTaskRow?.target_count === 'number' && monthlyTaskRow.target_count > 0
+          ? monthlyTaskRow.target_count
+          : dailyTarget * 26;
 
-    const monthlyAchieved = scopedLeads.filter((lead) => {
-      const created = lead.createdAt ? new Date(lead.createdAt) : null;
-      return created && created.toISOString().slice(0, 7) === monthKey;
+    // Closed leads in scope
+    const closedScopedLeads = scopedLeads.filter(isClosed);
+
+    // Daily achieved = leads closed today
+    const dailyAchieved = closedScopedLeads.filter((lead) => {
+      const closedDate = getLeadClosedDate(lead);
+      return closedDate && todayKey(closedDate) === todayIso;
     }).length;
+
+    // Monthly achieved = leads closed this month
+    const monthlyAchieved = closedScopedLeads.filter((lead) => {
+      const closedDate = getLeadClosedDate(lead);
+      return closedDate && todayKey(closedDate).slice(0, 7) === monthKey;
+    }).length;
+
+    const dailyRemaining = Math.max(0, dailyTarget - dailyAchieved);
+    const dailyPercentage =
+      dailyTarget > 0
+        ? Math.min(100, Math.round((dailyAchieved / dailyTarget) * 100))
+        : 0;
+
+    const monthlyRemaining = Math.max(0, monthlyTarget - monthlyAchieved);
+    const monthlyPercentage =
+      monthlyTarget > 0
+        ? Math.min(100, Math.round((monthlyAchieved / monthlyTarget) * 100))
+        : 0;
 
     const tasksTotal = (taskRows as any[]).length;
     const tasksCompleted = (taskRows as any[]).filter(
@@ -134,7 +197,7 @@ export async function GET(req: Request) {
 
     const assignedLeads = scopedLeads.length;
     const followUpLeads = scopedLeads.filter(isFollowUp).length;
-    const closedLeads = scopedLeads.filter(isClosed).length;
+    const closedLeads = closedScopedLeads.length;
     const ownClosedLeads = ownLeads.filter(isClosed).length;
 
     const incentivesEarned =
@@ -235,12 +298,9 @@ export async function GET(req: Request) {
         location_lng: typeof todayAtt?.longitude === 'number' && !isNaN(todayAtt?.longitude) ? todayAtt.longitude : 76.3419,
       },
       eod_sync: {
-        tasks_completed: ownClosedLeads,
-        total_tasks: Math.max(ownLeads.length, 15),
-        completion_percentage:
-          ownLeads.length > 0
-            ? Math.round((ownClosedLeads / ownLeads.length) * 100)
-            : 0,
+        tasks_completed: dailyAchieved,
+        total_tasks: dailyTarget,
+        completion_percentage: dailyPercentage,
       },
       operational_overview: {
         assigned_leads: assignedLeads,
@@ -251,18 +311,12 @@ export async function GET(req: Request) {
       targets: {
         daily_target: dailyTarget,
         daily_achieved: dailyAchieved,
-        daily_remaining: Math.max(0, dailyTarget - dailyAchieved),
-        daily_percentage:
-          dailyTarget > 0
-            ? Math.min(100, Math.round((dailyAchieved / dailyTarget) * 100))
-            : 0,
+        daily_remaining: dailyRemaining,
+        daily_percentage: dailyPercentage,
         monthly_target: monthlyTarget,
         monthly_achieved: monthlyAchieved,
-        monthly_remaining: Math.max(0, monthlyTarget - monthlyAchieved),
-        monthly_percentage:
-          monthlyTarget > 0
-            ? Math.min(100, Math.round((monthlyAchieved / monthlyTarget) * 100))
-            : 0,
+        monthly_remaining: monthlyRemaining,
+        monthly_percentage: monthlyPercentage,
         period: monthKey,
       },
       tasks: {
@@ -318,30 +372,89 @@ export async function GET(req: Request) {
 
 function belongsTo(lead: any, employeeId: string, name: string): boolean {
   if (!lead) return false;
-  if (employeeId && String(lead.employee_id || '') === employeeId) return true;
-  if (name && String(lead.employee || '').toLowerCase() === name.toLowerCase()) return true;
+  const leadEmpId = String(lead.employee_id || lead.bde_id || lead.created_by_id || lead.assigned_to_id || '');
+  const leadEmpName = String(lead.employee || lead.bde_name || lead.created_by || lead.assigned_to || '').toLowerCase();
+  const callerName = (name || '').toLowerCase();
+  if (employeeId && leadEmpId === employeeId) return true;
+  if (callerName && leadEmpName === callerName) return true;
   return false;
 }
 
-function isFollowUp(lead: any): boolean {
-  const adm = String(lead.admission_status || '').toLowerCase();
-  return (
-    adm.includes('follow') ||
-    adm === 'interested' ||
-    lead.status === 2 ||
-    lead.status === 3 ||
-    (Array.isArray(lead.followups) && lead.followups.length > 0) ||
-    Boolean(lead.next_followup_date)
-  );
-}
-
 function isClosed(lead: any): boolean {
+  if (!lead) return false;
+  const adm = String(lead.admission_status || '').toLowerCase();
+  const statusStr = String(lead.status || '').toLowerCase();
   return (
-    lead.admission_status === 'Admitted' ||
-    lead.admission_status === 'Closed' ||
+    adm === 'admitted' ||
+    adm === 'closed' ||
+    adm === 'won' ||
+    statusStr === 'admitted' ||
+    statusStr === 'closed' ||
+    statusStr === 'won' ||
     lead.status === 4 ||
     lead.status === 5
   );
+}
+
+function isFollowUp(lead: any): boolean {
+  if (!lead) return false;
+  // If the lead is already closed, it's counted as closed, not follow-up
+  if (isClosed(lead)) return false;
+
+  const adm = String(lead.admission_status || '').toLowerCase();
+  const statusStr = String(lead.status || '').toLowerCase();
+
+  if (
+    adm.includes('follow') ||
+    adm === 'interested' ||
+    statusStr.includes('follow') ||
+    statusStr === 'interested' ||
+    lead.status === 2 ||
+    lead.status === 3
+  ) {
+    return true;
+  }
+
+  if (lead.next_followup_date && String(lead.next_followup_date).trim() !== '') {
+    return true;
+  }
+
+  if (Array.isArray(lead.followups) && lead.followups.length > 0) {
+    const hasFollowup = lead.followups.some((f: any) => {
+      const s = String(f?.admission_status || f?.type || '').toLowerCase();
+      return !s.includes('admit') && !s.includes('close') && !s.includes('won');
+    });
+    if (hasFollowup) return true;
+  }
+
+  return false;
+}
+
+function getLeadClosedDate(lead: any): Date | null {
+  if (!isClosed(lead)) return null;
+  if (lead.admission_date) {
+    const d = new Date(lead.admission_date);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (Array.isArray(lead.followups)) {
+    const admissionEntry = lead.followups.find((f: any) => {
+      const s = String(f?.admission_status || f?.type || '').toLowerCase();
+      return s.includes('admit') || s.includes('close') || s.includes('won');
+    });
+    if (admissionEntry?.date) {
+      const d = new Date(admissionEntry.date);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  if (lead.updatedAt) {
+    const d = new Date(lead.updatedAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (lead.createdAt) {
+    const d = new Date(lead.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
 }
 
 function escape(value: string): string {
