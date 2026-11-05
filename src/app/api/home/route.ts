@@ -4,7 +4,7 @@ import { Employee } from '@/models/employee';
 import { Lead } from '@/models/lead';
 import { Attendance } from '@/models/attendence';
 import { EmployeeTask } from '@/models/employeeTask';
-import { Task, Wallet } from '@/models';
+import { Task, Wallet, Team } from '@/models';
 import { hierarchyRole } from '@/lib/hierarchy';
 import { numericId, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import {
@@ -274,7 +274,53 @@ export async function GET(req: Request) {
       };
     });
 
-    const payload = {
+    let smTeamsList: Array<{
+      team_name: string;
+      district: string;
+    }> = [];
+
+    if (role === 'SM') {
+      const predefined: Array<{ team_name: string; district: string }> = [
+        { team_name: 'TVM', district: 'Thiruvananthapuram, Kollam' },
+        { team_name: 'PTM', district: 'Pathanamthitta, Alappuzha' },
+        { team_name: 'KTM', district: 'Kottayam, Idukki' },
+        { team_name: 'EKM', district: 'Ernakulam, Thrissur' },
+        { team_name: 'PKD', district: 'Palakkad, Malappuram' },
+        { team_name: 'CLT', district: 'Kozhikode, Wayanad' },
+        { team_name: 'KZD', district: 'Kannur, Kasaragod' },
+        { team_name: 'Office Team', district: 'Office' },
+      ];
+
+      try {
+        const dbTeams = (await Team.find({}).sort({ is_office: 1, name: 1 }).lean()) as any[];
+        if (dbTeams && dbTeams.length > 0) {
+          smTeamsList = dbTeams.map((t: any) => {
+            const rawDistricts = Array.isArray(t.districts) && t.districts.length > 0
+              ? t.districts
+              : t.district ? [t.district] : [];
+            const codeMatch = String(t.name || '').trim().match(/^([A-Z]{3})/i);
+            const teamName = t.is_office ? 'Office Team' : (codeMatch ? codeMatch[1].toUpperCase() : t.name);
+            const districtStr = t.is_office ? 'Office' : rawDistricts.join(', ');
+            return {
+              team_name: teamName,
+              district: districtStr,
+            };
+          });
+          const sortOrder = ['TVM', 'PTM', 'KTM', 'EKM', 'PKD', 'CLT', 'KZD', 'Office Team'];
+          smTeamsList.sort((a, b) => {
+            const idxA = sortOrder.indexOf(a.team_name);
+            const idxB = sortOrder.indexOf(b.team_name);
+            return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+          });
+        } else {
+          smTeamsList = predefined;
+        }
+      } catch {
+        smTeamsList = predefined;
+      }
+    }
+
+    const payload: any = {
       user: {
         id: numericId(employee?._id) || 101,
         employee_id: employeeId,
@@ -372,6 +418,11 @@ export async function GET(req: Request) {
             },
           ]
         : [],
+      ...(role === 'SM'
+        ? {
+            teams: smTeamsList,
+          }
+        : {}),
     };
 
     return NextResponse.json({

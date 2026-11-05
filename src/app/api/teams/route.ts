@@ -34,23 +34,12 @@ export async function GET(req: Request) {
 
     let teams: any[] = await Team.find({}).sort({ is_office: 1, name: 1 }).lean();
 
-    if (!auth.isAdmin) {
-      if (auth.role === 'SM') {
-        // Only teams whose lead is inside the SM's reporting subtree.
-        teams = teams.filter((team) => {
-          const lead = parseTeamLead(team.team_lead);
-          return (
-            (lead.employeeId && scope.idSet.has(lead.employeeId)) ||
-            (lead.name && scope.names.some((n) => n.toLowerCase() === lead.name.toLowerCase()))
-          );
-        });
-      } else {
-        const ownTeam = await resolveTeamForEmployee(auth.employee);
-        teams = teams.filter(
-          (team) =>
-            String(team.name || '').toLowerCase() === ownTeam.toLowerCase()
-        );
-      }
+    if (!auth.isAdmin && auth.role !== 'SM') {
+      const ownTeam = await resolveTeamForEmployee(auth.employee);
+      teams = teams.filter(
+        (team) =>
+          String(team.name || '').toLowerCase() === ownTeam.toLowerCase()
+      );
     }
 
     if (wanted) {
