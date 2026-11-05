@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       record.sessions.push({
         check_in: checkInTime,
         check_out: '',
-        hours_worked: 0,
+        hours_worked: '0 hours',
         latitude: latitude ?? 10.0159,
         longitude: longitude ?? 76.3419,
         address,
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
         check_in: checkInTime,
         check_out: '',
         status: 'ONLINE',
-        hours_worked: 0,
+        hours_worked: '0 hours',
         latitude: latitude ?? 10.0159,
         longitude: longitude ?? 76.3419,
         address,
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
           {
             check_in: checkInTime,
             check_out: '',
-            hours_worked: 0,
+            hours_worked: '0 hours',
             latitude: latitude ?? 10.0159,
             longitude: longitude ?? 76.3419,
             address,
@@ -139,7 +139,8 @@ export async function POST(req: Request) {
         check_out: '',
         status: 'ONLINE',
         is_checked_in: true,
-        hours_worked: record.hours_worked || 0,
+        hours_worked: formatHoursWorked(record.hours_worked, record.check_in, record.check_out),
+        hours_worked_formatted: formatHoursWorked(record.hours_worked, record.check_in, record.check_out),
         sessions: sanitizeSessions(record.sessions),
       },
     });
@@ -152,7 +153,7 @@ export async function POST(req: Request) {
   }
 }
 
-function sanitizeSessions(sessions: any[]): any[] {
+function sanitizeSessions(sessions?: any[]): any[] {
   if (!Array.isArray(sessions)) return [];
   return sessions.map((s: any) => {
     const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);

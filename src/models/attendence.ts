@@ -65,8 +65,8 @@ const AttendanceSchema = new Schema<IAttendance>(
       default: '',
     },
     hours_worked: {
-      type: Number,
-      default: 0,
+      type: Schema.Types.Mixed,
+      default: '0 hours',
     },
     status: {
       type: String,
@@ -77,7 +77,7 @@ const AttendanceSchema = new Schema<IAttendance>(
       {
         check_in: { type: String, default: '' },
         check_out: { type: String, default: '' },
-        hours_worked: { type: Schema.Types.Mixed, default: "0 hours" },
+        hours_worked: { type: Schema.Types.Mixed, default: '0 hours' },
         latitude: { type: Number, default: null },
         longitude: { type: Number, default: null },
         address: { type: String, default: '' },
@@ -107,7 +107,9 @@ const AttendanceSchema = new Schema<IAttendance>(
   }
 );
 
-// Prevent model recompilation during Next.js hot-reloads
-export const Attendance =
-  mongoose.models.Attendance || mongoose.model<IAttendance>('Attendance', AttendanceSchema);
+if (mongoose.models.Attendance) {
+  mongoose.deleteModel('Attendance');
+}
+
+export const Attendance = mongoose.model<IAttendance>('Attendance', AttendanceSchema);
 export default Attendance;

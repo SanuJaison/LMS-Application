@@ -95,13 +95,13 @@ export async function POST(req: Request) {
         check_in: '',
         check_out: checkOutTime,
         status: 'OFFLINE',
-        hours_worked: 0,
+        hours_worked: '0 hours',
         notes,
         sessions: [
           {
             check_in: '',
             check_out: checkOutTime,
-            hours_worked: 0,
+            hours_worked: '0 hours',
             notes,
             created_at: new Date(),
           },
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
   }
 }
 
-function sanitizeSessions(sessions: any[]): any[] {
+function sanitizeSessions(sessions?: any[]): any[] {
   if (!Array.isArray(sessions)) return [];
   return sessions.map((s: any) => {
     const formatted = formatHoursWorked(s.hours_worked, s.check_in, s.check_out);
