@@ -307,23 +307,22 @@ export async function POST(req: Request) {
       }
     }
 
-    // Rule: An ASM can lead only one team. Reject a duplicate identity.
+    // Check if email is already used by another employee (names can be shared across employees).
     const trimmedName = String(name).trim();
     const normalizedEmail = String(email || '').trim().toLowerCase();
-    const duplicate = await Employee.findOne({
-      $or: [
-        { name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') },
-        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
-      ],
-    }).lean();
-    if (duplicate) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `An employee named "${duplicate.name}" (${duplicate.employee_id}) already exists. An ASM can only be assigned once.`,
-        },
-        { status: 400 }
-      );
+    if (normalizedEmail) {
+      const duplicateEmail = await Employee.findOne({
+        email: normalizedEmail,
+      }).lean();
+      if (duplicateEmail) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Email "${normalizedEmail}" is already in use by ${duplicateEmail.name} (${duplicateEmail.employee_id}). Please use a different email.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Generate next sequential ASM ID (ASM001, ASM002...).

@@ -138,20 +138,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Rule: identity fields must be unique.
-    const duplicate = await Employee.findOne({
-      $or: [
-        { name: new RegExp(`^${escapeRegex(name)}$`, 'i') },
-        ...(email ? [{ email }] : []),
-        ...(contactNumber ? [{ contact_number: contactNumber }] : []),
-      ],
-    }).lean();
+    // Rule: email must be unique if provided.
+    const duplicate = email
+      ? await Employee.findOne({ email }).lean()
+      : null;
 
     if (duplicate) {
       return NextResponse.json(
         {
           success: false,
-          message: `An employee with the same name, email or contact number already exists (${duplicate.name} / ${duplicate.employee_id}).`,
+          message: `Email "${email}" is already in use by ${duplicate.name} (${duplicate.employee_id}). Please use a different email.`,
         },
         { status: 400 }
       );
