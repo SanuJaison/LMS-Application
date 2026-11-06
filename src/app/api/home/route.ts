@@ -275,18 +275,25 @@ export async function GET(req: Request) {
 
     const isRegionalAsm = (role === 'ASM' || role === 'BDM') && !isOfficeLead;
 
+    const isOfficeOrTelecaller = (e: any) =>
+      String(e.team || '').toLowerCase() === 'office team' ||
+      String(e.employee_id || '').toUpperCase().startsWith('TC') ||
+      /tele/i.test(String(e.designation || ''));
+
     const bdeSubordinates = subordinates.filter((e) => {
       if (hierarchyRole(e) !== 'BDE') return false;
+      if (isOfficeLead) {
+        return isOfficeOrTelecaller(e);
+      }
+      if (isOfficeOrTelecaller(e)) return false;
       if (isRegionalAsm) {
-        if (String(e.team || '').toLowerCase() === 'office team') return false;
-        if (String(e.employee_id || '').toUpperCase().startsWith('TC')) return false;
-        if (/tele/i.test(String(e.designation || ''))) return false;
         if (String(e.reports_to || '').trim().toUpperCase() !== String(employeeId).trim().toUpperCase()) {
           return false;
         }
       }
       return true;
     });
+    const telecallerSubordinates = subordinates.filter((e) => isOfficeOrTelecaller(e));
     const asmSubordinates = subordinates.filter((e) => {
       const r = hierarchyRole(e);
       return r === 'ASM' || r === 'BDM';
@@ -317,12 +324,44 @@ export async function GET(req: Request) {
         employee_id: bde.employee_id || '',
         name: bde.name,
         designation: bde.designation || 'Business Development Executive',
+        team: bde.team || '',
+        zone: bde.zone || '',
+        district: bde.district || '',
+        reports_to: bde.reports_to || '',
         conversion_percentage: `${conv}%`,
         leads_assigned: `${bdeLeads.length}`,
         online_status: isOnline ? 'ONLINE' : 'OFFLINE',
         online_time: bdeAtt?.check_in || '',
         location_lat: typeof bdeAtt?.latitude === 'number' && !isNaN(bdeAtt.latitude) ? bdeAtt.latitude : null,
         location_lng: typeof bdeAtt?.longitude === 'number' && !isNaN(bdeAtt.longitude) ? bdeAtt.longitude : null,
+      };
+    });
+
+    const telecallerList = telecallerSubordinates.map((tc) => {
+      const tcLeads = scopedLeads.filter((lead) =>
+        belongsTo(lead, tc.employee_id, tc.name)
+      );
+      const tcClosed = tcLeads.filter(isClosed).length;
+      const conv =
+        tcLeads.length > 0 ? Math.round((tcClosed / tcLeads.length) * 100) : 0;
+      const tcAtt = attMap.get(tc.employee_id);
+      const isOnline = tcAtt?.status === 'ONLINE' || Boolean(tcAtt?.check_in && !tcAtt?.check_out);
+
+      return {
+        id: numericId(tc._id) || 1,
+        employee_id: tc.employee_id || '',
+        name: tc.name,
+        designation: tc.designation || 'Tele-caller',
+        team: tc.team || 'Office Team',
+        zone: tc.zone || '',
+        district: tc.district || '',
+        reports_to: tc.reports_to || '',
+        conversion_percentage: `${conv}%`,
+        leads_assigned: `${tcLeads.length}`,
+        online_status: isOnline ? 'ONLINE' : 'OFFLINE',
+        online_time: tcAtt?.check_in || '',
+        location_lat: typeof tcAtt?.latitude === 'number' && !isNaN(tcAtt.latitude) ? tcAtt.latitude : null,
+        location_lng: typeof tcAtt?.longitude === 'number' && !isNaN(tcAtt.longitude) ? tcAtt.longitude : null,
       };
     });
 
@@ -486,6 +525,7 @@ export async function GET(req: Request) {
       },
       team_subordinate_status: {
         bdes: subordinateList,
+        telecallers: telecallerList,
         asms: asmSubordinates.map((asm) => {
           const asmAtt = attMap.get(asm.employee_id);
           const isOnline = asmAtt?.status === 'ONLINE' || Boolean(asmAtt?.check_in && !asmAtt?.check_out);
@@ -495,6 +535,26 @@ export async function GET(req: Request) {
             name: asm.name,
             designation: asm.designation || 'Area Sales Manager',
             team: asm.team || '',
+            district: asm.district || '',
+            zone: asm.zone || '',
+            leads_assigned: `${scopedLeads.filter((l) => l.asm_id === asm.employee_id).length}`,
+            online_status: isOnline ? 'ONLINE' : 'OFFLINE',
+          };
+        }),
+        BDE: subordinateList,
+        BDM: subordinateList,
+        TELECALLER: telecallerList,
+        ASM: asmSubordinates.map((asm) => {
+          const asmAtt = attMap.get(asm.employee_id);
+          const isOnline = asmAtt?.status === 'ONLINE' || Boolean(asmAtt?.check_in && !asmAtt?.check_out);
+          return {
+            id: numericId(asm._id) || 1,
+            employee_id: asm.employee_id || '',
+            name: asm.name,
+            designation: asm.designation || 'Area Sales Manager',
+            team: asm.team || '',
+            district: asm.district || '',
+            zone: asm.zone || '',
             leads_assigned: `${scopedLeads.filter((l) => l.asm_id === asm.employee_id).length}`,
             online_status: isOnline ? 'ONLINE' : 'OFFLINE',
           };

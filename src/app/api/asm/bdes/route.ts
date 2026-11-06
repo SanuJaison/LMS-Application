@@ -81,7 +81,12 @@ export async function GET(req: Request) {
       String(auth.team || '').toLowerCase() === 'office team' ||
       String(auth.employee?.designation || '').toLowerCase().includes('office team lead');
 
-    const isRegionalAsm = (auth.role === 'ASM' || auth.role === 'BDM') && !isOfficeCaller;
+    const isAsm =
+      auth.role === 'ASM' ||
+      auth.role === 'BDM' ||
+      String(auth.employeeId || '').toUpperCase().startsWith('ASM');
+
+    const isRegionalAsm = isAsm && !isOfficeCaller;
 
     const teamParam = (searchParams.get('team') || '').trim();
     const isExplicitOfficeQuery = teamParam.toLowerCase() === 'office team';
@@ -113,25 +118,26 @@ export async function GET(req: Request) {
     // For Regional ASM: strictly their own direct reports, excluding any office team or telecaller.
     if (isRegionalAsm) {
       filters.push({
-        reports_to: auth.employeeId,
+        reports_to: new RegExp(`^${escapeRegex(auth.employeeId.trim())}$`, 'i'),
         team: { $ne: 'Office Team' },
         employee_id: { $not: /^TC/i },
         designation: { $not: /tele/i },
       });
-    } else if (auth.role === 'ASM' || auth.role === 'BDM') {
-      filters.push({ reports_to: auth.employeeId });
+    } else if (isAsm) {
+      filters.push({ reports_to: new RegExp(`^${escapeRegex(auth.employeeId.trim())}$`, 'i') });
     } else if (!isExplicitOfficeQuery) {
       // Default SM / Admin BDE list also excludes Office Team telecallers (use /api/office/telecallers for those)
       filters.push({
         team: { $ne: 'Office Team' },
         employee_id: { $not: /^TC/i },
+        designation: { $not: /tele/i },
       });
     }
 
-    const asmId = (searchParams.get('asm_id') || '').trim();
+    const asmId = (searchParams.get('asm_id') || searchParams.get('employee_id') || '').trim();
     if (asmId) {
-      if (auth.role === 'ASM' || auth.role === 'BDM') {
-        if (asmId !== auth.employeeId) {
+      if (isAsm) {
+        if (asmId.toUpperCase() !== auth.employeeId.toUpperCase()) {
           return NextResponse.json(
             { success: false, message: 'You can only list your own BDEs.' },
             { status: 403 }
@@ -145,7 +151,7 @@ export async function GET(req: Request) {
           );
         }
       }
-      filters.push({ reports_to: asmId });
+      filters.push({ reports_to: new RegExp(`^${escapeRegex(asmId)}$`, 'i') });
     }
 
     if (teamParam) {

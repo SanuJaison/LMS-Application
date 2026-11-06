@@ -222,6 +222,7 @@ export async function GET(req: Request) {
         contact_number: asm.contact_number,
         designation: asm.designation,
         team: asm.team || teamDoc?.name || '',
+        district: asm.district || (teamDoc?.districts?.[0]) || '',
         districts: teamDoc?.districts || (asm.district ? [asm.district] : []),
         zone: asm.zone || teamDoc?.zone || '',
         reports_to: asm.reports_to || '',
