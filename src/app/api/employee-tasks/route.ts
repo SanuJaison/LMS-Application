@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/adminAuth';
 import { EmployeeTask } from '@/models/employeeTask';
+import { Employee } from '@/models/employee';
 import { authenticate, getScope, requireAuth } from '@/lib/apiAuth';
 import { escapeRegex } from '@/lib/employeeAuth';
 
@@ -145,6 +146,22 @@ export async function POST(req: NextRequest) {
       notes,
     });
 
+    if (employee_id.trim()) {
+      const isDaily = /daily/i.test(task_template);
+      const isMonthly = /monthly/i.test(task_template);
+      if (isDaily || isMonthly) {
+        await Employee.findOneAndUpdate(
+          { employee_id: employee_id.trim() },
+          {
+            $set: {
+              ...(isDaily ? { daily_target: Number(total_target) || 15 } : {}),
+              ...(isMonthly ? { monthly_target: Number(total_target) || 15 } : {}),
+            },
+          }
+        );
+      }
+    }
+
     return NextResponse.json({ success: true, data: newTask }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating employee task:', error);
@@ -222,6 +239,22 @@ export async function PUT(req: NextRequest) {
     }
 
     const updated = await EmployeeTask.findByIdAndUpdate(id, updateFields, { new: true });
+
+    if (existingTask.employee_id && total_target !== undefined) {
+      const isDaily = /daily/i.test(existingTask.task_template || '');
+      const isMonthly = /monthly/i.test(existingTask.task_template || '');
+      if (isDaily || isMonthly) {
+        await Employee.findOneAndUpdate(
+          { employee_id: existingTask.employee_id },
+          {
+            $set: {
+              ...(isDaily ? { daily_target: total_target } : {}),
+              ...(isMonthly ? { monthly_target: total_target } : {}),
+            },
+          }
+        );
+      }
+    }
 
     return NextResponse.json({ success: true, data: updated }, { status: 200 });
   } catch (error: any) {

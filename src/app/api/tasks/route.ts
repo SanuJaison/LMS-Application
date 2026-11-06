@@ -4,6 +4,7 @@ import { Task, Team } from '@/models';
 import { Employee } from '@/models/employee';
 import { numericId } from '@/lib/employeeAuth';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
+import { parseTargetInput, syncEmployeeTargets } from '@/lib/targetSync';
 import {
   andFilter,
   canAccessEmployee,
@@ -375,6 +376,37 @@ export async function POST(req: Request) {
       causer: causerFromRequest(req),
     });
 
+    // Also sync daily / monthly target if passed in body or inferred from task title
+    const targetInput = parseTargetInput(body);
+    let syncDaily = targetInput.hasDaily ? targetInput.dailyTarget : undefined;
+    let syncMonthly = targetInput.hasMonthly ? targetInput.monthlyTarget : undefined;
+    const targetCountNum = Number(body.target_count || 0) || 0;
+    if (targetCountNum > 0) {
+      if (syncDaily === undefined && /daily/i.test(title)) {
+        syncDaily = targetCountNum;
+      }
+      if (syncMonthly === undefined && /monthly/i.test(title)) {
+        syncMonthly = targetCountNum;
+      }
+    }
+    if ((syncDaily !== undefined || syncMonthly !== undefined) && assignee.employeeId) {
+      const updateFields: any = {};
+      if (syncDaily !== undefined) updateFields.daily_target = syncDaily;
+      if (syncMonthly !== undefined) updateFields.monthly_target = syncMonthly;
+      await Employee.findOneAndUpdate(
+        { employee_id: assignee.employeeId },
+        { $set: updateFields }
+      );
+      await syncEmployeeTargets(
+        {
+          employee_id: assignee.employeeId,
+          name: assignee.name,
+        },
+        syncDaily,
+        syncMonthly
+      );
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -518,6 +550,39 @@ async function updateTask(req: Request) {
     if (body.notes !== undefined) task.notes = String(body.notes || '').trim();
 
     await task.save();
+
+    // Also sync daily / monthly target if passed in body or inferred from task title
+    const targetInput = parseTargetInput(body);
+    let syncDaily = targetInput.hasDaily ? targetInput.dailyTarget : undefined;
+    let syncMonthly = targetInput.hasMonthly ? targetInput.monthlyTarget : undefined;
+    const targetCountNum =
+      body.target_count !== undefined ? Number(body.target_count || 0) || 0 : undefined;
+    if (targetCountNum !== undefined && targetCountNum > 0) {
+      const checkTitle = task.title || '';
+      if (syncDaily === undefined && /daily/i.test(checkTitle)) {
+        syncDaily = targetCountNum;
+      }
+      if (syncMonthly === undefined && /monthly/i.test(checkTitle)) {
+        syncMonthly = targetCountNum;
+      }
+    }
+    if ((syncDaily !== undefined || syncMonthly !== undefined) && task.assigned_to_id) {
+      const updateFields: any = {};
+      if (syncDaily !== undefined) updateFields.daily_target = syncDaily;
+      if (syncMonthly !== undefined) updateFields.monthly_target = syncMonthly;
+      await Employee.findOneAndUpdate(
+        { employee_id: task.assigned_to_id },
+        { $set: updateFields }
+      );
+      await syncEmployeeTargets(
+        {
+          employee_id: task.assigned_to_id,
+          name: task.assigned_to,
+        },
+        syncDaily,
+        syncMonthly
+      );
+    }
 
     await logActivity({
       description: `Task "${task.title}" updated by ${auth.name} (status: ${task.status})`,

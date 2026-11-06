@@ -205,7 +205,9 @@ export function resolveEmployeeTargets(
       const aCurrent = String(a?.period_start || '').slice(0, 7) === monthKey ? 1 : 0;
       const bCurrent = String(b?.period_start || '').slice(0, 7) === monthKey ? 1 : 0;
       if (aCurrent !== bCurrent) return bCurrent - aCurrent;
-      return new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime();
+      const bTime = new Date(b?.updatedAt || b?.createdAt || 0).getTime();
+      const aTime = new Date(a?.updatedAt || a?.createdAt || 0).getTime();
+      return bTime - aTime;
     });
 
   const dailyRows = sortTasks(
