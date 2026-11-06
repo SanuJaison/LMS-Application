@@ -399,6 +399,15 @@ export async function POST(req: Request) {
       { upsert: true, new: true }
     );
 
+    // Clear stale team_lead references in other teams
+    await Team.updateMany(
+      {
+        name: { $ne: assignedTeamName },
+        team_lead: new RegExp(`\\(${escapeRegex(newAsm.employee_id)}\\)`, 'i'),
+      },
+      { $set: { team_lead: '' } }
+    );
+
     // Initialize wallet for new ASM
     await Wallet.create({
       employee: newAsm.name,

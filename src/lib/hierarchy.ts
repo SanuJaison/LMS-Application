@@ -446,22 +446,40 @@ export async function getAsmTeamAndDistricts(asmEmployee: any): Promise<{
     };
   }
 
-  // 1. Try finding the Team document by team_lead or stored team name
-  const orConditions: any[] = [];
+  // 1. If employee already has a team assigned (e.g. 'PKD Team' or 'PKD'), match that team first!
+  let teamDoc: any = null;
   if (storedTeam) {
-    orConditions.push({ name: new RegExp(`^${escapeRegex(storedTeam)}$`, 'i') });
-  }
-  if (empId) {
-    orConditions.push({ team_lead: new RegExp(escapeRegex(empId), 'i') });
-  }
-  if (empName) {
-    orConditions.push({ team_lead: new RegExp(`^${escapeRegex(empName)}(\\s*\\(|$)`, 'i') });
+    teamDoc = await Team.findOne({
+      name: new RegExp(`^${escapeRegex(storedTeam)}$`, 'i'),
+    }).lean();
   }
 
-  const teamDoc: any =
-    orConditions.length > 0
-      ? await Team.findOne({ $or: orConditions }).lean()
-      : null;
+  // 2. If not found by name, try finding by team_lead containing the exact (employee_id)
+  if (!teamDoc && empId) {
+    teamDoc = await Team.findOne({
+      team_lead: new RegExp(`\\(${escapeRegex(empId)}\\)`, 'i'),
+    }).lean();
+  }
+
+  // 3. Fallback: try by employee name if still not found
+  if (!teamDoc && empName) {
+    teamDoc = await Team.findOne({
+      team_lead: new RegExp(`^${escapeRegex(empName)}(\\s*\\(|$)`, 'i'),
+    }).lean();
+  }
+
+  // 4. Fallback: if still not found, try matching by the ASM's district
+  if (!teamDoc && asmEmployee.district) {
+    const empDist = String(asmEmployee.district).trim().toLowerCase();
+    const matchedCfg = Object.values(REGIONAL_TEAM_DISTRICTS).find((cfg) =>
+      cfg.districts.some((d) => d.toLowerCase() === empDist)
+    );
+    if (matchedCfg) {
+      teamDoc = await Team.findOne({
+        name: new RegExp(`^${escapeRegex(matchedCfg.teamName)}$`, 'i'),
+      }).lean();
+    }
+  }
 
   const resolvedTeamName = teamDoc?.name || storedTeam || '';
   const codeMatch = resolvedTeamName.trim().toUpperCase().match(/^([A-Z]{3})/);
