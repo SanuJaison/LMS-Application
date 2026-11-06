@@ -121,9 +121,9 @@ export async function POST(req: Request) {
     } = body;
 
     const salary =
-      rawSalary !== undefined && !isNaN(Number(rawSalary))
+      rawSalary !== undefined && !isNaN(Number(rawSalary)) && Number(rawSalary) > 0
         ? Math.max(0, Number(rawSalary))
-        : 0;
+        : 5000;
     const incentive =
       rawIncentive !== undefined && !isNaN(Number(rawIncentive))
         ? Math.max(0, Number(rawIncentive))

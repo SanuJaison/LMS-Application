@@ -89,9 +89,9 @@ export async function POST(req: Request) {
     const contactNumber = String(body.contact_number || body.phone || '').trim();
     const password = String(body.password || '').trim();
     const salary =
-      body.salary !== undefined && !isNaN(Number(body.salary))
+      body.salary !== undefined && !isNaN(Number(body.salary)) && Number(body.salary) > 0
         ? Math.max(0, Number(body.salary))
-        : 0;
+        : 5000;
     const incentive =
       body.incentive !== undefined && !isNaN(Number(body.incentive))
         ? Math.max(0, Number(body.incentive))

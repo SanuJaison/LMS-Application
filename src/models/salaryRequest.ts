@@ -10,7 +10,11 @@ export interface ISalaryRequest extends Document {
   asm_name?: string;
   sm_id?: string;
   sm_name?: string;
+  base_salary: number;
+  leave_days: number;
+  deduction: number;
   amount: number;
+  manual_override?: boolean;
   period: string;
   attendance_days?: number;
   remarks?: string;
@@ -85,10 +89,29 @@ const SalaryRequestSchema = new Schema<ISalaryRequest>(
       default: '',
       trim: true,
     },
+    base_salary: {
+      type: Number,
+      default: 5000,
+      min: [0, 'Base salary cannot be negative'],
+    },
+    leave_days: {
+      type: Number,
+      default: 0,
+      min: [0, 'Leave days cannot be negative'],
+    },
+    deduction: {
+      type: Number,
+      default: 0,
+      min: [0, 'Deduction cannot be negative'],
+    },
     amount: {
       type: Number,
       default: 5000,
-      min: [5000, 'Minimum salary request amount is ₹5,000'],
+      min: [0, 'Salary amount cannot be negative'],
+    },
+    manual_override: {
+      type: Boolean,
+      default: false,
     },
     period: {
       type: String,
@@ -114,7 +137,7 @@ const SalaryRequestSchema = new Schema<ISalaryRequest>(
         'Rejected',
         'Paid',
       ],
-      default: 'Submitted to ASM',
+      default: 'Paid',
       index: true,
     },
     approval_history: [

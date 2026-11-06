@@ -15,21 +15,17 @@ import {
 
 /**
  * POST /api/wallet/workflow
- * Moves an incentive withdrawal request through the approval route:
- * BDE -> ASM -> SM -> Admin/Accounts -> Payment
+ * Moves an incentive withdrawal request through the strict approval chain:
+ * - BDE request ("Submitted to ASM") -> ASM forwards to SM ("Forwarded to SM")
+ * - ASM request or ASM-forwarded BDE request ("Forwarded to SM") -> SM forwards to Admin ("Forwarded to Accounts")
+ * - SM request or SM-forwarded request ("Forwarded to Accounts") -> Admin sanctions ("Approved") & pays ("Paid")
  *
  * Authorization per action:
- *   forward_to_sm / asm_approve        -> ASM / BDM / SM / admin
- *   forward_to_accounts / sm_approve   -> SM / admin
- *   sanction / approve / accounts_approve -> admin only
- *   pay / mark_paid                    -> admin only
- *   reject                             -> ASM / BDM / SM / admin
- *
- * Non-admin callers can only act on requests inside their own hierarchy, and a
- * request only moves one step at a time. Every response carries both the raw
- * stage (`status`) and the dashboard label (`status_label`): Pending while the
- * request is in the chain, Approved once Admin sanctions it, Paid after
- * disbursement, Rejected if refused.
+ *   forward_to_sm / asm_approve          -> ASM / BDM / admin
+ *   forward_to_accounts / sm_approve     -> SM / admin
+ *   sanction / approve / accounts_approve -> admin only (when ASM/SM passes "approve"/"forward", it auto-maps to their forward action)
+ *   pay / mark_paid                      -> admin only
+ *   reject                               -> ASM (at Submitted to ASM), SM (at Forwarded to SM), admin (any pending stage)
  */
 export async function POST(req: Request) {
   try {
@@ -42,7 +38,19 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const { request_id, id, action, remarks, transaction_reference } = body;
 
-    const normalizedAction = String(action || '').toLowerCase();
+    let normalizedAction = String(action || '').trim().toLowerCase();
+
+    // If app side sends generic "approve" or "forward" for ASM or SM, map it to their role's forward step:
+    // ASM forwards to SM; SM forwards to Admin/Accounts.
+    if (normalizedAction === 'forward' || normalizedAction === 'approve') {
+      if (auth.role === 'ASM' || auth.role === 'BDM') {
+        normalizedAction = 'forward_to_sm';
+      } else if (auth.role === 'SM') {
+        normalizedAction = 'forward_to_accounts';
+      } else if (auth.isAdmin && normalizedAction === 'forward') {
+        normalizedAction = 'sanction';
+      }
+    }
 
     const allowed: Record<string, string[]> = {
       forward_to_sm: ['ASM', 'BDM', 'SM', 'ADMIN'],
@@ -90,12 +98,48 @@ export async function POST(req: Request) {
 
     if (!auth.isAdmin && auth.role !== 'SM' && auth.role !== 'MD') {
       const scope = await getScope(auth);
+      const sameTeam =
+        Boolean(auth.team) &&
+        Boolean(request.team) &&
+        String(auth.team).toLowerCase() === String(request.team).toLowerCase();
       const inScope =
+        sameTeam ||
         canAccessEmployee(scope, request.employee_id, request.employee) ||
         canAccessEmployee(scope, request.asm_id, request.asm_name);
 
       if (!inScope) {
         return forbidden('This withdrawal request is outside your hierarchy.');
+      }
+    }
+
+    // Prevent an employee from approving/forwarding their own withdrawal request
+    if (
+      !auth.isAdmin &&
+      auth.employeeId &&
+      String(request.employee_id || '').toUpperCase() === auth.employeeId.toUpperCase()
+    ) {
+      return forbidden('You cannot approve or forward your own incentive withdrawal request.');
+    }
+
+    // Role-specific stage guards for reject
+    if (normalizedAction === 'reject' && !auth.isAdmin) {
+      if ((auth.role === 'ASM' || auth.role === 'BDM') && request.status !== 'Submitted to ASM') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `ASM can only reject requests in "Submitted to ASM" stage (current: "${request.status}").`,
+          },
+          { status: 400 }
+        );
+      }
+      if (auth.role === 'SM' && request.status === 'Forwarded to Accounts') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'This request has already been forwarded to Admin and can only be acted on by Admin.',
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -117,23 +161,20 @@ export async function POST(req: Request) {
       case 'forward_to_sm':
       case 'asm_approve':
         nextStatus = 'Forwarded to SM';
-        stepDescription = 'Step 2 - ASM Review: Forwarded to SM';
+        stepDescription = 'Step 2 - ASM Review: Approved & Forwarded to SM';
         break;
 
       case 'forward_to_accounts':
       case 'sm_approve':
         nextStatus = 'Forwarded to Accounts';
-        stepDescription = 'Step 3 - SM Review: Forwarded to Accounts';
+        stepDescription = 'Step 3 - SM Review: Approved & Forwarded to Admin';
         break;
 
       case 'sanction':
       case 'approve':
       case 'accounts_approve':
         nextStatus = 'Approved';
-        stepDescription = 'Step 4 - Accounts: Incentive withdrawal sanctioned';
-        // Admin approval releases the money to the BDE. The balance was
-        // already reserved when the request was submitted, so we only record
-        // the payout here.
+        stepDescription = 'Step 4 - Admin/Accounts: Incentive withdrawal sanctioned';
         request.payment_date = request.payment_date || new Date();
         request.transaction_reference =
           request.transaction_reference ||
@@ -158,19 +199,17 @@ export async function POST(req: Request) {
       case 'pay':
       case 'mark_paid':
         nextStatus = 'Paid';
-        stepDescription = 'Step 4 - Accounts: Incentive payment disbursed';
+        stepDescription = 'Step 4 - Admin/Accounts: Incentive payment disbursed';
         request.transaction_reference =
           request.transaction_reference ||
           transaction_reference ||
           `TXN-${Date.now()}`;
         request.payment_date = request.payment_date || new Date();
-        // `sanction` already released the amount (total_paid was incremented
-        // there), so paying only records the final status and reference.
         break;
 
       case 'reject':
         nextStatus = 'Rejected';
-        stepDescription = `Rejected by ${actorName}`;
+        stepDescription = `Rejected by ${actorName} (${actorRole})`;
 
         if (request.amount && (request.employee_id || request.employee)) {
           await Wallet.findOneAndUpdate(

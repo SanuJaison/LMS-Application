@@ -9,6 +9,7 @@ import {
   resolveEmployeeTargets,
   syncEmployeeTargets,
 } from '@/lib/targetSync';
+import { syncMonthlySalaries } from '@/lib/salarySync';
 import bcrypt from 'bcryptjs';
 import {
   Lead,
@@ -374,6 +375,10 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
       return NextResponse.json({ success: false, message: 'Invalid tab category' }, { status: 400 });
     }
 
+    if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
+      await syncMonthlySalaries();
+    }
+
     const sortOrder: any =
       params.tab === 'employees' ||
       params.tab === 'teams' ||
@@ -431,6 +436,10 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
 
     if (!Model) {
       return NextResponse.json({ success: false, message: 'Invalid tab category' }, { status: 400 });
+    }
+
+    if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
+      await syncMonthlySalaries();
     }
 
     const body = await req.json();
@@ -503,6 +512,15 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
       }
     }
 
+    if (
+      params.tab === 'leaves' ||
+      params.tab === 'attendance' ||
+      params.tab === 'attendanceRecords' ||
+      params.tab === 'employees'
+    ) {
+      await syncMonthlySalaries();
+    }
+
     if (params.tab !== 'activities') {
       const { noun, subject } = activityLabel(params.tab);
       const name = recordName(created as any);
@@ -542,6 +560,10 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
 
     if (!Model) {
       return NextResponse.json({ success: false, message: 'Invalid tab category' }, { status: 400 });
+    }
+
+    if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
+      await syncMonthlySalaries();
     }
 
     const body = await req.json();
@@ -624,6 +646,15 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
       }
     }
 
+    if (
+      params.tab === 'leaves' ||
+      params.tab === 'attendance' ||
+      params.tab === 'attendanceRecords' ||
+      params.tab === 'employees'
+    ) {
+      await syncMonthlySalaries();
+    }
+
     if (params.tab !== 'activities') {
       const { noun, subject } = activityLabel(params.tab);
       const name = recordName(updated as any);
@@ -651,6 +682,10 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
 
     if (!Model) {
       return NextResponse.json({ success: false, message: 'Invalid tab category' }, { status: 400 });
+    }
+
+    if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
+      await syncMonthlySalaries();
     }
 
     if (params.tab === 'tasks') {
@@ -689,6 +724,14 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
       .lean();
 
     await Model.deleteMany({ _id: { $in: idsToDelete } });
+
+    if (
+      params.tab === 'leaves' ||
+      params.tab === 'attendance' ||
+      params.tab === 'attendanceRecords'
+    ) {
+      await syncMonthlySalaries();
+    }
 
     if (params.tab !== 'activities' && doomed.length > 0) {
       const { noun, subject } = activityLabel(params.tab);

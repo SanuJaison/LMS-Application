@@ -8,11 +8,13 @@ import { logActivity, causerFromRequest } from '@/lib/activityLog';
 /**
  * POST /api/wallet/withdraw
  * Submits an incentive withdrawal request for the signed-in employee.
+ * (Wallet is strictly for incentives; monthly ₹5k salary is auto-credited separately).
  *
- * Rules:
+ * Approval Chain Rules:
+ * - BDE -> requests to ASM ("Submitted to ASM") -> ASM forwards to SM ("Forwarded to SM") -> SM forwards to Admin ("Forwarded to Accounts") -> Admin approves/pays.
+ * - ASM -> requests to SM ("Forwarded to SM") -> SM forwards to Admin ("Forwarded to Accounts") -> Admin approves/pays.
+ * - SM  -> requests directly to Admin ("Forwarded to Accounts") -> Admin approves/pays.
  * - Max ₹5,000 per request.
- * - Routed through BDE -> ASM -> SM -> Accounts.
- * - Identity always comes from the Bearer token; body employee fields are ignored.
  */
 export async function POST(req: Request) {
   try {
@@ -28,12 +30,52 @@ export async function POST(req: Request) {
     const employeeName = auth.name;
     const employeeId = auth.employeeId;
     const team = employee?.team || '';
-    const asmId = employee?.reports_to || '';
+    const isSm = auth.role === 'SM';
+    const isAsm = auth.role === 'ASM' || auth.role === 'BDM';
 
+    // Resolve the statewide SM
+    const smEmp: any = isSm
+      ? employee
+      : await Employee.findOne({
+          status: { $ne: 'inactive' },
+          $or: [
+            { employee_id: /^SM/i },
+            { designation: /^sales manager$|^state manager$/i },
+          ],
+        }).lean();
+
+    const smId = smEmp?.employee_id || 'SM001';
+    const smName = smEmp?.name || 'Sales Manager';
+
+    // Resolve the BDE's ASM (via reports_to or matching team's ASM)
+    let asmId = '';
     let asmName = '';
-    if (asmId) {
-      const asmEmp: any = await Employee.findOne({ employee_id: asmId }).lean();
-      if (asmEmp) asmName = asmEmp.name;
+    if (!isSm && !isAsm) {
+      let asmEmp: any = null;
+      if (employee?.reports_to) {
+        asmEmp = await Employee.findOne({
+          employee_id: employee.reports_to,
+        }).lean();
+      }
+      if (
+        (!asmEmp || String(asmEmp.employee_id || '').toUpperCase().startsWith('SM')) &&
+        team
+      ) {
+        const teamAsm: any = await Employee.findOne({
+          status: { $ne: 'inactive' },
+          team: new RegExp(`^${escapeRegex(team)}$`, 'i'),
+          $or: [
+            { employee_id: /^ASM/i },
+            { designation: /area sales manager|office team lead/i },
+          ],
+        }).lean();
+        if (teamAsm) asmEmp = teamAsm;
+      }
+      asmId = asmEmp?.employee_id || employee?.reports_to || '';
+      asmName = asmEmp?.name || '';
+    } else if (isAsm) {
+      asmId = employeeId;
+      asmName = employeeName;
     }
 
     const amount = Number(body.amount || 0);
@@ -76,9 +118,6 @@ export async function POST(req: Request) {
 
     const requestId = `WDR-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const isSm = auth.role === 'SM';
-    const isAsm = auth.role === 'ASM' || auth.role === 'BDM';
-
     const initialStatus = isSm
       ? 'Forwarded to Accounts'
       : isAsm
@@ -92,12 +131,12 @@ export async function POST(req: Request) {
         : 'Business Development Executive';
 
     const stepDescription = isSm
-      ? 'Step 1 - SM Request: Submitted to Admin/Accounts'
+      ? 'Step 1 - SM Request: Submitted directly to Admin'
       : isAsm
         ? 'Step 1 - ASM Request: Submitted to SM'
         : 'Step 1 - BDE Request: Submitted to ASM';
 
-    const targetLabel = isSm ? 'Admin/Accounts' : isAsm ? 'SM' : 'ASM';
+    const targetLabel = isSm ? 'Admin' : isAsm ? 'SM' : 'ASM';
 
     const email = String(body.email || employee?.email || '').trim();
     const phone = String(
@@ -116,10 +155,10 @@ export async function POST(req: Request) {
       employee_id: employeeId,
       designation: employee?.designation || defaultDesignation,
       team: team || (isSm ? 'Statewide' : ''),
-      asm_id: isSm ? '' : isAsm ? employeeId : asmId,
-      asm_name: isSm ? '' : isAsm ? employeeName : asmName,
-      sm_id: isSm ? employeeId : asmId,
-      sm_name: isSm ? employeeName : asmName,
+      asm_id: asmId,
+      asm_name: asmName,
+      sm_id: smId,
+      sm_name: smName,
       email,
       phone,
       contact: contactDisplay,
@@ -169,6 +208,7 @@ export async function POST(req: Request) {
         status: initialStatus,
         status_label: 'Pending',
         asm_name: asmName,
+        sm_name: smName,
         remaining_balance: wallet?.balance ?? 0,
       },
     });

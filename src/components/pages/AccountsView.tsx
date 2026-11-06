@@ -15,6 +15,7 @@ import {
   FileCheck,
   Building2,
   Users,
+  Pencil,
 } from 'lucide-react';
 import { authHeaders } from '../../services/api';
 
@@ -43,6 +44,14 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   const [paymentType, setPaymentType] = useState<'salary' | 'withdrawal'>('salary');
   const [transactionRef, setTransactionRef] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+
+  // Edit Salary modal state
+  const [editSalaryOpen, setEditSalaryOpen] = useState<boolean>(false);
+  const [editingSalary, setEditingSalary] = useState<any | null>(null);
+  const [editBaseSalary, setEditBaseSalary] = useState<string>('5000');
+  const [editLeaveDays, setEditLeaveDays] = useState<string>('0');
+  const [editNetAmount, setEditNetAmount] = useState<string>('5000');
+  const [editSalaryRemarks, setEditSalaryRemarks] = useState<string>('');
 
   // Load all accounts data
   const loadData = async () => {
@@ -164,6 +173,59 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
     setPaymentType(type);
     setTransactionRef(`TXN-${Date.now().toString().slice(-6)}`);
     setPaymentModalOpen(true);
+  };
+
+  // Open Edit Salary Modal (Admin can adjust salary based on leaves or directly)
+  const openEditSalaryModal = (req: any) => {
+    setEditingSalary(req);
+    const base = Number(req.base_salary ?? 5000);
+    const leaves = Number(req.leave_days ?? 0);
+    const net = Number(req.amount ?? 5000);
+    setEditBaseSalary(String(base));
+    setEditLeaveDays(String(leaves));
+    setEditNetAmount(String(net));
+    setEditSalaryRemarks(req.remarks || '');
+    setEditSalaryOpen(true);
+  };
+
+  const handleLeaveDaysChange = (val: string) => {
+    setEditLeaveDays(val);
+    const base = Math.max(0, Number(editBaseSalary) || 5000);
+    const leaves = Math.max(0, Number(val) || 0);
+    const deduction = Math.round((base / 30) * leaves);
+    setEditNetAmount(String(Math.max(0, base - deduction)));
+  };
+
+  const handleSaveSalaryEdit = async () => {
+    if (!editingSalary) return;
+    try {
+      setActionLoading(true);
+      const res = await fetch('/api/salary/requests', {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          id: editingSalary._id || editingSalary.id,
+          request_id: editingSalary.request_id,
+          base_salary: Number(editBaseSalary) || 5000,
+          leave_days: Number(editLeaveDays) || 0,
+          amount: Number(editNetAmount) || 0,
+          remarks: editSalaryRemarks,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast?.('success', json.message || 'Salary updated successfully');
+        setEditSalaryOpen(false);
+        setEditingSalary(null);
+        loadData();
+      } else {
+        showToast?.('danger', json.message || 'Failed to update salary');
+      }
+    } catch {
+      showToast?.('danger', 'Failed to update salary');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   // Confirm Mark as Paid
@@ -377,7 +439,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Salary Requests (BDE → ASM → SM → Accounts)</span>
+          <span>Monthly Salaries (₹5k Fixed — Auto-Credited 1st of Month)</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {salaryRequests.length}
           </span>
@@ -392,7 +454,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           }`}
         >
           <Award className="w-4 h-4" />
-          <span>Incentive Withdrawals (Max ₹5k)</span>
+          <span>Incentive Withdrawals (BDE → ASM → SM → Admin)</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {withdrawalRequests.length}
           </span>
@@ -449,128 +511,102 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
 
       {/* 3. TAB CONTENT */}
 
-      {/* SUB-TAB 1: SALARY REQUESTS */}
+      {/* SUB-TAB 1: MONTHLY SALARIES */}
       {activeSubTab === 'salaries' && (
         <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-ink/80">
               <thead className="bg-surface-2 text-[11px] font-semibold text-muted uppercase tracking-wider border-b border-line">
                 <tr>
-                  <th className="py-3 px-4">Request ID</th>
                   <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Team & ASM</th>
+                  <th className="py-3 px-4">Team</th>
                   <th className="py-3 px-4">Period</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Workflow Status</th>
-                  <th className="py-3 px-4 text-right">Accounts Actions</th>
+                  <th className="py-3 px-4">Base Salary</th>
+                  <th className="py-3 px-4">Leaves / Deduction</th>
+                  <th className="py-3 px-4">Net Salary</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Admin Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-2 font-medium">
                 {filteredSalaries.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-subtle">
-                      No salary requests found.
+                    <td colSpan={8} className="py-8 text-center text-subtle">
+                      No monthly salary records found.
                     </td>
                   </tr>
                 ) : (
-                  filteredSalaries.map((req) => (
-                    <tr key={req._id || req.request_id} className="hover:bg-hover/60">
-                      <td className="py-3 px-4 font-mono font-bold text-accent">
-                        {req.request_id}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="text-ink font-semibold">{req.employee_name}</div>
-                        <div className="text-[10px] text-muted">{req.employee_id} • {req.designation}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>{req.team || 'Regional Team'}</div>
-                        <div className="text-[10px] text-muted">ASM: {req.asm_name || req.asm_id || '—'}</div>
-                      </td>
-                      <td className="py-3 px-4 text-ink/80">
-                        {req.period}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-ink">
-                        ₹{(req.amount || 5000).toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                            req.status === 'Paid'
-                              ? 'bg-success/10 text-success border-success/30'
-                              : req.status === 'Approved'
-                                ? 'bg-accent/10 text-accent border-accent/30'
+                  filteredSalaries.map((req) => {
+                    const baseSal = Number(req.base_salary ?? 5000);
+                    const leaveDays = Number(req.leave_days ?? 0);
+                    const deduction = Number(
+                      req.deduction ?? Math.max(0, baseSal - Number(req.amount ?? 5000))
+                    );
+                    const netAmount = Number(req.amount ?? 5000);
+
+                    return (
+                      <tr key={req._id || req.request_id} className="hover:bg-hover/60">
+                        <td className="py-3 px-4">
+                          <div className="text-ink font-semibold">{req.employee_name}</div>
+                          <div className="text-[10px] text-muted">
+                            {req.employee_id} • {req.designation}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div>{req.team || 'Statewide'}</div>
+                          {req.asm_name && (
+                            <div className="text-[10px] text-muted">ASM: {req.asm_name}</div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-ink/80">
+                          <div>{req.period}</div>
+                          <div className="text-[10px] text-muted">1st of Month</div>
+                        </td>
+                        <td className="py-3 px-4 text-ink">
+                          ₹{baseSal.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4">
+                          {leaveDays > 0 || deduction > 0 ? (
+                            <span className="text-danger font-semibold">
+                              {leaveDays} day{leaveDays === 1 ? '' : 's'} (−₹
+                              {deduction.toLocaleString('en-IN')})
+                            </span>
+                          ) : (
+                            <span className="text-muted">0 days (₹0)</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-success text-sm">
+                          ₹{netAmount.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                              req.status === 'Paid' || req.status === 'Approved'
+                                ? 'bg-success/10 text-success border-success/30'
                                 : req.status === 'Rejected'
                                   ? 'bg-danger/10 text-danger border-danger/30'
-                                  : req.status === 'Forwarded to Accounts'
-                                    ? 'bg-warning/10 text-warning border-warning/30'
-                                    : 'bg-hover text-muted border-line'
-                          }`}
-                        >
-                          <Clock className="w-3 h-3" />
-                          <span>{req.status}</span>
-                        </span>
-                        {req.transaction_reference && (
-                          <div className="text-[10px] text-subtle font-mono mt-0.5">
-                            Ref: {req.transaction_reference}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                        {req.status === 'Forwarded to Accounts' && (
-                          <>
-                            <button
-                              onClick={() => handleWorkflowAction('salary', req, 'sanction')}
-                              disabled={actionLoading}
-                              className="px-2.5 py-1 rounded bg-accent hover:bg-accent-hover text-white text-[11px] font-semibold cursor-pointer"
-                            >
-                              Sanction
-                            </button>
-                            <button
-                              onClick={() => handleWorkflowAction('salary', req, 'reject')}
-                              disabled={actionLoading}
-                              className="px-2 py-1 rounded bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 text-[11px] cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {req.status === 'Approved' && (
-                          <button
-                            onClick={() => openPayModal('salary', req)}
-                            disabled={actionLoading}
-                            className="px-3 py-1 rounded bg-success hover:bg-success/90 text-white text-[11px] font-semibold cursor-pointer"
+                                  : 'bg-warning/10 text-warning border-warning/30'
+                            }`}
                           >
-                            Mark Paid
-                          </button>
-                        )}
-                        {req.status === 'Submitted to ASM' && (
-                          <button
-                            onClick={() => handleWorkflowAction('salary', req, 'forward_to_sm')}
-                            disabled={actionLoading}
-                            title="Forward as ASM"
-                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
-                          >
-                            ASM Fwd →
-                          </button>
-                        )}
-                        {req.status === 'Forwarded to SM' && (
-                          <button
-                            onClick={() => handleWorkflowAction('salary', req, 'forward_to_accounts')}
-                            disabled={actionLoading}
-                            title="Forward as SM"
-                            className="px-2 py-1 rounded bg-surface-2 hover:bg-hover text-ink/80 text-[10px] cursor-pointer"
-                          >
-                            SM Fwd →
-                          </button>
-                        )}
-                        {req.status === 'Paid' && (
-                          <span className="text-success text-xs font-semibold">
-                            ✓ Disbursed
+                            <CheckCircle className="w-3 h-3" />
+                            <span>
+                              {req.status === 'Paid' ? 'Credited (1st)' : req.status}
+                            </span>
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                          <button
+                            onClick={() => openEditSalaryModal(req)}
+                            disabled={actionLoading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 text-[11px] font-semibold cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Edit Salary</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -865,6 +901,122 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                 className="px-4 py-1.5 rounded-lg bg-success hover:bg-success/90 text-white font-semibold text-xs disabled:opacity-50 flex items-center gap-1.5"
               >
                 {actionLoading ? 'Processing...' : 'Confirm & Disburse'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT SALARY MODAL */}
+      {editSalaryOpen && editingSalary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-surface-2 border border-line rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-accent" />
+                <span>Edit Monthly Salary (Leave Adjustment)</span>
+              </h3>
+              <button
+                onClick={() => setEditSalaryOpen(false)}
+                className="text-muted hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-ink/80">
+              <div className="p-3 bg-surface rounded-lg space-y-1 border border-line">
+                <div>
+                  <span className="text-muted">Employee:</span>{' '}
+                  <strong className="text-ink">{editingSalary.employee_name}</strong>{' '}
+                  ({editingSalary.employee_id} • {editingSalary.designation})
+                </div>
+                <div>
+                  <span className="text-muted">Month / Period:</span>{' '}
+                  <strong className="text-ink">{editingSalary.period}</strong>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-ink/80 mb-1">
+                    Base Salary (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editBaseSalary}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditBaseSalary(val);
+                      const base = Math.max(0, Number(val) || 0);
+                      const leaves = Math.max(0, Number(editLeaveDays) || 0);
+                      const ded = Math.round((base / 30) * leaves);
+                      setEditNetAmount(String(Math.max(0, base - ded)));
+                    }}
+                    className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink text-xs focus:outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-ink/80 mb-1">
+                    Leaves Taken (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    step="0.5"
+                    value={editLeaveDays}
+                    onChange={(e) => handleLeaveDaysChange(e.target.value)}
+                    className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink text-xs focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-ink/80 mb-1">
+                  Net Credited Salary (₹) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editNetAmount}
+                  onChange={(e) => setEditNetAmount(e.target.value)}
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-success font-bold text-sm focus:outline-none focus:border-success"
+                />
+                <span className="block text-[10px] text-muted mt-1">
+                  Automatically decreases by ₹{Math.round((Number(editBaseSalary) || 5000) / 30)} per leave day, or enter custom amount directly.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-ink/80 mb-1">
+                  Remarks / Notes
+                </label>
+                <input
+                  type="text"
+                  value={editSalaryRemarks}
+                  onChange={(e) => setEditSalaryRemarks(e.target.value)}
+                  placeholder="e.g. Adjusted for 2 leave days"
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink text-xs focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-line">
+              <button
+                onClick={() => setEditSalaryOpen(false)}
+                className="px-3 py-1.5 rounded-lg bg-hover text-muted hover:text-ink text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSalaryEdit}
+                disabled={actionLoading}
+                className="px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-xs disabled:opacity-50 cursor-pointer"
+              >
+                {actionLoading ? 'Saving...' : 'Save Salary'}
               </button>
             </div>
           </div>

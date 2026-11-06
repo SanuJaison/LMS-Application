@@ -104,7 +104,7 @@ const EmployeeSchema = new Schema<IEmployee>(
     },
     salary: {
       type: Number,
-      default: 0,
+      default: 5000,
     },
     incentive: {
       type: Number,

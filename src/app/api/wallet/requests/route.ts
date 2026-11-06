@@ -9,20 +9,23 @@ import {
 } from '@/lib/apiAuth';
 import { displayStatus } from '@/lib/workflowStatus';
 
+function escapeRegex(value: string): string {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * GET /api/wallet/requests
  * Incentive withdrawal requests visible to the caller:
  *   - BDE        -> own requests
- *   - ASM / BDM  -> requests from their direct BDEs
- *   - SM         -> every request in their subtree
- *   - admin      -> all (the admin panel can also use
- *                   GET /api/admin/wallet-withdraw-requests)
+ *   - ASM / BDM  -> own requests + requests from BDEs in their team / reporting to them
+ *   - SM         -> own requests + all ASM/BDE requests across the state
+ *   - admin      -> all
  *
- * Every row carries both the raw stage (`status`) and the dashboard label
- * (`status_label`): Pending / Approved / Paid / Rejected.
- *
- * Query params: ?status=Pending|Approved|Paid|Rejected,
- *               ?employee_id=, ?request_id=
+ * Query params:
+ *   ?status=Pending|Approved|Paid|Rejected (or raw stage)
+ *   ?mine=true (only caller's own withdrawal requests)
+ *   ?for_approval=true (only requests currently awaiting caller's action)
+ *   ?employee_id=, ?request_id=
  */
 export async function GET(req: Request) {
   try {
@@ -36,22 +39,46 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     const mineParam = (searchParams.get('mine') || '').trim().toLowerCase();
+    const forApprovalParam = (searchParams.get('for_approval') || '').trim().toLowerCase();
     const filters: Record<string, any>[] = [];
 
     if (mineParam === 'true' || mineParam === '1') {
       filters.push({
         $or: [
           ...(auth.employeeId ? [{ employee_id: auth.employeeId }] : []),
-          ...(auth.name ? [{ employee: auth.name }, { name: auth.name }] : []),
+          ...(auth.name
+            ? [
+                { employee: new RegExp(`^${escapeRegex(auth.name)}$`, 'i') },
+                { name: new RegExp(`^${escapeRegex(auth.name)}$`, 'i') },
+              ]
+            : []),
         ],
       });
     } else if (!auth.isAdmin && auth.role !== 'SM' && auth.role !== 'MD') {
-      filters.push(
-        scopeFilter(scope, {
-          idFields: ['employee_id', 'asm_id', 'sm_id'],
-          nameFields: ['employee', 'name', 'asm_name', 'sm_name'],
-        })
-      );
+      const baseScopeFilter = scopeFilter(scope, {
+        idFields: ['employee_id', 'asm_id'],
+        nameFields: ['employee', 'name', 'asm_name'],
+      });
+      if ((auth.role === 'ASM' || auth.role === 'BDM') && auth.team) {
+        filters.push({
+          $or: [
+            ...(baseScopeFilter.$or || [baseScopeFilter]),
+            { team: new RegExp(`^${escapeRegex(auth.team)}$`, 'i') },
+          ],
+        });
+      } else {
+        filters.push(baseScopeFilter);
+      }
+    }
+
+    if (forApprovalParam === 'true' || forApprovalParam === '1') {
+      if (auth.role === 'ASM' || auth.role === 'BDM') {
+        filters.push({ status: 'Submitted to ASM' });
+      } else if (auth.role === 'SM') {
+        filters.push({ status: 'Forwarded to SM' });
+      } else if (auth.isAdmin) {
+        filters.push({ status: 'Forwarded to Accounts' });
+      }
     }
 
     const statusParam = (searchParams.get('status') || '').trim();
@@ -70,7 +97,6 @@ export async function GET(req: Request) {
           filters.push({ status: 'Rejected' });
         }
       } else {
-        // Raw stage filter, kept for backwards compatibility.
         filters.push({ status: statusParam });
       }
     }
@@ -78,7 +104,6 @@ export async function GET(req: Request) {
     const requestId = (searchParams.get('request_id') || '').trim();
     if (requestId) filters.push({ request_id: requestId });
 
-    // Admins and managers can narrow by employee_id.
     if (auth.isAdmin || auth.role === 'SM' || auth.role === 'ASM' || auth.role === 'BDM') {
       const employeeId = (searchParams.get('employee_id') || '').trim();
       if (employeeId) filters.push({ employee_id: employeeId });
