@@ -5,7 +5,7 @@ import { Lead } from '@/models/lead';
 import { Attendance } from '@/models/attendence';
 import { EmployeeTask } from '@/models/employeeTask';
 import { Task, Wallet, Team } from '@/models';
-import { hierarchyRole } from '@/lib/hierarchy';
+import { hierarchyRole, getAsmTeamAndDistricts } from '@/lib/hierarchy';
 import { numericId, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
 import {
   getScope,
@@ -376,6 +376,10 @@ export async function GET(req: Request) {
       }
     }
 
+    const asmTeamInfo =
+      role === 'ASM' ? await getAsmTeamAndDistricts(employee) : null;
+    const asmDistricts: string[] = asmTeamInfo?.districts || [];
+
     const payload: any = {
       user: {
         id: numericId(employee?._id) || 101,
@@ -383,6 +387,7 @@ export async function GET(req: Request) {
         name: employeeName,
         email: employee?.email || '',
         role,
+        ...(role === 'ASM' ? { districts: asmDistricts } : {}),
       },
       designation_id: role === 'SM' ? 301 : role === 'ASM' ? 401 : 501,
       designation_name:
@@ -393,7 +398,7 @@ export async function GET(req: Request) {
             ? 'Area Sales Manager'
             : 'Business Development Executive'),
       dashboard_type: role === 'SM' ? 'sm' : role === 'ASM' ? 'asm' : 'bde',
-      team_name: employee?.team || '',
+      team_name: asmTeamInfo?.teamName || employee?.team || '',
       scope: {
         role,
         visible_employees: scope.isAll ? 'all' : scope.ids.length,
@@ -491,6 +496,12 @@ export async function GET(req: Request) {
       ...(role === 'SM'
         ? {
             teams: smTeamsList,
+          }
+        : {}),
+      ...(role === 'ASM'
+        ? {
+            districts: asmDistricts,
+            assigned_districts: asmDistricts,
           }
         : {}),
     };
