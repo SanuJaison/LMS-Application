@@ -74,10 +74,10 @@ function cleanData(tab: string, body: any) {
     if (data.reports_to) data.reports_to = String(data.reports_to).trim().toUpperCase();
     if (data.reports_to === data.employee_id) data.reports_to = '';
 
-    // Hash the employee password; never store it in plain text.
+    // Store the employee password in plain text so Admin can view it.
     // On update an empty password means "keep the existing one".
     if (typeof data.password === 'string' && data.password.trim()) {
-      data.password = bcrypt.hashSync(data.password.trim(), 10);
+      data.password = data.password.trim();
     } else {
       delete data.password;
     }
@@ -395,8 +395,7 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
         : { createdAt: -1 };
     const docs = await Model.find()
       .sort(sortOrder)
-      // Never expose password hashes (seeded employee docs can contain one).
-      .select(params.tab === 'employees' ? '-password' : '')
+      .select(params.tab === 'employees' ? '+password' : '')
       .lean();
     let data = docs.map((doc: any) => ({ ...doc, id: doc._id.toString() }));
 
@@ -410,8 +409,11 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
       const teamMap = teamNamesFromTeams(docs as any[], teams as any[]);
       data = data.map((row: any) => {
         const resolvedTargets = resolveEmployeeTargets(row, allEmployeeTasks as any[]);
+        const rawPass = typeof row.password === 'string' ? row.password : '';
+        const plainPassword = rawPass && !rawPass.startsWith('$2') ? rawPass : '';
         return {
           ...row,
+          password: plainPassword,
           team: teamMap.get(String(row.employee_id || '').trim().toUpperCase()) || row.team || '',
           daily_target: resolvedTargets.daily_target,
           monthly_target: resolvedTargets.monthly_target,

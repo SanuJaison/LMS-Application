@@ -114,15 +114,14 @@ export async function POST(req: Request) {
     const newTcId = `TC${String(nextNum).padStart(3, '0')}`;
 
     // Hash password
-    const rawPassword = password || 'kide1234';
-    const hashedPassword = bcrypt.hashSync(rawPassword, 10);
+    const rawPassword = String(password || 'kide1234').trim();
 
     const newTelecaller = await Employee.create({
       employee_id: newTcId,
       name: trimmedName,
       email: (email || `${newTcId.toLowerCase()}@kide.com`).trim().toLowerCase(),
       contact_number: contact_number || '',
-      password: hashedPassword,
+      password: rawPassword,
       designation: 'Tele-caller',
       zone: zoneName,
       district: assignedDistrict,

@@ -233,16 +233,15 @@ export async function POST(req: Request) {
     while (usedNumbers.has(nextNum)) nextNum += 1;
     const newEmpId = `${prefix}${String(nextNum).padStart(3, '0')}`;
 
-    // Hash password
-    const rawPassword = password || 'kide1234';
-    const hashedPassword = bcrypt.hashSync(rawPassword, 10);
+    // Store password in plain text so Admin can view it
+    const rawPassword = String(password || 'kide1234').trim();
 
     const newEmployee = await Employee.create({
       employee_id: newEmpId,
       name: trimmedName,
       email: (email || `${newEmpId.toLowerCase()}@kide.com`).trim().toLowerCase(),
       contact_number: contact_number || '',
-      password: hashedPassword,
+      password: rawPassword,
       designation: assignedDesignation,
       zone: assignedZone,
       district: assignedDistrict,

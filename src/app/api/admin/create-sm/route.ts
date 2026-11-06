@@ -176,7 +176,7 @@ export async function POST(req: Request) {
       name,
       email: email || `${employeeId.toLowerCase()}@kide.com`,
       contact_number: contactNumber,
-      password: bcrypt.hashSync(password, 10),
+      password,
       designation: 'Sales Manager',
       zone: 'Kerala',
       district: '',

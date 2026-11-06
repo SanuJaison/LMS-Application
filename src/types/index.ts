@@ -32,6 +32,7 @@ export interface Employee {
   employee_id: string;
   name: string;
   email: string;
+  password?: string;
   contact_number: string;
   designation: string;
   district: string;

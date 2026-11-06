@@ -343,15 +343,14 @@ export async function POST(req: Request) {
     while (usedNumbers.has(nextNum)) nextNum += 1;
     const newAsmId = `ASM${String(nextNum).padStart(3, '0')}`;
 
-    const rawPassword = password || 'kide1234';
-    const hashedPassword = bcrypt.hashSync(rawPassword, 10);
+    const rawPassword = String(password || 'kide1234').trim();
 
     const newAsm = await Employee.create({
       employee_id: newAsmId,
       name: trimmedName,
       email: (email || `${newAsmId.toLowerCase()}@kide.com`).trim().toLowerCase(),
       contact_number: contact_number || '',
-      password: hashedPassword,
+      password: rawPassword,
       designation: isOffice ? 'Office Team Lead' : 'Area Sales Manager',
       zone: assignedZone,
       district: assignedDistricts[0] || '',

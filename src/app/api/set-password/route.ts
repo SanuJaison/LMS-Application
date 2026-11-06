@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPassword = bcrypt.hashSync(String(password).trim(), 10);
+    const plainPassword = String(password).trim();
 
     const emp = await Employee.findOneAndUpdate(
       {
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
           ...(email ? [{ email: String(email).toLowerCase() }] : []),
         ],
       },
-      { password: hashedPassword },
+      { password: plainPassword },
       { new: true }
     );
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     if (email) {
       userUpdated = await User.findOneAndUpdate(
         { email: String(email).toLowerCase() },
-        { password: hashedPassword }
+        { password: plainPassword }
       );
     }
 

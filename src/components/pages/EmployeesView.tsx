@@ -369,7 +369,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     setFormData({
       name: emp.name || '',
       email: emp.email || '',
-      password: '',
+      password: emp.password && !String(emp.password).startsWith('$2') ? emp.password : '',
       employee_id: emp.employee_id || '',
       contact_number: emp.contact_number || '',
       designation: emp.designation || '',
@@ -1111,6 +1111,14 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     <span className="text-ink font-mono font-medium">{viewingEmployee.employee_id || '—'}</span>
                   </div>
                   <div className="bg-field p-3 rounded-lg border border-line">
+                    <span className="text-muted block mb-0.5">Password</span>
+                    <span className="text-ink font-mono font-medium">
+                      {viewingEmployee.password && !String(viewingEmployee.password).startsWith('$2')
+                        ? viewingEmployee.password
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="bg-field p-3 rounded-lg border border-line">
                     <span className="text-muted block mb-0.5">Contact</span>
                     <span className="text-ink font-medium">{viewingEmployee.contact_number || '—'}</span>
                   </div>
@@ -1277,13 +1285,13 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                     Password <span className="text-danger">*</span>
                   </label>
                   <input
-                    type="password"
+                    type="text"
                     required={!editingEmployee}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     placeholder={editingEmployee ? 'Leave blank to keep current' : 'e.g. password123'}
-                    autoComplete="new-password"
-                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none"
+                    autoComplete="off"
+                    className="w-full px-3 py-2 bg-field border border-line rounded-lg text-ink text-xs focus:ring-1 focus:ring-accent outline-none font-mono"
                   />
                   {editingEmployee && (
                     <span className="block mt-1 text-[10px] text-subtle">
