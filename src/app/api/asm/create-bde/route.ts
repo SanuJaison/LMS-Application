@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { Employee } from '@/models/employee';
 import { Team, Wallet } from '@/models';
 import { requireRoles, getScope, canAccessEmployee } from '@/lib/apiAuth';
+import { getAsmTeamAndDistricts } from '@/lib/hierarchy';
 import { logActivity, causerFromRequest } from '@/lib/activityLog';
 import { parseTargetInput, syncEmployeeTargets } from '@/lib/targetSync';
 import bcrypt from 'bcryptjs';
@@ -156,19 +157,13 @@ export async function POST(req: Request) {
 
     const assignedAsmId = asmEmployee.employee_id;
     const assignedAsmName = asmEmployee.name;
-    const assignedTeam = asmEmployee.team || (isOfficeLead ? 'Office Team' : '');
-    const assignedZone = asmEmployee.zone || 'Central Zone';
 
-    // A BDE must sit in one of the districts owned by its ASM's team.
-    const teamDoc: any = assignedTeam
-      ? await Team.findOne({
-          name: new RegExp(`^${escapeRegex(assignedTeam)}$`, 'i'),
-        }).lean()
-      : null;
-    const isOfficeTeam = isOfficeLead || teamDoc?.is_office || assignedTeam.toLowerCase() === 'office team';
-    const teamDistricts: string[] = Array.isArray(teamDoc?.districts)
-      ? teamDoc.districts.map((d: any) => String(d || '').trim()).filter(Boolean)
-      : [];
+    // Resolve the ASM's team and its exact 2 allowed districts
+    const asmTeamInfo = await getAsmTeamAndDistricts(asmEmployee);
+    const assignedTeam = asmTeamInfo.teamName || asmEmployee.team || (isOfficeLead ? 'Office Team' : '');
+    const assignedZone = asmTeamInfo.zone || asmEmployee.zone || 'Central Zone';
+    const isOfficeTeam = isOfficeLead || asmTeamInfo.isOffice || assignedTeam.toLowerCase() === 'office team';
+    const teamDistricts: string[] = asmTeamInfo.districts;
 
     let assignedDistrict = String(district || '').trim();
     if (isOfficeTeam) {
@@ -333,4 +328,61 @@ export async function POST(req: Request) {
 
 function escapeRegex(value: string): string {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * GET /api/asm/create-bde
+ * Returns the ASM's assigned team, zone, and its exact 2 allowed districts
+ * for selecting when creating a BDE under that ASM.
+ */
+export async function GET(req: Request) {
+  try {
+    await connectDB();
+
+    const guard = await requireRoles(req, ['ASM', 'BDM', 'SM', 'ADMIN', 'MD']);
+    if (!guard.ok) return guard.response;
+
+    const { auth } = guard;
+    const { searchParams } = new URL(req.url);
+    const requestedAsm = (searchParams.get('asm_id') || searchParams.get('employee_id') || '').trim();
+
+    let asmEmployee: any = null;
+    if (auth.role === 'ASM' || auth.role === 'BDM') {
+      asmEmployee = auth.employee;
+    } else if (requestedAsm) {
+      asmEmployee = await Employee.findOne({
+        employee_id: new RegExp(`^${escapeRegex(requestedAsm)}$`, 'i'),
+      }).lean();
+    }
+
+    if (!asmEmployee) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'ASM not found. Pass your ASM Bearer token or ?asm_id=ASM001.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const { teamName, zone, districts, isOffice } = await getAsmTeamAndDistricts(asmEmployee);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        asm_id: asmEmployee.employee_id,
+        asm_name: asmEmployee.name,
+        team: teamName,
+        zone,
+        is_office: isOffice,
+        districts,
+      },
+    });
+  } catch (error: any) {
+    console.error('GET /api/asm/create-bde error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Failed to fetch ASM districts' },
+      { status: 500 }
+    );
+  }
 }

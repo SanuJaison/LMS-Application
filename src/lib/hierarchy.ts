@@ -401,3 +401,95 @@ export async function buildTeamOverview(
     totals,
   };
 }
+
+const REGIONAL_TEAM_DISTRICTS: Record<
+  string,
+  { teamName: string; zone: string; districts: [string, string] }
+> = {
+  TVM: { teamName: 'TVM Team', zone: 'South Zone', districts: ['Thiruvananthapuram', 'Kollam'] },
+  PTM: { teamName: 'PTM Team', zone: 'South Zone', districts: ['Pathanamthitta', 'Alappuzha'] },
+  KTM: { teamName: 'KTM Team', zone: 'Central Zone', districts: ['Kottayam', 'Idukki'] },
+  EKM: { teamName: 'EKM Team', zone: 'Central Zone', districts: ['Ernakulam', 'Thrissur'] },
+  PKD: { teamName: 'PKD Team', zone: 'Central Zone', districts: ['Palakkad', 'Malappuram'] },
+  CLT: { teamName: 'CLT Team', zone: 'North Zone', districts: ['Kozhikode', 'Wayanad'] },
+  KZD: { teamName: 'KZD Team', zone: 'North Zone', districts: ['Kannur', 'Kasaragod'] },
+  KZE: { teamName: 'KZD Team', zone: 'North Zone', districts: ['Kannur', 'Kasaragod'] },
+};
+
+/**
+ * Resolve an ASM's team name, zone, and exact 2 allowed districts.
+ */
+export async function getAsmTeamAndDistricts(asmEmployee: any): Promise<{
+  teamName: string;
+  zone: string;
+  districts: string[];
+  isOffice: boolean;
+}> {
+  if (!asmEmployee) {
+    return { teamName: '', zone: '', districts: [], isOffice: false };
+  }
+
+  const empId = String(asmEmployee.employee_id || '').trim();
+  const empName = String(asmEmployee.name || '').trim();
+  const storedTeam = String(asmEmployee.team || '').trim();
+  const designation = String(asmEmployee.designation || '').trim().toLowerCase();
+
+  if (
+    designation.includes('office team lead') ||
+    storedTeam.toLowerCase() === 'office team'
+  ) {
+    return {
+      teamName: 'Office Team',
+      zone: asmEmployee.zone || 'Central Zone',
+      districts: [],
+      isOffice: true,
+    };
+  }
+
+  // 1. Try finding the Team document by team_lead or stored team name
+  const orConditions: any[] = [];
+  if (storedTeam) {
+    orConditions.push({ name: new RegExp(`^${escapeRegex(storedTeam)}$`, 'i') });
+  }
+  if (empId) {
+    orConditions.push({ team_lead: new RegExp(escapeRegex(empId), 'i') });
+  }
+  if (empName) {
+    orConditions.push({ team_lead: new RegExp(`^${escapeRegex(empName)}(\\s*\\(|$)`, 'i') });
+  }
+
+  const teamDoc: any =
+    orConditions.length > 0
+      ? await Team.findOne({ $or: orConditions }).lean()
+      : null;
+
+  const resolvedTeamName = teamDoc?.name || storedTeam || '';
+  const codeMatch = resolvedTeamName.trim().toUpperCase().match(/^([A-Z]{3})/);
+  const regionalCfg = codeMatch ? REGIONAL_TEAM_DISTRICTS[codeMatch[1]] : undefined;
+
+  let districts: string[] = [];
+  if (Array.isArray(teamDoc?.districts) && teamDoc.districts.length > 0) {
+    districts = teamDoc.districts.map((d: any) => String(d || '').trim()).filter(Boolean);
+  }
+  if (districts.length < 2 && regionalCfg) {
+    districts = [...regionalCfg.districts];
+  }
+  if (districts.length === 0 && asmEmployee.district) {
+    const empDistLower = String(asmEmployee.district).trim().toLowerCase();
+    const matchedCfg = Object.values(REGIONAL_TEAM_DISTRICTS).find((cfg) =>
+      cfg.districts.some((d) => d.toLowerCase() === empDistLower)
+    );
+    if (matchedCfg) {
+      districts = [...matchedCfg.districts];
+    } else {
+      districts = [String(asmEmployee.district).trim()];
+    }
+  }
+
+  return {
+    teamName: resolvedTeamName || regionalCfg?.teamName || '',
+    zone: teamDoc?.zone || regionalCfg?.zone || asmEmployee.zone || 'Central Zone',
+    districts,
+    isOffice: Boolean(teamDoc?.is_office),
+  };
+}

@@ -1,8 +1,10 @@
 import { connection } from "@/lib/db";
 import district from "@/models/districtModel";
+import { Employee } from "@/models/employee";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { requireAuth } from "@/lib/apiAuth";
+import { getAsmTeamAndDistricts } from "@/lib/hierarchy";
 
 // Default Kerala districts seeded automatically when the collection is empty
 const DEFAULT_DISTRICTS = [
@@ -22,15 +24,17 @@ const DEFAULT_DISTRICTS = [
   { name: "Kasaragod", zone: "North Zone" },
 ];
 
-// 1. GET: Fetch all districts (with optional search filter)
+// 1. GET: Fetch districts (when called by ASM or with ?asm_id=, returns ONLY that ASM's 2 districts)
 export async function GET(req: NextRequest) {
   try {
     await connection();
 
     const guard = await requireAuth(req);
     if (!guard.ok) return guard.response;
+    const { auth } = guard;
 
     const search = req.nextUrl.searchParams.get("search");
+    const requestedAsmId = (req.nextUrl.searchParams.get("asm_id") || "").trim();
 
     const query = search
       ? {
@@ -47,7 +51,25 @@ export async function GET(req: NextRequest) {
       await district.insertMany(DEFAULT_DISTRICTS);
     }
 
-    const allDistricts = await district.find(query).sort({ _id: 1 });
+    let allDistricts = await district.find(query).sort({ _id: 1 });
+
+    // If caller is an ASM/BDM, or if asm_id is specified, restrict to that ASM's 2 team districts
+    let asmEmployee = auth.role === "ASM" || auth.role === "BDM" ? auth.employee : null;
+    if (!asmEmployee && requestedAsmId) {
+      asmEmployee = await Employee.findOne({
+        employee_id: new RegExp(`^${requestedAsmId}$`, "i"),
+      }).lean();
+    }
+
+    if (asmEmployee) {
+      const { districts: allowedDistricts, isOffice } = await getAsmTeamAndDistricts(asmEmployee);
+      if (!isOffice && allowedDistricts.length > 0) {
+        const allowedSet = new Set(allowedDistricts.map((d) => d.toLowerCase()));
+        allDistricts = allDistricts.filter((d: any) =>
+          allowedSet.has(String(d.name || "").trim().toLowerCase())
+        );
+      }
+    }
 
     return NextResponse.json(allDistricts, { status: 200 });
   } catch (error) {
