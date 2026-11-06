@@ -63,6 +63,74 @@ async function findEmployee(idOrName: string): Promise<any | null> {
   }).lean();
 }
 
+async function findTeam(input: string): Promise<any | null> {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+
+  // Exact match first (e.g. "EKM Team", "Office Team")
+  let team: any = await Team.findOne({
+    name: new RegExp(`^${escapeRegex(raw)}$`, 'i'),
+  }).lean();
+  if (team) return team;
+
+  // Prefix word match (e.g. "EKM" matches "EKM Team")
+  team = await Team.findOne({
+    name: new RegExp(`^${escapeRegex(raw)}\\b`, 'i'),
+  }).lean();
+  if (team) return team;
+
+  // 3-letter regional code (e.g. "EKM", "TVM", "KZD", "KZE")
+  const codeMatch = raw.toUpperCase().match(/^([A-Z]{3})/);
+  if (codeMatch) {
+    let code = codeMatch[1];
+    if (code === 'KZE') code = 'KZD';
+    team = await Team.findOne({
+      name: new RegExp(`^${code}`, 'i'),
+    }).lean();
+    if (team) return team;
+  }
+
+  return null;
+}
+
+async function findTeamLeadEmployee(team: any): Promise<any | null> {
+  if (!team) return null;
+  const lead = parseTeamLead(team.team_lead || '');
+  let leadEmployee: any = null;
+
+  if (lead.employeeId) {
+    leadEmployee = await Employee.findOne({
+      employee_id: new RegExp(`^${escapeRegex(lead.employeeId)}$`, 'i'),
+    }).lean();
+  }
+  if (!leadEmployee && lead.name) {
+    leadEmployee = await findEmployee(lead.name);
+  }
+  // Fallback: look for the active ASM assigned to this team
+  if (!leadEmployee) {
+    leadEmployee = await Employee.findOne({
+      team: new RegExp(`^${escapeRegex(team.name)}$`, 'i'),
+      $or: [
+        { designation: /area sales manager/i },
+        { designation: /office team lead/i },
+        { employee_id: /^ASM/i },
+      ],
+      status: 'active',
+    }).lean();
+  }
+  // Fallback for Office Team:
+  if (!leadEmployee && team.is_office) {
+    leadEmployee = await Employee.findOne({
+      $or: [
+        { team: /office team/i },
+        { designation: /office team lead/i },
+      ],
+      status: 'active',
+    }).lean();
+  }
+  return leadEmployee;
+}
+
 /**
  * Resolve the requested assignee and enforce the caller's assignment rights.
  * Returns `{ error }` on failure.
@@ -88,21 +156,14 @@ async function resolveAssignee(
       };
     }
 
-    const team: any = await Team.findOne({
-      name: new RegExp(`^${escapeRegex(requestedTeam)}$`, 'i'),
-    }).lean();
+    const team: any = await findTeam(requestedTeam);
     if (!team) {
       return {
         error: { message: `Team "${requestedTeam}" not found.`, status: 400 },
       };
     }
 
-    const lead = parseTeamLead(team.team_lead || '');
-    const leadEmployee: any = lead.employeeId
-      ? await Employee.findOne({ employee_id: lead.employeeId }).lean()
-      : lead.name
-        ? await findEmployee(lead.name)
-        : null;
+    const leadEmployee = await findTeamLeadEmployee(team);
 
     if (!leadEmployee) {
       return {
@@ -133,21 +194,14 @@ async function resolveAssignee(
   }
 
   // 2) Employee assignment. Accept an employee_id, an employee name, or a
-  //    team name (SM only).
+  //    team code/name (e.g. "EKM" or "EKM Team") for SM/Admin.
   let employee: any = await findEmployee(requestedAssignee);
   let teamName = '';
 
-  if (!employee && auth.role === 'SM') {
-    const team: any = await Team.findOne({
-      name: new RegExp(`^${escapeRegex(requestedAssignee)}$`, 'i'),
-    }).lean();
+  if (!employee && (auth.role === 'SM' || auth.isAdmin)) {
+    const team: any = await findTeam(requestedAssignee);
     if (team) {
-      const lead = parseTeamLead(team.team_lead || '');
-      employee = lead.employeeId
-        ? await Employee.findOne({ employee_id: lead.employeeId }).lean()
-        : lead.name
-          ? await findEmployee(lead.name)
-          : null;
+      employee = await findTeamLeadEmployee(team);
       teamName = team.name;
     }
   }
