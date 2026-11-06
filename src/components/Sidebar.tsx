@@ -19,7 +19,6 @@ import {
   Wallet,
   CreditCard,
   Building2,
-  Receipt,
   Settings as SettingsIcon,
   ShieldCheck,
   ChevronDown,
@@ -291,18 +290,7 @@ export default function Sidebar({
                 }`}
               >
                 <Building2 className="w-4 h-4 text-accent" />
-                <span>Accounts & Finance</span>
-              </button>
-              <button suppressHydrationWarning
-                onClick={() => onTabChange('salaryRequests')}
-                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg transition cursor-pointer ${
-                  activeTab === 'salaryRequests'
-                    ? 'bg-active text-ink'
-                    : 'text-muted hover:text-ink hover:bg-hover'
-                }`}
-              >
-                <Receipt className="w-4 h-4" />
-                <span>Salary Requests</span>
+                <span>Accounts &amp; Finance</span>
               </button>
               <button suppressHydrationWarning
                 onClick={() => onTabChange('wallets')}
@@ -366,7 +354,7 @@ export default function Sidebar({
             onClick={() => toggleGroup('rolesPermissions')}
             className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted hover:text-ink uppercase tracking-wider cursor-pointer"
           >
-            <span>Roles & Permissions</span>
+            <span>Roles &amp; Permissions</span>
             {expandedGroups.rolesPermissions ? (
               <ChevronUp className="w-3.5 h-3.5" />
             ) : (
