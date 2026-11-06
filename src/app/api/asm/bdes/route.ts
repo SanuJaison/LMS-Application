@@ -15,6 +15,7 @@ import {
   resolveEmployeeTargets,
   syncEmployeeTargets,
 } from '@/lib/targetSync';
+import { escapeRegex } from '@/lib/employeeAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,15 +77,31 @@ export async function GET(req: Request) {
     const scope = await getScope(auth);
     const { searchParams } = new URL(req.url);
 
-    const baseFilter = {
-      $or: [
-        { designation: /business development executive/i },
-        { designation: /tele-caller/i },
-        { designation: /telecaller/i },
-        { employee_id: /^BDE/i },
-        { employee_id: /^TC/i },
-      ],
-    };
+    const isOfficeCaller =
+      String(auth.team || '').toLowerCase() === 'office team' ||
+      String(auth.employee?.designation || '').toLowerCase().includes('office team lead');
+
+    const isRegionalAsm = (auth.role === 'ASM' || auth.role === 'BDM') && !isOfficeCaller;
+
+    const teamParam = (searchParams.get('team') || '').trim();
+    const isExplicitOfficeQuery = teamParam.toLowerCase() === 'office team';
+
+    // Regional ASMs only manage field BDEs; office leads manage telecallers.
+    // For SM/Admin, /api/asm/bdes defaults to field BDEs unless querying Office Team.
+    const baseFilter: Record<string, any> = isOfficeCaller || isExplicitOfficeQuery
+      ? {
+          $or: [
+            { designation: /tele-caller/i },
+            { designation: /telecaller/i },
+            { employee_id: /^TC/i },
+          ],
+        }
+      : {
+          $or: [
+            { designation: /business development executive/i },
+            { employee_id: /^BDE/i },
+          ],
+        };
 
     const visibility =
       auth.isAdmin || auth.role === 'MD'
@@ -93,9 +110,22 @@ export async function GET(req: Request) {
 
     const filters: Record<string, any>[] = [baseFilter, visibility];
 
-    // ASM / BDM: strictly their own direct reports.
-    if (auth.role === 'ASM' || auth.role === 'BDM') {
+    // For Regional ASM: strictly their own direct reports, excluding any office team or telecaller.
+    if (isRegionalAsm) {
+      filters.push({
+        reports_to: auth.employeeId,
+        team: { $ne: 'Office Team' },
+        employee_id: { $not: /^TC/i },
+        designation: { $not: /tele/i },
+      });
+    } else if (auth.role === 'ASM' || auth.role === 'BDM') {
       filters.push({ reports_to: auth.employeeId });
+    } else if (!isExplicitOfficeQuery) {
+      // Default SM / Admin BDE list also excludes Office Team telecallers (use /api/office/telecallers for those)
+      filters.push({
+        team: { $ne: 'Office Team' },
+        employee_id: { $not: /^TC/i },
+      });
     }
 
     const asmId = (searchParams.get('asm_id') || '').trim();
@@ -118,20 +148,19 @@ export async function GET(req: Request) {
       filters.push({ reports_to: asmId });
     }
 
-    const team = (searchParams.get('team') || '').trim();
-    if (team) {
+    if (teamParam) {
       if (
         !auth.isAdmin &&
         auth.role !== 'MD' &&
         auth.role !== 'SM' &&
-        team.toLowerCase() !== auth.team.toLowerCase()
+        teamParam.toLowerCase() !== auth.team.toLowerCase()
       ) {
         return NextResponse.json(
           { success: false, message: 'You can only list your own team.' },
           { status: 403 }
         );
       }
-      filters.push({ team });
+      filters.push({ team: new RegExp(`^${escapeRegex(teamParam)}$`, 'i') });
     }
 
     const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();

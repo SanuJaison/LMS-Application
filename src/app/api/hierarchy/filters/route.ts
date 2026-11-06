@@ -44,6 +44,10 @@ export async function GET(req: Request) {
         filteredTeams = filteredTeams.filter(
           (t: any) => String(t.name || '').trim().toLowerCase() === teamName.trim().toLowerCase()
         );
+      } else if (!isOffice) {
+        filteredTeams = filteredTeams.filter(
+          (t: any) => !t.is_office && String(t.name || '').trim().toLowerCase() !== 'office team'
+        );
       }
     }
 

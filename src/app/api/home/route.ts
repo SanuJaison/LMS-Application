@@ -269,7 +269,24 @@ export async function GET(req: Request) {
             employee_id: { $in: scope.ids.filter((id) => id !== employeeId) },
           }).lean()) as any[]);
 
-    const bdeSubordinates = subordinates.filter((e) => hierarchyRole(e) === 'BDE');
+    const isOfficeLead =
+      String(employee?.team || '').toLowerCase() === 'office team' ||
+      String(employee?.designation || '').toLowerCase().includes('office team lead');
+
+    const isRegionalAsm = (role === 'ASM' || role === 'BDM') && !isOfficeLead;
+
+    const bdeSubordinates = subordinates.filter((e) => {
+      if (hierarchyRole(e) !== 'BDE') return false;
+      if (isRegionalAsm) {
+        if (String(e.team || '').toLowerCase() === 'office team') return false;
+        if (String(e.employee_id || '').toUpperCase().startsWith('TC')) return false;
+        if (/tele/i.test(String(e.designation || ''))) return false;
+        if (String(e.reports_to || '').trim().toUpperCase() !== String(employeeId).trim().toUpperCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
     const asmSubordinates = subordinates.filter((e) => {
       const r = hierarchyRole(e);
       return r === 'ASM' || r === 'BDM';

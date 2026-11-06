@@ -190,10 +190,21 @@ export async function getDirectReports(manager: any): Promise<any[]> {
     reports_to: { $regex: `^${escapeRegex(managerId)}$`, $options: 'i' },
   }).lean()) as any[];
 
+  const isOfficeLead =
+    String(manager?.team || '').toLowerCase() === 'office team' ||
+    String(manager?.designation || '').toLowerCase().includes('office team lead');
+  const isRegionalAsm =
+    (hierarchyRole(manager) === 'ASM' || hierarchyRole(manager) === 'BDM') && !isOfficeLead;
+
   return reports.filter(
     (report) =>
       String(report._id) !== String(manager?._id) &&
-      String(report.status || '').toLowerCase() !== 'inactive'
+      String(report.status || '').toLowerCase() !== 'inactive' &&
+      (!isRegionalAsm || (
+        String(report.team || '').toLowerCase() !== 'office team' &&
+        !String(report.employee_id || '').toUpperCase().startsWith('TC') &&
+        !/tele/i.test(String(report.designation || ''))
+      ))
   );
 }
 
