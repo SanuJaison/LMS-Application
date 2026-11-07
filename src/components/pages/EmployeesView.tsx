@@ -253,6 +253,19 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     return `${prefix}${String(next).padStart(3, '0')}`;
   };
 
+  const isOfficeEmployee = (emp?: Partial<Employee>): boolean => {
+    if (!emp) return false;
+    const team = (emp.team || '').toLowerCase();
+    const des = (emp.designation || '').toLowerCase();
+    const id = (emp.employee_id || '').toUpperCase();
+    return (
+      team.includes('office') ||
+      des.includes('office') ||
+      des.includes('tele') ||
+      id.startsWith('TC')
+    );
+  };
+
   // Filter & Sort
   const filteredAndSortedEmployees = useMemo(() => {
     let result = [...employees];
@@ -260,16 +273,15 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     if (roleFilter === 'sm') {
       result = result.filter((emp) => isSMDesignation(emp.designation));
     } else if (roleFilter === 'asm') {
-      result = result.filter((emp) => isASMDesignation(emp.designation));
-    } else if (roleFilter === 'bde') {
-      result = result.filter((emp) => isBDEDesignation(emp.designation));
-    } else if (roleFilter === 'office') {
       result = result.filter(
-        (emp) =>
-          (emp.team || '').toLowerCase().includes('office') ||
-          (emp.designation || '').toLowerCase().includes('tele') ||
-          (emp.designation || '').toLowerCase().includes('office')
+        (emp) => isASMDesignation(emp.designation) && !isOfficeEmployee(emp)
       );
+    } else if (roleFilter === 'bde') {
+      result = result.filter(
+        (emp) => isBDEDesignation(emp.designation) && !isOfficeEmployee(emp)
+      );
+    } else if (roleFilter === 'office') {
+      result = result.filter((emp) => isOfficeEmployee(emp));
     }
 
     if (searchQuery.trim()) {
@@ -719,7 +731,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
         >
           <span>Area Sales Managers (7 ASM Teams)</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-warning/10 text-warning border border-warning/30">
-            {employees.filter((e) => isASMDesignation(e.designation)).length}/7
+            {employees.filter((e) => isASMDesignation(e.designation) && !isOfficeEmployee(e)).length}/7
           </span>
         </button>
 
@@ -733,7 +745,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
         >
           <span>Business Development Executives (BDE)</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-900/40 text-emerald-300">
-            {employees.filter((e) => isBDEDesignation(e.designation)).length}
+            {employees.filter((e) => isBDEDesignation(e.designation) && !isOfficeEmployee(e)).length}
           </span>
         </button>
 
@@ -745,57 +757,73 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
               : 'bg-surface-2 text-muted hover:text-ink border border-line'
           }`}
         >
-          <span>Office Team (Tele-callers)</span>
+          <span>Office Team</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-hover text-muted">
-            {employees.filter(
-              (e) =>
-                (e.team || '').toLowerCase().includes('office') ||
-                (e.designation || '').toLowerCase().includes('tele')
-            ).length}
+            {employees.filter((e) => isOfficeEmployee(e)).length}
           </span>
         </button>
       </div>
 
       {/* ASM Regional Teams Overview Card when ASM filter is active */}
       {roleFilter === 'asm' && (
-        <div className="p-4 rounded-xl bg-surface-2 border border-warning/30 text-xs space-y-2">
-          <div className="flex items-center justify-between text-warning font-bold">
-            <span>Official 7 Regional Teams & Assigned Districts (1 ASM per Team, 2 Districts each)</span>
-            <span className="text-[11px] text-muted font-normal">Supervised by SM</span>
+        <div className="space-y-3">
+          <div className="p-4 rounded-xl bg-surface-2 border border-warning/30 text-xs space-y-2">
+            <div className="flex items-center justify-between text-warning font-bold">
+              <span>Official 7 Regional Teams & Assigned Districts (1 ASM per Team, 2 Districts each)</span>
+              <span className="text-[11px] text-muted font-normal">Supervised by SM</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">1. TVM Team</strong>
+                <span className="text-muted text-[10px]">Thiruvananthapuram, Kollam</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">2. PTM Team</strong>
+                <span className="text-muted text-[10px]">Pathanamthitta, Alappuzha</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">3. KTM Team</strong>
+                <span className="text-muted text-[11px]">Kottayam, Idukki</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">4. EKM Team</strong>
+                <span className="text-muted text-[10px]">Ernakulam, Thrissur</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">5. PKD Team</strong>
+                <span className="text-muted text-[10px]">Palakkad, Malappuram</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">6. CLT Team</strong>
+                <span className="text-muted text-[10px]">Kozhikode, Wayanad</span>
+              </div>
+              <div className="p-2 rounded bg-surface border border-line">
+                <strong className="text-ink block font-mono text-[11px]">7. KZE Team</strong>
+                <span className="text-muted text-[10px]">Kannur, Kasaragod</span>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">1. TVM Team</strong>
-              <span className="text-muted text-[10px]">Thiruvananthapuram, Kollam</span>
+
+          <div className="p-4 rounded-xl bg-surface-2 border border-accent/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="text-accent font-bold">Office Team (Under SM)</div>
+              <div className="text-muted text-[11px] mt-0.5">
+                Central Office Team Lead & Tele-callers (no district restriction) —{' '}
+                <strong className="text-ink">
+                  {employees.filter((e) => isOfficeEmployee(e)).length} member(s)
+                </strong>
+              </div>
             </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">2. PTM Team</strong>
-              <span className="text-muted text-[10px]">Pathanamthitta, Alappuzha</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">3. KTM Team</strong>
-              <span className="text-muted text-[10px]">Kottayam, Idukki</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">4. EKM Team</strong>
-              <span className="text-muted text-[10px]">Ernakulam, Thrissur</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">5. PKD Team</strong>
-              <span className="text-muted text-[10px]">Palakkad, Malappuram</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">6. CLT Team</strong>
-              <span className="text-muted text-[10px]">Kozhikode, Wayanad</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">7. KZE Team</strong>
-              <span className="text-muted text-[10px]">Kannur, Kasaragod</span>
-            </div>
-            <div className="p-2 rounded bg-surface border border-line">
-              <strong className="text-ink block font-mono text-[11px]">8. Office Team</strong>
-              <span className="text-muted text-[10px]">Tele-callers under SM</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRoleFilter('office');
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 text-xs font-semibold cursor-pointer self-start sm:self-auto"
+            >
+              View Office Team →
+            </button>
           </div>
         </div>
       )}

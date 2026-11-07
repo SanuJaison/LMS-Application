@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Building2,
   Calendar,
   CheckCircle2,
   Clock,
@@ -25,7 +26,7 @@ interface EmployeeTasksViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
 }
 
-type RoleTab = 'SM' | 'ASM' | 'BDE';
+type RoleTab = 'SM' | 'ASM' | 'BDE' | 'OFFICE';
 
 interface EmployeeLike {
   _id?: string;
@@ -324,11 +325,30 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     [employees]
   );
 
+  const isOfficeTeamMember = (employee: EmployeeLike) => {
+    const team = String(employee.team || '').toLowerCase().trim();
+    const des = String(employee.designation || '').toLowerCase().trim();
+    const id = String(employee.employee_id || '').toUpperCase().trim();
+    return (
+      team.includes('office') ||
+      des.includes('office') ||
+      des.includes('tele-caller') ||
+      des.includes('telecaller') ||
+      id.startsWith('TC')
+    );
+  };
+
+  const officeTeamEmployees = useMemo(
+    () => employees.filter((employee) => isOfficeTeamMember(employee)),
+    [employees]
+  );
+
   const asmEmployees = useMemo(() => {
     const smId = String(smEmployee?.employee_id || '').toLowerCase().trim();
     const smName = String(smEmployee?.name || '').toLowerCase().trim();
 
     return employees.filter((employee) => {
+      if (isOfficeTeamMember(employee)) return false;
       const reportsTo = String(employee.reports_to || '').toLowerCase().trim();
       const reportsToSm =
         Boolean(reportsTo) &&
@@ -337,7 +357,6 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
 
       return (
         /area sales manager/i.test(employee.designation || '') ||
-        /office team lead/i.test(employee.designation || '') ||
         /^ASM/i.test(employee.employee_id || '') ||
         reportsToSm
       );
@@ -357,27 +376,26 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     );
 
     return employees.filter((employee) => {
+      if (isOfficeTeamMember(employee)) return false;
       const reportsTo = String(employee.reports_to || '').toLowerCase().trim();
       const reportsToAsm =
         Boolean(reportsTo) && (asmIds.has(reportsTo) || asmNames.has(reportsTo));
 
       return (
         /business development executive/i.test(employee.designation || '') ||
-        /tele-?caller/i.test(employee.designation || '') ||
         /^BDE/i.test(employee.employee_id || '') ||
-        /^TC/i.test(employee.employee_id || '') ||
         reportsToAsm
       );
     });
   }, [employees, asmEmployees]);
 
   // The SM owns the whole tree, so the SM summary reflects the SM's own leads
-  // plus every ASM and BDE below them (the same scope the Sales Manager sees).
+  // plus every ASM, BDE, and Office Team member below them.
   const smScopeLeads = useMemo(() => {
     if (!smEmployee) return [];
 
     const asmIds = new Set(
-      asmEmployees
+      [...asmEmployees, ...officeTeamEmployees]
         .map((asm) => String(asm.employee_id || '').toLowerCase().trim())
         .filter(Boolean)
     );
@@ -391,10 +409,11 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
         return true;
       }
       if (asmEmployees.some((asm) => leadMatchesEmployee(lead, asm))) return true;
+      if (officeTeamEmployees.some((off) => leadMatchesEmployee(lead, off))) return true;
       if (bdeEmployees.some((bde) => leadMatchesEmployee(lead, bde))) return true;
       return false;
     });
-  }, [smEmployee, asmEmployees, bdeEmployees, leads]);
+  }, [smEmployee, asmEmployees, officeTeamEmployees, bdeEmployees, leads]);
 
   const monthOptions = useMemo(
     () =>
@@ -485,7 +504,51 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     });
   }, [bdeEmployees, employees, leads, employeeTasks, monthFilter]);
 
-  const activeRows = activeTab === 'BDE' ? bdeRows : asmRows;
+  const officeRows = useMemo<PersonMetrics[]>(() => {
+    return officeTeamEmployees.map((member) => {
+      const memberSubordinates = officeTeamEmployees.filter(
+        (sub) =>
+          String(sub._id || sub.employee_id) !== String(member._id || member.employee_id) &&
+          String(sub.reports_to || '').toLowerCase() ===
+            String(member.employee_id || '').toLowerCase()
+      );
+
+      const memberLeads = leads.filter((lead) => {
+        if (
+          member.employee_id &&
+          String(lead.asm_id || '').toLowerCase() ===
+            String(member.employee_id || '').toLowerCase()
+        ) {
+          return true;
+        }
+        if (leadMatchesEmployee(lead, member)) return true;
+        if (memberSubordinates.some((sub) => leadMatchesEmployee(lead, sub))) return true;
+        return false;
+      });
+
+      const manager = employees.find(
+        (employee) =>
+          String(employee.employee_id || '').toLowerCase() ===
+            String(member.reports_to || '').toLowerCase() ||
+          String(employee.name || '').toLowerCase() ===
+            String(member.reports_to || '').toLowerCase()
+      );
+
+      return {
+        ...buildPersonMetrics(member, memberLeads, employeeTasks, monthFilter),
+        bdes_count: memberSubordinates.length,
+        reports_to_name: manager?.name || smEmployee?.name || member.reports_to || '—',
+        team: member.team || 'Office Team',
+      };
+    });
+  }, [officeTeamEmployees, employees, leads, employeeTasks, smEmployee, monthFilter]);
+
+  const activeRows =
+    activeTab === 'BDE'
+      ? bdeRows
+      : activeTab === 'OFFICE'
+        ? officeRows
+        : asmRows;
 
   const hasActiveFilters =
     monthFilter !== 'all' ||
@@ -591,24 +654,31 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     icon: React.ElementType;
   }> = [
     { key: 'SM', label: 'SM', title: 'Sales Manager', icon: Shield },
-    { key: 'ASM', label: 'ASM', title: 'Area Sales Manager', icon: Users },
+    { key: 'ASM', label: 'ASM', title: 'Area Sales Manager (Regional Teams)', icon: Users },
+    { key: 'OFFICE', label: 'Office Team', title: 'Office Team (Tele-callers)', icon: Building2 },
     { key: 'BDE', label: 'BDE', title: 'Business Development Executive', icon: UserCheck },
   ];
 
   const tableTitle =
     activeTab === 'BDE'
       ? 'BDE performance'
-      : 'ASM performance';
+      : activeTab === 'OFFICE'
+        ? 'Office Team performance'
+        : 'ASM performance (Regional Teams)';
 
   const tableSubtitle =
     activeTab === 'BDE'
       ? 'Individual BDE targets, leads and follow-up counts.'
-      : 'Area Sales Manager daily and monthly targets, leads and follow-ups.';
+      : activeTab === 'OFFICE'
+        ? 'Office Team daily and monthly targets, leads and follow-ups.'
+        : 'Regional Area Sales Manager daily and monthly targets, leads and follow-ups.';
 
   const emptyMessage =
     activeTab === 'BDE'
       ? 'No BDEs yet. Each ASM creates BDEs from the ASM app.'
-      : 'No ASMs yet. The Sales Manager creates ASMs from the SM app.';
+      : activeTab === 'OFFICE'
+        ? 'No Office Team members found.'
+        : 'No Regional ASMs yet. The Sales Manager creates ASMs from the SM app.';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -778,11 +848,37 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
       {/* SM's own performance */}
       {activeTab === 'SM' && smMetrics && (
         <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-line">
-            <h2 className="text-sm font-bold text-ink">Sales Manager performance</h2>
-            <p className="text-[11px] text-muted mt-0.5">
-              The Sales Manager&apos;s own monthly target, leads and follow-ups.
-            </p>
+          <div className="p-4 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-ink">Sales Manager performance</h2>
+              <p className="text-[11px] text-muted mt-0.5">
+                The Sales Manager&apos;s own monthly target, leads and follow-ups.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              {monthFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setMonthFilter('all')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -845,227 +941,353 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 flex flex-col gap-3 border-b border-line">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-bold text-ink">{tableTitle}</h2>
-              <p className="text-[11px] text-muted mt-0.5">{tableSubtitle}</p>
+      {/* Table (shown for ASM, Office Team, and BDE tabs — hidden on SM tab) */}
+      {activeTab !== 'SM' && (
+        <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
+          <div className="p-4 flex flex-col gap-3 border-b border-line">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-ink">{tableTitle}</h2>
+                <p className="text-[11px] text-muted mt-0.5">{tableSubtitle}</p>
+              </div>
+              <span className="text-xs text-muted whitespace-nowrap">
+                Total: <strong className="text-ink">{filteredRows.length}</strong>
+              </span>
             </div>
-            <span className="text-xs text-muted whitespace-nowrap">
-              Total: <strong className="text-ink">{filteredRows.length}</strong>
-            </span>
-          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-              >
-                <option value="all">All Months</option>
-                {monthOptions.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-              >
-                <option value="all">All Teams</option>
-                {teamOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={districtFilter}
-                onChange={(e) => setDistrictFilter(e.target.value)}
-                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-              >
-                <option value="all">All Districts</option>
-                {districtOptions.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-
-              {activeTab === 'BDE' && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
-                  value={asmFilter}
-                  onChange={(e) => setAsmFilter(e.target.value)}
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(e.target.value)}
                   className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                 >
-                  <option value="all">All ASMs</option>
-                  {asmEmployees.map((asm) => (
-                    <option
-                      key={asm.employee_id || asm.name}
-                      value={asm.employee_id || asm.name}
-                    >
-                      {asm.name} {asm.employee_id ? `(${asm.employee_id})` : ''}
+                  <option value="all">All Months</option>
+                  {monthOptions.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
                     </option>
                   ))}
                 </select>
-              )}
 
-              <select
-                value={targetStatusFilter}
-                onChange={(e) => setTargetStatusFilter(e.target.value)}
-                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-              >
-                <option value="all">All Target Statuses</option>
-                <option value="met">Target Achieved</option>
-                <option value="pending">In Progress</option>
-                <option value="no_target">No Target Set</option>
-              </select>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                <select
+                  value={teamFilter}
+                  onChange={(e) => setTeamFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              )}
-            </div>
+                  <option value="all">All Teams</option>
+                  {teamOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder={activeTab === 'BDE' ? 'Search BDEs…' : 'Search ASMs…'}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-              />
+                <select
+                  value={districtFilter}
+                  onChange={(e) => setDistrictFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                >
+                  <option value="all">All Districts</option>
+                  {districtOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+
+                {activeTab === 'BDE' && (
+                  <select
+                    value={asmFilter}
+                    onChange={(e) => setAsmFilter(e.target.value)}
+                    className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                  >
+                    <option value="all">All ASMs</option>
+                    {asmEmployees.map((asm) => (
+                      <option
+                        key={asm.employee_id || asm.name}
+                        value={asm.employee_id || asm.name}
+                      >
+                        {asm.name} {asm.employee_id ? `(${asm.employee_id})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <select
+                  value={targetStatusFilter}
+                  onChange={(e) => setTargetStatusFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                >
+                  <option value="all">All Target Statuses</option>
+                  <option value="met">Target Achieved</option>
+                  <option value="pending">In Progress</option>
+                  <option value="no_target">No Target Set</option>
+                </select>
+
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder={
+                    activeTab === 'BDE'
+                      ? 'Search BDEs…'
+                      : activeTab === 'OFFICE'
+                        ? 'Search Office Team…'
+                        : 'Search ASMs…'
+                  }
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4">{activeTab === 'BDE' ? 'BDE' : 'ASM'}</th>
-                {activeTab === 'BDE' && <th className="py-3 px-4">ASM</th>}
-                <th className="py-3 px-4">Daily target</th>
-                <th className="py-3 px-4">Monthly target</th>
-                <th className="py-3 px-4">Leads</th>
-                <th className="py-3 px-4">Follow-ups</th>
-                <th className="py-3 px-4">Pending</th>
-                {activeTab !== 'BDE' && <th className="py-3 px-4">BDEs</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-2">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-16 text-center text-muted">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
-                      <span>Loading performance data…</span>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">
+                    {activeTab === 'BDE'
+                      ? 'BDE'
+                      : activeTab === 'OFFICE'
+                        ? 'Office Team Member'
+                        : 'ASM'}
+                  </th>
+                  {(activeTab === 'BDE' || activeTab === 'OFFICE') && (
+                    <th className="py-3 px-4">Reports To</th>
+                  )}
+                  <th className="py-3 px-4">Daily target</th>
+                  <th className="py-3 px-4">Monthly target</th>
+                  <th className="py-3 px-4">Leads</th>
+                  <th className="py-3 px-4">Follow-ups</th>
+                  <th className="py-3 px-4">Pending</th>
+                  {activeTab === 'ASM' && <th className="py-3 px-4">BDEs</th>}
                 </tr>
-              ) : paginatedRows.length > 0 ? (
-                paginatedRows.map((row, index) => (
-                  <tr
-                    key={`${row.employee_id || row._id || row.name}-${index}`}
-                    className="hover:bg-hover/60 transition"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-ink whitespace-nowrap">
-                        {row.name || '—'}
-                      </div>
-                      <div className="text-[11px] text-muted font-mono whitespace-nowrap">
-                        {row.employee_id || '—'}
-                        {row.team ? ` · ${row.team}` : ''}
+              </thead>
+              <tbody className="divide-y divide-line-2">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-muted">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Loader2 className="w-6 h-6 animate-spin text-accent" />
+                        <span>Loading performance data…</span>
                       </div>
                     </td>
-                    {activeTab === 'BDE' && (
+                  </tr>
+                ) : paginatedRows.length > 0 ? (
+                  paginatedRows.map((row, index) => (
+                    <tr
+                      key={`${row.employee_id || row._id || row.name}-${index}`}
+                      className="hover:bg-hover/60 transition"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-ink whitespace-nowrap">
+                          {row.name || '—'}
+                        </div>
+                        <div className="text-[11px] text-muted font-mono whitespace-nowrap">
+                          {row.employee_id || '—'}
+                          {row.team ? ` · ${row.team}` : ''}
+                        </div>
+                      </td>
+                      {(activeTab === 'BDE' || activeTab === 'OFFICE') && (
+                        <td className="py-3 px-4 text-muted whitespace-nowrap">
+                          {row.reports_to_name || '—'}
+                        </td>
+                      )}
+                      <td className="py-3 px-4 text-ink font-medium">
+                        <div>{row.daily_target || '—'}</div>
+                        {row.daily_target > 0 ? (
+                          <ProgressBar
+                            value={row.leads_today}
+                            target={row.daily_target}
+                            className="mt-1.5 w-24"
+                          />
+                        ) : (
+                          <div className="mt-1 text-[10px] text-muted">No target</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-ink font-medium">
+                        <div>{row.monthly_target || '—'}</div>
+                        {row.monthly_target > 0 ? (
+                          <ProgressBar
+                            value={row.leads_this_month}
+                            target={row.monthly_target}
+                            className="mt-1.5 w-24"
+                          />
+                        ) : (
+                          <div className="mt-1 text-[10px] text-muted">No target</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-ink">{row.total_leads}</td>
+                      <td className="py-3 px-4 text-ink">{row.total_followups}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                            row.pending_followups > 0
+                              ? 'bg-warning/10 text-warning border-warning/20'
+                              : 'bg-success/10 text-success border-success/20'
+                          }`}
+                        >
+                          {row.pending_followups > 0 ? (
+                            <Hourglass className="w-3 h-3" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                          {row.pending_followups}
+                        </span>
+                      </td>
+                      {activeTab === 'ASM' && (
+                        <td className="py-3 px-4 text-muted">{row.bdes_count ?? 0}</td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="py-12 text-center text-subtle"
+                    >
+                      {emptyMessage}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <TablePagination
+            total={filteredRows.length}
+            page={currentPage}
+            perPage={perPage}
+            onPageChange={setCurrentPage}
+            onPerPageChange={setPerPage}
+          />
+        </div>
+      )}
+
+      {/* Separate Office Team section under ASM tab */}
+      {activeTab === 'ASM' && (
+        <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
+          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line">
+            <div>
+              <h2 className="text-sm font-bold text-ink flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-accent" />
+                <span>Office Team</span>
+              </h2>
+              <p className="text-[11px] text-muted mt-0.5">
+                Office Team Lead and Tele-callers operating under the Sales Manager.
+              </p>
+            </div>
+            <span className="text-xs text-muted whitespace-nowrap">
+              Total: <strong className="text-ink">{officeRows.length}</strong>
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-line bg-surface-2 text-muted font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-4">Office Team Member</th>
+                  <th className="py-3 px-4">Designation</th>
+                  <th className="py-3 px-4">Reports To</th>
+                  <th className="py-3 px-4">Daily target</th>
+                  <th className="py-3 px-4">Monthly target</th>
+                  <th className="py-3 px-4">Leads</th>
+                  <th className="py-3 px-4">Follow-ups</th>
+                  <th className="py-3 px-4">Pending</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-2">
+                {officeRows.length > 0 ? (
+                  officeRows.map((row, index) => (
+                    <tr
+                      key={`office-${row.employee_id || row._id || row.name}-${index}`}
+                      className="hover:bg-hover/60 transition"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-ink whitespace-nowrap">
+                          {row.name || '—'}
+                        </div>
+                        <div className="text-[11px] text-muted font-mono whitespace-nowrap">
+                          {row.employee_id || '—'} · {row.team || 'Office Team'}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-muted whitespace-nowrap">
+                        {row.designation || 'Office Team'}
+                      </td>
                       <td className="py-3 px-4 text-muted whitespace-nowrap">
                         {row.reports_to_name || '—'}
                       </td>
-                    )}
-                    <td className="py-3 px-4 text-ink font-medium">
-                      <div>{row.daily_target || '—'}</div>
-                      {row.daily_target > 0 ? (
-                        <ProgressBar
-                          value={row.leads_today}
-                          target={row.daily_target}
-                          className="mt-1.5 w-24"
-                        />
-                      ) : (
-                        <div className="mt-1 text-[10px] text-muted">No target</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-ink font-medium">
-                      <div>{row.monthly_target || '—'}</div>
-                      {row.monthly_target > 0 ? (
-                        <ProgressBar
-                          value={row.leads_this_month}
-                          target={row.monthly_target}
-                          className="mt-1.5 w-24"
-                        />
-                      ) : (
-                        <div className="mt-1 text-[10px] text-muted">No target</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-ink">{row.total_leads}</td>
-                    <td className="py-3 px-4 text-ink">{row.total_followups}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                          row.pending_followups > 0
-                            ? 'bg-warning/10 text-warning border-warning/20'
-                            : 'bg-success/10 text-success border-success/20'
-                        }`}
-                      >
-                        {row.pending_followups > 0 ? (
-                          <Hourglass className="w-3 h-3" />
+                      <td className="py-3 px-4 text-ink font-medium">
+                        <div>{row.daily_target || '—'}</div>
+                        {row.daily_target > 0 ? (
+                          <ProgressBar
+                            value={row.leads_today}
+                            target={row.daily_target}
+                            className="mt-1.5 w-24"
+                          />
                         ) : (
-                          <CheckCircle2 className="w-3 h-3" />
+                          <div className="mt-1 text-[10px] text-muted">No target</div>
                         )}
-                        {row.pending_followups}
-                      </span>
+                      </td>
+                      <td className="py-3 px-4 text-ink font-medium">
+                        <div>{row.monthly_target || '—'}</div>
+                        {row.monthly_target > 0 ? (
+                          <ProgressBar
+                            value={row.leads_this_month}
+                            target={row.monthly_target}
+                            className="mt-1.5 w-24"
+                          />
+                        ) : (
+                          <div className="mt-1 text-[10px] text-muted">No target</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-ink">{row.total_leads}</td>
+                      <td className="py-3 px-4 text-ink">{row.total_followups}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                            row.pending_followups > 0
+                              ? 'bg-warning/10 text-warning border-warning/20'
+                              : 'bg-success/10 text-success border-success/20'
+                          }`}
+                        >
+                          {row.pending_followups > 0 ? (
+                            <Hourglass className="w-3 h-3" />
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3" />
+                          )}
+                          {row.pending_followups}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-subtle">
+                      No Office Team members found.
                     </td>
-                    {activeTab !== 'BDE' && (
-                      <td className="py-3 px-4 text-muted">{row.bdes_count ?? 0}</td>
-                    )}
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="py-12 text-center text-subtle"
-                  >
-                    {emptyMessage}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <TablePagination
-          total={filteredRows.length}
-          page={currentPage}
-          perPage={perPage}
-          onPageChange={setCurrentPage}
-          onPerPageChange={setPerPage}
-        />
-      </div>
+      )}
 
       {/* Scope note */}
       <div className="flex items-start gap-2 text-[11px] text-muted">
