@@ -57,6 +57,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   const [editBaseSalary, setEditBaseSalary] = useState<string>('5000');
   const [editLeaveDays, setEditLeaveDays] = useState<string>('0');
   const [editNetAmount, setEditNetAmount] = useState<string>('5000');
+  const [editSalaryStatus, setEditSalaryStatus] = useState<string>('Pending');
   const [editSalaryRemarks, setEditSalaryRemarks] = useState<string>('');
 
   // Load all accounts data
@@ -194,9 +195,9 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
     .filter((w) => w.status === 'Paid')
     .reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
 
-  // Total Salaries: sum of approved/paid salary requests
+  // Total Salaries: sum of paid salary requests only
   const totalSalaryExpenses = scopedSalariesForKpi
-    .filter((s) => s.status === 'Paid' || s.status === 'Approved')
+    .filter((s) => s.status === 'Paid')
     .reduce((acc, s) => acc + (Number(s.amount) || 5000), 0);
 
   // Total Expenses = Total Incentives Paid (or earned) + Total Salary Expenses
@@ -260,8 +261,40 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
     setEditBaseSalary(String(base));
     setEditLeaveDays(String(leaves));
     setEditNetAmount(String(net));
+    setEditSalaryStatus(req.status || 'Pending');
     setEditSalaryRemarks(req.remarks || '');
     setEditSalaryOpen(true);
+  };
+
+  // Inline quick status change for a salary row
+  const handleSalaryStatusChange = async (req: any, newStatus: string) => {
+    try {
+      setActionLoading(true);
+      const res = await fetch('/api/salary/requests', {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          id: req._id || req.id,
+          request_id: req.request_id,
+          status: newStatus,
+          status_only: true,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast?.(
+          'success',
+          `Salary status for ${req.employee_name} updated to ${newStatus}`
+        );
+        loadData();
+      } else {
+        showToast?.('danger', json.message || 'Failed to update salary status');
+      }
+    } catch {
+      showToast?.('danger', 'Failed to update salary status');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleLeaveDaysChange = (val: string) => {
@@ -285,6 +318,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           base_salary: Number(editBaseSalary) || 5000,
           leave_days: Number(editLeaveDays) || 0,
           amount: Number(editNetAmount) || 0,
+          status: editSalaryStatus,
           remarks: editSalaryRemarks,
         }),
       });
@@ -549,7 +583,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
             </span>
             <CreditCard className="w-4 h-4 text-accent" />
           </div>
-          <span className="text-[10px] text-muted mt-1">Approved/Paid</span>
+          <span className="text-[10px] text-muted mt-1">Paid Only</span>
         </div>
 
         {/* Total Expenses */}
@@ -592,7 +626,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
           }`}
         >
           <CreditCard className="w-4 h-4" />
-          <span>Monthly Salaries (₹5k Fixed — Auto-Credited 1st of Month)</span>
+          <span>Monthly Salaries (₹5k Fixed)</span>
           <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-hover text-muted">
             {salaryRequests.length}
           </span>
@@ -677,6 +711,7 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                 className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
               >
                 <option value="all">All Statuses</option>
+                <option value="Pending">Pending</option>
                 <option value="Submitted to ASM">Submitted to ASM</option>
                 <option value="Forwarded to SM">Forwarded to SM</option>
                 <option value="Forwarded to Accounts">Forwarded to Accounts</option>
@@ -794,20 +829,28 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                           ₹{netAmount.toLocaleString('en-IN')}
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                              req.status === 'Paid' || req.status === 'Approved'
+                          <select
+                            value={req.status || 'Pending'}
+                            disabled={actionLoading}
+                            onChange={(e) => handleSalaryStatusChange(req, e.target.value)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border cursor-pointer focus:outline-none ${
+                              req.status === 'Paid'
                                 ? 'bg-success/10 text-success border-success/30'
                                 : req.status === 'Rejected'
                                   ? 'bg-danger/10 text-danger border-danger/30'
                                   : 'bg-warning/10 text-warning border-warning/30'
                             }`}
                           >
-                            <CheckCircle className="w-3 h-3" />
-                            <span>
-                              {req.status === 'Paid' ? 'Credited (1st)' : req.status}
-                            </span>
-                          </span>
+                            <option value="Pending" className="bg-surface text-ink">
+                              Pending
+                            </option>
+                            <option value="Paid" className="bg-surface text-ink">
+                              Paid
+                            </option>
+                            <option value="Rejected" className="bg-surface text-ink">
+                              Rejected
+                            </option>
+                          </select>
                         </td>
                         <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                           <button
@@ -1203,6 +1246,21 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
                 <span className="block text-[10px] text-muted mt-1">
                   Automatically decreases by ₹{Math.round((Number(editBaseSalary) || 5000) / 30)} per leave day, or enter custom amount directly.
                 </span>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-ink/80 mb-1">
+                  Salary Status
+                </label>
+                <select
+                  value={editSalaryStatus}
+                  onChange={(e) => setEditSalaryStatus(e.target.value)}
+                  className="w-full bg-field border border-line rounded-lg px-3 py-2 text-ink text-xs focus:outline-none focus:border-accent cursor-pointer"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
               </div>
 
               <div>

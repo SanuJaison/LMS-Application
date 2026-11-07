@@ -66,6 +66,24 @@ export async function syncMonthlySalaries(targetPeriod?: string): Promise<void> 
     { $set: { salary: 5000 } }
   );
 
+  // Convert any previously system-auto-credited rows (with AUTO-SAL-* reference) to 'Pending'
+  // so only rows explicitly marked 'Paid' by Admin count as paid salary expenses.
+  await SalaryRequest.updateMany(
+    {
+      status: 'Paid',
+      transaction_reference: { $regex: /^AUTO-SAL-/ },
+    },
+    {
+      $set: {
+        status: 'Pending',
+        transaction_reference: '',
+      },
+      $unset: {
+        payment_date: 1,
+      },
+    }
+  );
+
   const employees: any[] = await Employee.find({
     status: { $ne: 'inactive' },
   }).lean();
@@ -199,20 +217,17 @@ export async function syncMonthlySalaries(targetPeriod?: string): Promise<void> 
             attendance_days: Math.max(0, 30 - computedLeaveDays),
             remarks:
               computedLeaveDays > 0
-                ? `Auto-credited ₹${baseSalary} fixed salary on 1st of month (−₹${deduction} for ${computedLeaveDays} leave day(s))`
-                : `Auto-credited ₹${baseSalary} fixed monthly salary on 1st of month`,
-            status: 'Paid',
-            payment_date: firstOfMonth,
-            transaction_reference: `AUTO-SAL-${now.getFullYear()}${String(
-              now.getMonth() + 1
-            ).padStart(2, '0')}-${empId.toUpperCase()}`,
+                ? `Fixed ₹${baseSalary} monthly salary (−₹${deduction} for ${computedLeaveDays} leave day(s))`
+                : `Fixed ₹${baseSalary} monthly salary`,
+            status: 'Pending',
+            transaction_reference: '',
             approval_history: [
               {
-                step: 'Auto-Credit (1st of Month)',
+                step: 'Monthly Salary Generated',
                 actor: 'System',
                 role: 'SYSTEM',
-                action: 'Auto-Credited Monthly Salary',
-                remarks: `Fixed ₹${baseSalary} monthly salary credited (Leaves: ${computedLeaveDays})`,
+                action: 'Generated Monthly Salary',
+                remarks: `Fixed ₹${baseSalary} monthly salary generated (Leaves: ${computedLeaveDays})`,
                 timestamp: firstOfMonth,
               },
             ],
@@ -221,10 +236,9 @@ export async function syncMonthlySalaries(targetPeriod?: string): Promise<void> 
         { upsert: true, new: true }
       );
     } else if (!existing.manual_override) {
-      // Automatically recalculate if leaves changed and Admin hasn't locked a manual override,
-      // OR if new leaves were taken since last calculation.
+      // Automatically recalculate if leaves changed and Admin hasn't locked a manual override.
       const prevLeaves = Number(existing.leave_days || 0);
-      if (computedLeaveDays !== prevLeaves || existing.status !== 'Paid') {
+      if (computedLeaveDays !== prevLeaves) {
         const deduction = Math.round((baseSalary / 30) * computedLeaveDays);
         const netAmount = Math.max(0, baseSalary - deduction);
         await SalaryRequest.updateOne(
@@ -236,11 +250,10 @@ export async function syncMonthlySalaries(targetPeriod?: string): Promise<void> 
               deduction,
               amount: netAmount,
               attendance_days: Math.max(0, 30 - computedLeaveDays),
-              status: existing.status === 'Rejected' ? 'Rejected' : 'Paid',
               remarks:
                 computedLeaveDays > 0
-                  ? `Auto-credited ₹${baseSalary} fixed salary on 1st of month (−₹${deduction} for ${computedLeaveDays} leave day(s))`
-                  : `Auto-credited ₹${baseSalary} fixed monthly salary on 1st of month`,
+                  ? `Fixed ₹${baseSalary} monthly salary (−₹${deduction} for ${computedLeaveDays} leave day(s))`
+                  : `Fixed ₹${baseSalary} monthly salary`,
             },
           }
         );

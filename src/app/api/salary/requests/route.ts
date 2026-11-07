@@ -167,7 +167,7 @@ export async function PUT(req: Request) {
 
     const deduction = Math.max(0, baseSalary - netAmount);
     const attendanceDays = Math.max(0, 30 - leaveDays);
-    const status = body.status || existing.status || 'Paid';
+    const status = body.status || existing.status || 'Pending';
     const remarks =
       body.remarks !== undefined
         ? String(body.remarks)
@@ -175,6 +175,7 @@ export async function PUT(req: Request) {
           ? `Base ₹${baseSalary} − ₹${deduction} (${leaveDays} leave day(s)) = ₹${netAmount}`
           : existing.remarks || `Fixed ₹${baseSalary} monthly salary`;
 
+    const isStatusOnly = body.status_only === true;
     const resetAuto = body.manual_override === false;
 
     existing.base_salary = baseSalary;
@@ -184,17 +185,34 @@ export async function PUT(req: Request) {
     existing.attendance_days = attendanceDays;
     existing.status = status;
     existing.remarks = remarks;
-    existing.manual_override = !resetAuto;
+    if (!isStatusOnly) {
+      existing.manual_override = !resetAuto;
+    }
+
+    if (status === 'Paid') {
+      existing.payment_date = existing.payment_date || new Date();
+      if (
+        !existing.transaction_reference ||
+        String(existing.transaction_reference).startsWith('AUTO-SAL-')
+      ) {
+        existing.transaction_reference = `SAL-PAID-${Date.now().toString().slice(-6)}`;
+      }
+    } else {
+      existing.payment_date = undefined;
+      if (String(existing.transaction_reference || '').startsWith('AUTO-SAL-')) {
+        existing.transaction_reference = '';
+      }
+    }
 
     if (!Array.isArray(existing.approval_history)) {
       existing.approval_history = [];
     }
     existing.approval_history.push({
-      step: 'Admin Salary Adjustment',
+      step: isStatusOnly ? 'Admin Salary Status Update' : 'Admin Salary Adjustment',
       actor: 'Administrator',
       role: 'ADMIN',
-      action: 'UPDATED_SALARY',
-      remarks: `Updated net salary to ₹${netAmount} (Base: ₹${baseSalary}, Leaves: ${leaveDays} days, Deduction: ₹${deduction})`,
+      action: isStatusOnly ? `STATUS_${String(status).toUpperCase()}` : 'UPDATED_SALARY',
+      remarks: `Updated salary status to ${status}, net salary ₹${netAmount} (Base: ₹${baseSalary}, Leaves: ${leaveDays} days, Deduction: ₹${deduction})`,
       timestamp: new Date(),
     });
 

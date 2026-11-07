@@ -19,6 +19,7 @@ export interface ISalaryRequest extends Document {
   attendance_days?: number;
   remarks?: string;
   status:
+    | 'Pending'
     | 'Submitted to ASM'
     | 'Forwarded to SM'
     | 'Forwarded to Accounts'
@@ -130,6 +131,7 @@ const SalaryRequestSchema = new Schema<ISalaryRequest>(
     status: {
       type: String,
       enum: [
+        'Pending',
         'Submitted to ASM',
         'Forwarded to SM',
         'Forwarded to Accounts',
@@ -137,7 +139,7 @@ const SalaryRequestSchema = new Schema<ISalaryRequest>(
         'Rejected',
         'Paid',
       ],
-      default: 'Paid',
+      default: 'Pending',
       index: true,
     },
     approval_history: [
