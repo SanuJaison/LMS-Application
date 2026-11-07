@@ -19,6 +19,9 @@ export interface IEmployee extends Document {
   salary?: number;
   incentive?: number;
   daily_target?: number;
+  daily_target_date?: string;
+  daily_carryover?: number;
+  daily_assigned?: number;
   monthly_target?: number;
   status: string;
   createdAt: Date;
@@ -111,6 +114,19 @@ const EmployeeSchema = new Schema<IEmployee>(
       default: 0,
     },
     daily_target: {
+      type: Number,
+      default: 0,
+    },
+    daily_target_date: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    daily_carryover: {
+      type: Number,
+      default: 0,
+    },
+    daily_assigned: {
       type: Number,
       default: 0,
     },

@@ -7,6 +7,7 @@ import { getNextStudentId } from '@/lib/studentId';
 import {
   parseTargetInput,
   resolveEmployeeTargets,
+  rolloverDailyTargetsIfNeeded,
   syncEmployeeTargets,
 } from '@/lib/targetSync';
 import { syncMonthlySalaries } from '@/lib/salarySync';
@@ -379,6 +380,14 @@ export async function GET(req: Request, { params }: { params: { tab: string } })
       await syncMonthlySalaries();
     }
 
+    if (
+      params.tab === 'employees' ||
+      params.tab === 'employeeTasks' ||
+      params.tab === 'employee-tasks'
+    ) {
+      await rolloverDailyTargetsIfNeeded();
+    }
+
     const sortOrder: any =
       params.tab === 'employees' ||
       params.tab === 'teams' ||
@@ -442,6 +451,14 @@ export async function POST(req: Request, { params }: { params: { tab: string } }
 
     if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
       await syncMonthlySalaries();
+    }
+
+    if (
+      params.tab === 'employees' ||
+      params.tab === 'employeeTasks' ||
+      params.tab === 'employee-tasks'
+    ) {
+      await rolloverDailyTargetsIfNeeded();
     }
 
     const body = await req.json();
@@ -568,6 +585,14 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
       await syncMonthlySalaries();
     }
 
+    if (
+      params.tab === 'employees' ||
+      params.tab === 'employeeTasks' ||
+      params.tab === 'employee-tasks'
+    ) {
+      await rolloverDailyTargetsIfNeeded();
+    }
+
     const body = await req.json();
     const id = body.id || body._id;
 
@@ -627,6 +652,10 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
       }
     }
 
+    if (params.tab === 'employees') {
+      delete payload.daily_target;
+    }
+
     const updated = await Model.findByIdAndUpdate(id, payload, { new: true });
 
     if (!updated) {
@@ -636,7 +665,7 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
     if (params.tab === 'employees') {
       const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
       if (hasDaily || hasMonthly) {
-        await syncEmployeeTargets(
+        const synced = await syncEmployeeTargets(
           {
             employee_id: (updated as any).employee_id,
             name: (updated as any).name,
@@ -645,6 +674,8 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
           hasDaily ? dailyTarget : undefined,
           hasMonthly ? monthlyTarget : undefined
         );
+        (updated as any).daily_target = synced.daily_target;
+        (updated as any).monthly_target = synced.monthly_target;
       }
     }
 
@@ -688,6 +719,14 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
 
     if (params.tab === 'salaryRequests' || params.tab === 'salary-requests') {
       await syncMonthlySalaries();
+    }
+
+    if (
+      params.tab === 'employees' ||
+      params.tab === 'employeeTasks' ||
+      params.tab === 'employee-tasks'
+    ) {
+      await rolloverDailyTargetsIfNeeded();
     }
 
     if (params.tab === 'tasks') {

@@ -7,6 +7,7 @@ import { andFilter, getScope, requireRoles, scopeFilter } from '@/lib/apiAuth';
 import {
   parseTargetInput,
   resolveEmployeeTargets,
+  rolloverDailyTargetsIfNeeded,
   syncEmployeeTargets,
 } from '@/lib/targetSync';
 
@@ -105,6 +106,8 @@ export async function GET(req: Request) {
       auth.isAdmin || auth.role === 'MD'
         ? {}
         : scopeFilter(scope, { idFields: ['employee_id'] });
+
+    await rolloverDailyTargetsIfNeeded();
 
     let asms: any[] = await Employee.find(andFilter(asmFilter, visibility))
       .sort({ employee_id: 1 })
@@ -405,8 +408,6 @@ async function updateAsm(req: Request) {
     if (body.incentive !== undefined && !isNaN(Number(body.incentive))) {
       asm.incentive = Math.max(0, Number(body.incentive));
     }
-    if (hasDaily) asm.daily_target = dailyTarget;
-    if (hasMonthly) asm.monthly_target = monthlyTarget;
     if (body.status !== undefined) asm.status = String(body.status).trim().toLowerCase();
     if (body.bank_name !== undefined) asm.bank_name = String(body.bank_name).trim();
     if (body.account_holder_name !== undefined) {
@@ -423,7 +424,7 @@ async function updateAsm(req: Request) {
     await asm.save();
 
     if (hasDaily || hasMonthly) {
-      await syncEmployeeTargets(
+      const synced = await syncEmployeeTargets(
         {
           employee_id: asm.employee_id,
           name: asm.name,
@@ -432,6 +433,8 @@ async function updateAsm(req: Request) {
         hasDaily ? dailyTarget : undefined,
         hasMonthly ? monthlyTarget : undefined
       );
+      asm.daily_target = synced.daily_target;
+      asm.monthly_target = synced.monthly_target;
     }
 
     return NextResponse.json({

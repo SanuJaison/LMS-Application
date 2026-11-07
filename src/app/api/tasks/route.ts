@@ -444,14 +444,7 @@ export async function POST(req: Request) {
       }
     }
     if ((syncDaily !== undefined || syncMonthly !== undefined) && assignee.employeeId) {
-      const updateFields: any = {};
-      if (syncDaily !== undefined) updateFields.daily_target = syncDaily;
-      if (syncMonthly !== undefined) updateFields.monthly_target = syncMonthly;
-      await Employee.findOneAndUpdate(
-        { employee_id: assignee.employeeId },
-        { $set: updateFields }
-      );
-      await syncEmployeeTargets(
+      const synced = await syncEmployeeTargets(
         {
           employee_id: assignee.employeeId,
           name: assignee.name,
@@ -459,6 +452,10 @@ export async function POST(req: Request) {
         syncDaily,
         syncMonthly
       );
+      if (syncDaily !== undefined && /daily/i.test(title)) {
+        task.target_count = synced.daily_target;
+        await task.save();
+      }
     }
 
     return NextResponse.json(
@@ -621,14 +618,7 @@ async function updateTask(req: Request) {
       }
     }
     if ((syncDaily !== undefined || syncMonthly !== undefined) && task.assigned_to_id) {
-      const updateFields: any = {};
-      if (syncDaily !== undefined) updateFields.daily_target = syncDaily;
-      if (syncMonthly !== undefined) updateFields.monthly_target = syncMonthly;
-      await Employee.findOneAndUpdate(
-        { employee_id: task.assigned_to_id },
-        { $set: updateFields }
-      );
-      await syncEmployeeTargets(
+      const synced = await syncEmployeeTargets(
         {
           employee_id: task.assigned_to_id,
           name: task.assigned_to,
@@ -636,6 +626,10 @@ async function updateTask(req: Request) {
         syncDaily,
         syncMonthly
       );
+      if (syncDaily !== undefined && /daily/i.test(task.title || '')) {
+        task.target_count = synced.daily_target;
+        await task.save();
+      }
     }
 
     await logActivity({

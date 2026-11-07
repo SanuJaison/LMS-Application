@@ -7,6 +7,7 @@ import { EmployeeTask } from '@/models/employeeTask';
 import { Task, Wallet, Team } from '@/models';
 import { hierarchyRole, getAsmTeamAndDistricts } from '@/lib/hierarchy';
 import { numericId, todayKey, formatHoursWorked } from '@/lib/employeeAuth';
+import { rolloverDailyTargetsIfNeeded, resolveEmployeeTargets } from '@/lib/targetSync';
 import {
   getScope,
   leadScopeFilter,
@@ -34,7 +35,10 @@ export async function GET(req: Request) {
     if (!guard.ok) return guard.response;
 
     const { auth } = guard;
-    const employee = auth.employee;
+    await rolloverDailyTargetsIfNeeded(auth.employeeId);
+    const employee: any =
+      (auth.employee?._id ? await Employee.findById(auth.employee._id).lean() : null) ||
+      auth.employee;
     const employeeId = auth.employeeId;
     const employeeName = auth.name;
     const role = hierarchyRole(employee);
@@ -120,39 +124,8 @@ export async function GET(req: Request) {
     );
 
     // 1. Daily Target (SM does not have a daily target; always 0 for SM)
-    const dailyTargetRow =
-      role === 'SM'
-        ? null
-        : myTargetRows.find(
-            (t) =>
-              t.task_template?.toLowerCase().includes('daily') ||
-              (t.period_start &&
-                String(t.period_start).slice(0, 10) === todayIso &&
-                !t.task_template?.toLowerCase().includes('monthly'))
-          ) || myTargetRows.find((t) => !t.task_template?.toLowerCase().includes('monthly'));
-
-    const dailyTaskRow =
-      role === 'SM'
-        ? null
-        : myTasks.find(
-            (t) =>
-              (t.title?.toLowerCase().includes('daily') ||
-                t.task_template?.toLowerCase().includes('daily')) &&
-              typeof t.target_count === 'number' &&
-              t.target_count > 0
-          );
-
-    const dailyTarget =
-      role === 'SM'
-        ? 0
-        : typeof dailyTargetRow?.total_target === 'number' && dailyTargetRow.total_target > 0
-          ? dailyTargetRow.total_target
-          : typeof dailyTaskRow?.target_count === 'number' && dailyTaskRow.target_count > 0
-            ? dailyTaskRow.target_count
-            : typeof (employee as any)?.daily_target === 'number' &&
-                (employee as any).daily_target > 0
-              ? (employee as any).daily_target
-              : 0;
+    const resolvedForHome = resolveEmployeeTargets(employee, myTargetRows);
+    const dailyTarget = role === 'SM' ? 0 : resolvedForHome.daily_target;
 
     // 2. Monthly Target (prefer current month row, fallback to latest monthly row)
     const monthlyTargetRow =

@@ -5,6 +5,7 @@ import { EmployeeTask } from '@/models/employeeTask';
 import { Employee } from '@/models/employee';
 import { authenticate, getScope, requireAuth } from '@/lib/apiAuth';
 import { escapeRegex } from '@/lib/employeeAuth';
+import { rolloverDailyTargetsIfNeeded, syncEmployeeTargets } from '@/lib/targetSync';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,8 @@ export async function GET(req: NextRequest) {
         ],
       });
     }
+
+    await rolloverDailyTargetsIfNeeded();
 
     const query = filters.length > 0 ? (filters.length === 1 ? filters[0] : { $and: filters }) : {};
 
@@ -150,15 +153,18 @@ export async function POST(req: NextRequest) {
       const isDaily = /daily/i.test(task_template);
       const isMonthly = /monthly/i.test(task_template);
       if (isDaily || isMonthly) {
-        await Employee.findOneAndUpdate(
-          { employee_id: employee_id.trim() },
+        const synced = await syncEmployeeTargets(
           {
-            $set: {
-              ...(isDaily ? { daily_target: Number(total_target) || 15 } : {}),
-              ...(isMonthly ? { monthly_target: Number(total_target) || 15 } : {}),
-            },
-          }
+            employee_id: employee_id.trim(),
+            name: employee.trim(),
+          },
+          isDaily ? Number(total_target) || 0 : undefined,
+          isMonthly ? Number(total_target) || 0 : undefined
         );
+        if (isDaily) {
+          newTask.total_target = synced.daily_target;
+          await newTask.save();
+        }
       }
     }
 
@@ -244,14 +250,13 @@ export async function PUT(req: NextRequest) {
       const isDaily = /daily/i.test(existingTask.task_template || '');
       const isMonthly = /monthly/i.test(existingTask.task_template || '');
       if (isDaily || isMonthly) {
-        await Employee.findOneAndUpdate(
-          { employee_id: existingTask.employee_id },
+        await syncEmployeeTargets(
           {
-            $set: {
-              ...(isDaily ? { daily_target: total_target } : {}),
-              ...(isMonthly ? { monthly_target: total_target } : {}),
-            },
-          }
+            employee_id: existingTask.employee_id,
+            name: existingTask.employee || '',
+          },
+          isDaily ? total_target : undefined,
+          isMonthly ? total_target : undefined
         );
       }
     }

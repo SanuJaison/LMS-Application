@@ -13,6 +13,7 @@ import {
 import {
   parseTargetInput,
   resolveEmployeeTargets,
+  rolloverDailyTargetsIfNeeded,
   syncEmployeeTargets,
 } from '@/lib/targetSync';
 import { escapeRegex } from '@/lib/employeeAuth';
@@ -172,6 +173,8 @@ export async function GET(req: Request) {
     const wantedId = (searchParams.get('id') || searchParams.get('_id') || '').trim();
     const wantedEmployeeId = (searchParams.get('employee_id') || '').trim();
     const wantedEmail = (searchParams.get('email') || '').trim();
+
+    await rolloverDailyTargetsIfNeeded();
 
     let bdes: any[] = await Employee.find(andFilter(...filters))
       .sort({ employee_id: 1 })
@@ -403,8 +406,6 @@ async function updateBde(req: Request) {
     if (body.incentive !== undefined && !isNaN(Number(body.incentive))) {
       bde.incentive = Math.max(0, Number(body.incentive));
     }
-    if (hasDaily) bde.daily_target = dailyTarget;
-    if (hasMonthly) bde.monthly_target = monthlyTarget;
     if (body.status !== undefined) bde.status = String(body.status).trim().toLowerCase();
     if (body.bank_name !== undefined) bde.bank_name = String(body.bank_name).trim();
     if (body.account_holder_name !== undefined) {
@@ -421,7 +422,7 @@ async function updateBde(req: Request) {
     await bde.save();
 
     if (hasDaily || hasMonthly) {
-      await syncEmployeeTargets(
+      const synced = await syncEmployeeTargets(
         {
           employee_id: bde.employee_id,
           name: bde.name,
@@ -430,6 +431,8 @@ async function updateBde(req: Request) {
         hasDaily ? dailyTarget : undefined,
         hasMonthly ? monthlyTarget : undefined
       );
+      bde.daily_target = synced.daily_target;
+      bde.monthly_target = synced.monthly_target;
     }
 
     return NextResponse.json({
