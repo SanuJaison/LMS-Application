@@ -1,4 +1,4 @@
-import { GET as listAsms, PUT as updateAsm } from '../route';
+import { GET as listAsms, PUT as updateAsm, DELETE as deleteAsm } from '../route';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,4 +44,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   return PUT(req, { params });
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const url = new URL(req.url);
+  url.searchParams.set('id', params.id);
+
+  return deleteAsm(
+    new Request(url.toString(), {
+      method: 'DELETE',
+      headers: req.headers,
+    })
+  );
 }

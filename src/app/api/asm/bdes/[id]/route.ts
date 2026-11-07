@@ -1,4 +1,4 @@
-import { GET as listBdes, PUT as updateBde } from '../route';
+import { GET as listBdes, PUT as updateBde, DELETE as deleteBde } from '../route';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,4 +44,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   return PUT(req, { params });
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const url = new URL(req.url);
+  url.searchParams.set('id', params.id);
+
+  return deleteBde(
+    new Request(url.toString(), {
+      method: 'DELETE',
+      headers: req.headers,
+    })
+  );
 }
