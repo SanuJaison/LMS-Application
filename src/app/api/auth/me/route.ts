@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { authenticate } from '@/lib/apiAuth';
 import { hierarchyRole } from '@/lib/hierarchy';
 import { serializeEmployee } from '@/lib/employeeAuth';
+import { handleDeleteAccount } from '@/lib/deleteAccount';
+
+export async function DELETE(req: Request) {
+  return handleDeleteAccount(req);
+}
 
 /**
  * GET /api/auth/me

@@ -63,3 +63,8 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export async function DELETE(req: Request) {
+  const { handleDeleteAccount } = await import('@/lib/deleteAccount');
+  return handleDeleteAccount(req);
+}
