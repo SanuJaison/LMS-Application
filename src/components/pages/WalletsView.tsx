@@ -8,12 +8,14 @@ import {
   Loader2,
   ChevronDown,
   Columns3,
+  Search,
 } from 'lucide-react';
 import {
   fetchResourceList,
   createResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 export interface WalletItem {
   _id?: string;
@@ -22,6 +24,7 @@ export interface WalletItem {
   balance: number;
   currency?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 interface WalletsViewProps {
@@ -31,6 +34,10 @@ interface WalletsViewProps {
 export default function WalletsView({ showToast }: WalletsViewProps) {
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [balanceFilter, setBalanceFilter] = useState<string>('all');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [sortField, setSortField] = useState<'employee' | 'balance' | null>(null);
@@ -60,13 +67,73 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
     loadData();
   }, []);
 
-  // Filter & Sort (preserves MongoDB order by default: Aslam, Devika, Arya, Sona, Roji, Test, Devika)
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions(
+        wallets.flatMap((w: any) => [w.updatedAt, w.createdAt])
+      ),
+    [wallets]
+  );
+
+  const employeeOptions = useMemo(() => {
+    const set = new Set<string>();
+    wallets.forEach((w) => {
+      const emp = (w.employee || '').trim();
+      if (emp) set.add(emp);
+    });
+    return Array.from(set).sort();
+  }, [wallets]);
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    balanceFilter !== 'all' ||
+    employeeFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setBalanceFilter('all');
+    setEmployeeFilter('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  // Filter & Sort
   const sortedWallets = useMemo(() => {
-    if (!sortField) {
-      return wallets;
+    const q = searchQuery.toLowerCase().trim();
+    let res = wallets;
+
+    if (monthFilter !== 'all') {
+      res = res.filter((w: any) =>
+        matchesMonthFilter(monthFilter, w.updatedAt, w.createdAt)
+      );
     }
 
-    return [...wallets].sort((a, b) => {
+    if (employeeFilter !== 'all') {
+      const target = employeeFilter.toLowerCase();
+      res = res.filter((w) => (w.employee || '').toLowerCase() === target);
+    }
+
+    if (balanceFilter === 'positive') {
+      res = res.filter((w) => (w.balance || 0) > 0);
+    } else if (balanceFilter === 'zero') {
+      res = res.filter((w) => (w.balance || 0) <= 0);
+    }
+
+    if (q) {
+      res = res.filter(
+        (w: any) =>
+          w.employee?.toLowerCase().includes(q) ||
+          w.employee_id?.toLowerCase().includes(q) ||
+          String(w.balance ?? '').includes(q)
+      );
+    }
+
+    if (!sortField) {
+      return res;
+    }
+
+    return [...res].sort((a, b) => {
       let cmp = 0;
       if (sortField === 'balance') {
         cmp = (a.balance || 0) - (b.balance || 0);
@@ -75,7 +142,7 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
       }
       return sortAsc ? cmp : -cmp;
     });
-  }, [wallets, sortField, sortAsc]);
+  }, [wallets, monthFilter, employeeFilter, balanceFilter, searchQuery, sortField, sortAsc]);
 
   // Pagination
   const paginatedWallets = useMemo(() => {
@@ -142,14 +209,89 @@ export default function WalletsView({ showToast }: WalletsViewProps) {
 
       {/* Main Table Container */}
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-        {/* Card toolbar matching Screenshot 4 (right aligned columns toggle) */}
-        <div className="p-3 px-6 flex items-center justify-end border-b border-line">
-          <button
-            className="p-1.5 rounded-lg text-muted hover:text-ink transition cursor-pointer"
-            title="Columns"
-          >
-            <Columns3 className="w-4 h-4" />
-          </button>
+        {/* Search & Filters Toolbar */}
+        <div className="p-4 flex flex-col gap-3 border-b border-line">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={employeeFilter}
+                onChange={(e) => {
+                  setEmployeeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Employees</option>
+                {employeeOptions.map((emp) => (
+                  <option key={emp} value={emp}>
+                    {emp}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={balanceFilter}
+                onChange={(e) => {
+                  setBalanceFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Balances</option>
+                <option value="positive">Has Balance (&gt; ₹0)</option>
+                <option value="zero">Zero Balance (₹0)</option>
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search wallets..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <button
+                className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field transition cursor-pointer"
+                title="Columns"
+              >
+                <Columns3 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Table matching Screenshot 4 */}

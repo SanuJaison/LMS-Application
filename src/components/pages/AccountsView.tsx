@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -16,8 +16,10 @@ import {
   Building2,
   Users,
   Pencil,
+  X,
 } from 'lucide-react';
 import { authHeaders } from '../../services/api';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 interface AccountsViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -31,6 +33,10 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [courseFilter, setCourseFilter] = useState<string>('all');
 
   // Data states
   const [salaryRequests, setSalaryRequests] = useState<any[]>([]);
@@ -96,30 +102,100 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   }, []);
 
   // Financial Calculations
-  const closedAdmissions = leads.filter(
-    (l) =>
-      l.admission_status === 'Admitted' ||
-      l.admission_status === 'Closed' ||
-      l.status === 4 ||
-      l.status === 5
+  const closedAdmissions = useMemo(
+    () =>
+      leads.filter(
+        (l) =>
+          l.admission_status === 'Admitted' ||
+          l.admission_status === 'Closed' ||
+          l.status === 4 ||
+          l.status === 5
+      ),
+    [leads]
   );
 
-  const totalAdmissionsCount = closedAdmissions.length;
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions([
+        ...salaryRequests.flatMap((s) => [s.period, s.createdAt, s.updatedAt]),
+        ...withdrawalRequests.flatMap((w) => [w.createdAt, w.payment_date, w.updatedAt]),
+        ...closedAdmissions.flatMap((l) => [l.admission_date, l.updatedAt, l.createdAt]),
+      ]),
+    [salaryRequests, withdrawalRequests, closedAdmissions]
+  );
+
+  const teamOptions = useMemo(() => {
+    const set = new Set<string>();
+    salaryRequests.forEach((s) => {
+      const t = (s.team || '').trim();
+      if (t) set.add(t);
+    });
+    withdrawalRequests.forEach((w) => {
+      const t = (w.team || '').trim();
+      if (t) set.add(t);
+    });
+    closedAdmissions.forEach((l) => {
+      const t = (l.team || l.district || '').trim();
+      if (t) set.add(t);
+    });
+    return Array.from(set).sort();
+  }, [salaryRequests, withdrawalRequests, closedAdmissions]);
+
+  const courseOptions = useMemo(() => {
+    const set = new Set<string>();
+    closedAdmissions.forEach((l) => {
+      const c = (l.course || l.interested_course || '').trim();
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort();
+  }, [closedAdmissions]);
+
+  const scopedAdmissionsForKpi = useMemo(
+    () =>
+      monthFilter === 'all'
+        ? closedAdmissions
+        : closedAdmissions.filter((l) =>
+            matchesMonthFilter(monthFilter, l.admission_date, l.updatedAt, l.createdAt)
+          ),
+    [closedAdmissions, monthFilter]
+  );
+
+  const scopedWithdrawalsForKpi = useMemo(
+    () =>
+      monthFilter === 'all'
+        ? withdrawalRequests
+        : withdrawalRequests.filter((w) =>
+            matchesMonthFilter(monthFilter, w.createdAt, w.payment_date, w.updatedAt)
+          ),
+    [withdrawalRequests, monthFilter]
+  );
+
+  const scopedSalariesForKpi = useMemo(
+    () =>
+      monthFilter === 'all'
+        ? salaryRequests
+        : salaryRequests.filter((s) =>
+            matchesMonthFilter(monthFilter, s.period, s.createdAt, s.updatedAt)
+          ),
+    [salaryRequests, monthFilter]
+  );
+
+  const totalAdmissionsCount = scopedAdmissionsForKpi.length;
 
   // Total Income: sum of payment_amount (or average ₹25,000 per admission if payment_amount is 0)
-  const totalIncome = closedAdmissions.reduce((acc, lead) => {
+  const totalIncome = scopedAdmissionsForKpi.reduce((acc, lead) => {
     const amount = Number(lead.payment_amount || lead.payment || 0);
     return acc + (amount > 0 ? amount : 25000);
   }, 0);
 
   // Total Incentives (₹1,000 earned per closed admission)
   const totalIncentivesEarned = totalAdmissionsCount * 1000;
-  const totalIncentivesPaid = withdrawalRequests
+  const totalIncentivesPaid = scopedWithdrawalsForKpi
     .filter((w) => w.status === 'Paid')
     .reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
 
   // Total Salaries: sum of approved/paid salary requests
-  const totalSalaryExpenses = salaryRequests
+  const totalSalaryExpenses = scopedSalariesForKpi
     .filter((s) => s.status === 'Paid' || s.status === 'Approved')
     .reduce((acc, s) => acc + (Number(s.amount) || 5000), 0);
 
@@ -270,9 +346,54 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
     }
   };
 
+  const matchesRoleFilter = (designation?: string, employeeId?: string) => {
+    if (roleFilter === 'all') return true;
+    const id = String(employeeId || '').toUpperCase();
+    const des = String(designation || '').toLowerCase();
+    if (roleFilter === 'SM') {
+      return id.startsWith('SM') || (des.includes('sales manager') && !des.includes('area'));
+    }
+    if (roleFilter === 'ASM') {
+      return id.startsWith('ASM') || des.includes('area sales manager') || des.includes('office team lead');
+    }
+    if (roleFilter === 'BDE') {
+      return id.startsWith('BDE') || id.startsWith('TC') || des.includes('business development') || des.includes('tele');
+    }
+    return true;
+  };
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    teamFilter !== 'all' ||
+    roleFilter !== 'all' ||
+    courseFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setStatusFilter('all');
+    setTeamFilter('all');
+    setRoleFilter('all');
+    setCourseFilter('all');
+    setSearchQuery('');
+  };
+
   // Filtered lists
   const filteredSalaries = salaryRequests.filter((item) => {
+    if (
+      monthFilter !== 'all' &&
+      !matchesMonthFilter(monthFilter, item.period, item.createdAt, item.updatedAt)
+    ) {
+      return false;
+    }
     if (statusFilter !== 'all' && item.status?.toLowerCase() !== statusFilter.toLowerCase()) {
+      return false;
+    }
+    if (teamFilter !== 'all' && (item.team || '').toLowerCase() !== teamFilter.toLowerCase()) {
+      return false;
+    }
+    if (!matchesRoleFilter(item.designation, item.employee_id)) {
       return false;
     }
     if (searchQuery.trim()) {
@@ -288,7 +409,19 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   });
 
   const filteredWithdrawals = withdrawalRequests.filter((item) => {
+    if (
+      monthFilter !== 'all' &&
+      !matchesMonthFilter(monthFilter, item.createdAt, item.payment_date, item.updatedAt)
+    ) {
+      return false;
+    }
     if (statusFilter !== 'all' && item.status?.toLowerCase() !== statusFilter.toLowerCase()) {
+      return false;
+    }
+    if (teamFilter !== 'all' && (item.team || '').toLowerCase() !== teamFilter.toLowerCase()) {
+      return false;
+    }
+    if (!matchesRoleFilter(item.designation, item.employee_id)) {
       return false;
     }
     if (searchQuery.trim()) {
@@ -304,6 +437,26 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
   });
 
   const filteredAdmissions = closedAdmissions.filter((item) => {
+    if (
+      monthFilter !== 'all' &&
+      !matchesMonthFilter(monthFilter, item.admission_date, item.updatedAt, item.createdAt)
+    ) {
+      return false;
+    }
+    if (
+      teamFilter !== 'all' &&
+      (item.team || '').toLowerCase() !== teamFilter.toLowerCase() &&
+      (item.district || '').toLowerCase() !== teamFilter.toLowerCase()
+    ) {
+      return false;
+    }
+    if (
+      courseFilter !== 'all' &&
+      (item.course || '').toLowerCase() !== courseFilter.toLowerCase() &&
+      (item.interested_course || '').toLowerCase() !== courseFilter.toLowerCase()
+    ) {
+      return false;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
@@ -477,8 +630,89 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
       </div>
 
       {/* Filters & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
+          >
+            <option value="all">All Months</option>
+            {monthOptions.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
+          >
+            <option value="all">All Teams / Districts</option>
+            {teamOptions.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+
+          {activeSubTab !== 'admissions' ? (
+            <>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
+              >
+                <option value="all">All Roles</option>
+                <option value="SM">Sales Manager (SM)</option>
+                <option value="ASM">Area Sales Manager (ASM)</option>
+                <option value="BDE">BDE / Tele-caller</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="Submitted to ASM">Submitted to ASM</option>
+                <option value="Forwarded to SM">Forwarded to SM</option>
+                <option value="Forwarded to Accounts">Forwarded to Accounts</option>
+                <option value="Approved">Approved / Sanctioned</option>
+                <option value="Paid">Paid</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </>
+          ) : (
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="bg-field border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent cursor-pointer"
+            >
+              <option value="all">All Courses</option>
+              {courseOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
+
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
           <input
             type="text"
@@ -488,25 +722,6 @@ export default function AccountsView({ showToast }: AccountsViewProps) {
             className="w-full bg-field border border-line rounded-lg pl-9 pr-3 py-1.5 text-xs text-ink placeholder-subtle focus:outline-none focus:border-accent"
           />
         </div>
-
-        {activeSubTab !== 'admissions' && (
-          <div className="flex items-center gap-2 self-end">
-            <span className="text-xs text-muted">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-field border border-line rounded-lg px-2.5 py-1 text-xs text-ink focus:outline-none focus:border-accent"
-            >
-              <option value="all">All Statuses</option>
-              <option value="Submitted to ASM">Submitted to ASM</option>
-              <option value="Forwarded to SM">Forwarded to SM</option>
-              <option value="Forwarded to Accounts">Forwarded to Accounts</option>
-              <option value="Approved">Approved / Sanctioned</option>
-              <option value="Paid">Paid</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-          </div>
-        )}
       </div>
 
       {/* 3. TAB CONTENT */}

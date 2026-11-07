@@ -20,6 +20,7 @@ import {
   authHeaders,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 export interface WalletWithdrawRequestItem {
   _id?: string;
@@ -57,6 +58,10 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
   const [loading, setLoading] = useState<boolean>(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  const [methodFilter, setMethodFilter] = useState<string>('all');
   const [perPage, setPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -101,10 +106,86 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
 
   const rowId = (item: WalletWithdrawRequestItem) => (item._id || item.id || '').toString();
 
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions(
+        requests.flatMap((r: any) => [r.createdAt, r.updatedAt, r.payment_date])
+      ),
+    [requests]
+  );
+
+  const employeeOptions = useMemo(() => {
+    const set = new Set<string>(employees);
+    requests.forEach((r) => {
+      const emp = (r.employee || r.name || '').trim();
+      if (emp) set.add(emp);
+    });
+    return Array.from(set).sort();
+  }, [employees, requests]);
+
+  const statusOptions = useMemo(() => {
+    const set = new Set<string>([
+      'Pending',
+      'Submitted to ASM',
+      'Forwarded to SM',
+      'Forwarded to Accounts',
+      'Approved',
+      'Paid',
+      'Rejected',
+    ]);
+    requests.forEach((r) => {
+      const st = (r.status || '').trim();
+      if (st) set.add(st);
+    });
+    return Array.from(set);
+  }, [requests]);
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    employeeFilter !== 'all' ||
+    methodFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setStatusFilter('all');
+    setEmployeeFilter('all');
+    setMethodFilter('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
   // Filtered & Sorted
   const filteredRequests = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     let res = requests;
+
+    if (monthFilter !== 'all') {
+      res = res.filter((r: any) =>
+        matchesMonthFilter(monthFilter, r.createdAt, r.updatedAt, r.payment_date)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      const target = statusFilter.toLowerCase();
+      res = res.filter((r) => (r.status || 'Pending').toLowerCase() === target);
+    }
+
+    if (employeeFilter !== 'all') {
+      const target = employeeFilter.toLowerCase();
+      res = res.filter(
+        (r) =>
+          (r.employee || '').toLowerCase() === target ||
+          (r.name || '').toLowerCase() === target
+      );
+    }
+
+    if (methodFilter === 'upi') {
+      res = res.filter((r) => Boolean(r.upi_id || (r.contact && r.contact.includes('@'))));
+    } else if (methodFilter === 'bank') {
+      res = res.filter((r) => Boolean(r.account_number || r.bank_name));
+    }
 
     if (q) {
       res = res.filter(
@@ -135,7 +216,16 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
-  }, [requests, searchQuery, sortField, sortAsc]);
+  }, [
+    requests,
+    monthFilter,
+    statusFilter,
+    employeeFilter,
+    methodFilter,
+    searchQuery,
+    sortField,
+    sortAsc,
+  ]);
 
   const paginatedRequests = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -289,27 +379,105 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
 
       {/* Main Table Container */}
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-        {/* Search Toolbar */}
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search by employee, ID, status..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+        {/* Search & Filters Toolbar */}
+        <div className="p-4 flex flex-col gap-3 border-b border-line">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                {statusOptions.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={employeeFilter}
+                onChange={(e) => {
+                  setEmployeeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Employees</option>
+                {employeeOptions.map((emp) => (
+                  <option key={emp} value={emp}>
+                    {emp}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={methodFilter}
+                onChange={(e) => {
+                  setMethodFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Payment Methods</option>
+                <option value="upi">UPI</option>
+                <option value="bank">Bank Transfer</option>
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by employee, ID, status..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <button
+                className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
+                title="Columns"
+              >
+                <Columns3 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <button
-            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
-            title="Columns"
-          >
-            <Columns3 className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Table */}

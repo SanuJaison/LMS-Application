@@ -15,9 +15,11 @@ import {
   Target,
   UserCheck,
   Users,
+  X,
 } from 'lucide-react';
 import { fetchResourceList } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 interface EmployeeTasksViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -127,25 +129,30 @@ const leadMatchesEmployee = (lead: any, employee: EmployeeLike) => {
 const targetRowFor = (
   employee: EmployeeLike,
   tasks: TaskLike[],
-  kind: 'daily' | 'monthly'
+  kind: 'daily' | 'monthly',
+  selectedMonth: string = 'all'
 ) => {
   const employeeId = String(employee.employee_id || '').toLowerCase();
   const employeeName = String(employee.name || '').toLowerCase().trim();
   const matcher = kind === 'daily' ? /daily/i : /monthly/i;
+  const targetMonth = selectedMonth && selectedMonth !== 'all' ? selectedMonth : currentMonthKey();
 
   const rows = tasks.filter((task) => {
     const sameEmployee =
       (employeeId && String(task.employee_id || '').toLowerCase() === employeeId) ||
       (employeeName && String(task.employee || '').toLowerCase().trim() === employeeName);
-    return Boolean(sameEmployee && matcher.test(task.task_template || ''));
+    if (!sameEmployee || !matcher.test(task.task_template || '')) return false;
+    if (selectedMonth && selectedMonth !== 'all') {
+      return matchesMonthFilter(selectedMonth, task.period_start, task.createdAt);
+    }
+    return true;
   });
 
   rows.sort((a, b) => {
-    // Prefer the target that belongs to the current month, so next month's
+    // Prefer the target that belongs to the target month, so next month's
     // targets do not leak into this month's summary.
-    const month = currentMonthKey();
-    const aCurrent = String(a.period_start || '').slice(0, 7) === month ? 1 : 0;
-    const bCurrent = String(b.period_start || '').slice(0, 7) === month ? 1 : 0;
+    const aCurrent = String(a.period_start || '').slice(0, 7) === targetMonth ? 1 : 0;
+    const bCurrent = String(b.period_start || '').slice(0, 7) === targetMonth ? 1 : 0;
     if (aCurrent !== bCurrent) return bCurrent - aCurrent;
 
     const aSm = /sm target/i.test(a.task_template || '') ? 1 : 0;
@@ -162,19 +169,38 @@ const targetRowFor = (
 const buildPersonMetrics = (
   employee: EmployeeLike,
   employeeLeads: any[],
-  tasks: TaskLike[]
+  tasks: TaskLike[],
+  selectedMonth: string = 'all'
 ): PersonMetrics => {
-  const dailyRow = targetRowFor(employee, tasks, 'daily');
-  const monthlyRow = targetRowFor(employee, tasks, 'monthly');
+  const dailyRow = targetRowFor(employee, tasks, 'daily', selectedMonth);
+  const monthlyRow = targetRowFor(employee, tasks, 'monthly', selectedMonth);
+  const targetMonth = selectedMonth && selectedMonth !== 'all' ? selectedMonth : currentMonthKey();
 
-  const totalLeads = employeeLeads.length;
-  const admissions = employeeLeads.filter(isClosedLead).length;
+  const scopedLeads =
+    selectedMonth && selectedMonth !== 'all'
+      ? employeeLeads.filter((lead) =>
+          matchesMonthFilter(selectedMonth, lead.admission_date, lead.updatedAt, lead.createdAt)
+        )
+      : employeeLeads;
+
+  const totalLeads = scopedLeads.length;
+  const admissions = scopedLeads.filter(isClosedLead).length;
 
   return {
     ...employee,
-    daily_target: Number(dailyRow?.total_target ?? (employee as any).daily_target ?? 0),
-    monthly_target: Number(monthlyRow?.total_target ?? (employee as any).monthly_target ?? 0),
-    leads_today: employeeLeads.filter(
+    daily_target: Number(
+      dailyRow?.total_target ??
+        (selectedMonth === 'all' || selectedMonth === currentMonthKey()
+          ? (employee as any).daily_target ?? 0
+          : 0)
+    ),
+    monthly_target: Number(
+      monthlyRow?.total_target ??
+        (selectedMonth === 'all' || selectedMonth === currentMonthKey()
+          ? (employee as any).monthly_target ?? 0
+          : 0)
+    ),
+    leads_today: scopedLeads.filter(
       (lead) =>
         isClosedLead(lead) &&
         String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 10) ===
@@ -183,12 +209,11 @@ const buildPersonMetrics = (
     leads_this_month: employeeLeads.filter(
       (lead) =>
         isClosedLead(lead) &&
-        String(lead.admission_date || lead.updatedAt || lead.createdAt || '').slice(0, 7) ===
-          currentMonthKey()
+        matchesMonthFilter(targetMonth, lead.admission_date, lead.updatedAt, lead.createdAt)
     ).length,
     total_leads: totalLeads,
-    total_followups: employeeLeads.filter(isFollowUpLead).length,
-    pending_followups: employeeLeads.filter(isPendingFollowUpLead).length,
+    total_followups: scopedLeads.filter(isFollowUpLead).length,
+    pending_followups: scopedLeads.filter(isPendingFollowUpLead).length,
     admissions,
     conversion_rate:
       totalLeads > 0 ? Math.round((admissions / totalLeads) * 100) : 0,
@@ -251,6 +276,11 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [asmFilter, setAsmFilter] = useState<string>('all');
+  const [targetStatusFilter, setTargetStatusFilter] = useState<string>('all');
 
   const [employees, setEmployees] = useState<EmployeeLike[]>([]);
   const [employeeTasks, setEmployeeTasks] = useState<TaskLike[]>([]);
@@ -366,12 +396,39 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
     });
   }, [smEmployee, asmEmployees, bdeEmployees, leads]);
 
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions([
+        ...employeeTasks.flatMap((t) => [t.period_start, t.createdAt]),
+        ...leads.flatMap((l) => [l.admission_date, l.updatedAt, l.createdAt]),
+      ]),
+    [employeeTasks, leads]
+  );
+
+  const teamOptions = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach((e) => {
+      const t = (e.team || '').trim();
+      if (t && t !== '—') set.add(t);
+    });
+    return Array.from(set).sort();
+  }, [employees]);
+
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach((e) => {
+      const d = (e.district || '').trim();
+      if (d && d !== '—') set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [employees]);
+
   const smMetrics = useMemo(
     () =>
       smEmployee
-        ? buildPersonMetrics(smEmployee, smScopeLeads, employeeTasks)
+        ? buildPersonMetrics(smEmployee, smScopeLeads, employeeTasks, monthFilter)
         : null,
-    [smEmployee, smScopeLeads, employeeTasks]
+    [smEmployee, smScopeLeads, employeeTasks, monthFilter]
   );
 
   const asmRows = useMemo<PersonMetrics[]>(() => {
@@ -402,12 +459,12 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
       });
 
       return {
-        ...buildPersonMetrics(asm, asmLeads, employeeTasks),
+        ...buildPersonMetrics(asm, asmLeads, employeeTasks, monthFilter),
         bdes_count: teamBdes.length,
         reports_to_name: smEmployee?.name || '—',
       };
     });
-  }, [asmEmployees, bdeEmployees, leads, employeeTasks, smEmployee]);
+  }, [asmEmployees, bdeEmployees, leads, employeeTasks, smEmployee, monthFilter]);
 
   const bdeRows = useMemo<PersonMetrics[]>(() => {
     return bdeEmployees.map((bde) => {
@@ -421,12 +478,85 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
       );
 
       return {
-        ...buildPersonMetrics(bde, bdeLeads, employeeTasks),
+        ...buildPersonMetrics(bde, bdeLeads, employeeTasks, monthFilter),
         reports_to_name: asm?.name || bde.reports_to || '—',
         team: bde.team || asm?.team || '—',
       };
     });
-  }, [bdeEmployees, employees, leads, employeeTasks]);
+  }, [bdeEmployees, employees, leads, employeeTasks, monthFilter]);
+
+  const activeRows = activeTab === 'BDE' ? bdeRows : asmRows;
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    teamFilter !== 'all' ||
+    districtFilter !== 'all' ||
+    asmFilter !== 'all' ||
+    targetStatusFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setTeamFilter('all');
+    setDistrictFilter('all');
+    setAsmFilter('all');
+    setTargetStatusFilter('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  const filteredRows = useMemo(() => {
+    let res = activeRows;
+
+    if (teamFilter !== 'all') {
+      const target = teamFilter.toLowerCase();
+      res = res.filter((row) => String(row.team || '').toLowerCase() === target);
+    }
+
+    if (districtFilter !== 'all') {
+      const target = districtFilter.toLowerCase();
+      res = res.filter((row) => String(row.district || '').toLowerCase() === target);
+    }
+
+    if (activeTab === 'BDE' && asmFilter !== 'all') {
+      const target = asmFilter.toLowerCase();
+      res = res.filter(
+        (row) =>
+          String(row.reports_to || '').toLowerCase() === target ||
+          String(row.reports_to_name || '').toLowerCase() === target
+      );
+    }
+
+    if (targetStatusFilter !== 'all') {
+      res = res.filter((row) => {
+        const hasTarget = (row.daily_target || 0) > 0 || (row.monthly_target || 0) > 0;
+        if (targetStatusFilter === 'no_target') return !hasTarget;
+        const dailyMet = (row.daily_target || 0) > 0 && row.leads_today >= row.daily_target;
+        const monthlyMet =
+          (row.monthly_target || 0) > 0 && row.leads_this_month >= row.monthly_target;
+        if (targetStatusFilter === 'met') return dailyMet || monthlyMet;
+        if (targetStatusFilter === 'pending') return hasTarget && !dailyMet && !monthlyMet;
+        return true;
+      });
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return res;
+
+    return res.filter((row) => {
+      const haystack = [
+        row.name,
+        row.employee_id,
+        row.team,
+        row.district,
+        row.reports_to_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [activeRows, teamFilter, districtFilter, activeTab, asmFilter, targetStatusFilter, searchQuery]);
 
   const activeMetrics = useMemo(() => {
     if (activeTab === 'SM') {
@@ -442,29 +572,8 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
         }
       );
     }
-    return sumRows(activeTab === 'ASM' ? asmRows : bdeRows);
-  }, [activeTab, smMetrics, asmRows, bdeRows]);
-
-  const activeRows = activeTab === 'BDE' ? bdeRows : asmRows;
-
-  const filteredRows = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return activeRows;
-
-    return activeRows.filter((row) => {
-      const haystack = [
-        row.name,
-        row.employee_id,
-        row.team,
-        row.district,
-        row.reports_to_name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [activeRows, searchQuery]);
+    return sumRows(filteredRows);
+  }, [activeTab, smMetrics, filteredRows]);
 
   const paginatedRows = useMemo(() => {
     const start = (currentPage - 1) * perPage;
@@ -473,7 +582,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, monthFilter, teamFilter, districtFilter, asmFilter, targetStatusFilter]);
 
   const tabs: Array<{
     key: RoleTab;
@@ -738,13 +847,99 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
 
       {/* Table */}
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-line">
-          <div>
-            <h2 className="text-sm font-bold text-ink">{tableTitle}</h2>
-            <p className="text-[11px] text-muted mt-0.5">{tableSubtitle}</p>
+        <div className="p-4 flex flex-col gap-3 border-b border-line">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-ink">{tableTitle}</h2>
+              <p className="text-[11px] text-muted mt-0.5">{tableSubtitle}</p>
+            </div>
+            <span className="text-xs text-muted whitespace-nowrap">
+              Total: <strong className="text-ink">{filteredRows.length}</strong>
+            </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Teams</option>
+                {teamOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={districtFilter}
+                onChange={(e) => setDistrictFilter(e.target.value)}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Districts</option>
+                {districtOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+
+              {activeTab === 'BDE' && (
+                <select
+                  value={asmFilter}
+                  onChange={(e) => setAsmFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                >
+                  <option value="all">All ASMs</option>
+                  {asmEmployees.map((asm) => (
+                    <option
+                      key={asm.employee_id || asm.name}
+                      value={asm.employee_id || asm.name}
+                    >
+                      {asm.name} {asm.employee_id ? `(${asm.employee_id})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <select
+                value={targetStatusFilter}
+                onChange={(e) => setTargetStatusFilter(e.target.value)}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Target Statuses</option>
+                <option value="met">Target Achieved</option>
+                <option value="pending">In Progress</option>
+                <option value="no_target">No Target Set</option>
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
               <input
@@ -755,9 +950,6 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
                 className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
-            <span className="text-xs text-muted whitespace-nowrap">
-              Total: <strong className="text-ink">{filteredRows.length}</strong>
-            </span>
           </div>
         </div>
 

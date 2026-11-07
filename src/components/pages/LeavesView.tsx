@@ -19,6 +19,7 @@ import {
   deleteResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 export interface LeaveItem {
   _id?: string;
@@ -49,6 +50,8 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
   const [employees, setEmployees] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
 
   // Table Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -96,6 +99,35 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
   const rowId = (item: LeaveItem) => (item._id || item.id || '').toString();
 
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions(
+        leaves.flatMap((l) => [l.start_date, l.end_date, l.createdAt])
+      ),
+    [leaves]
+  );
+
+  const employeeOptions = useMemo(() => {
+    const set = new Set<string>(employees);
+    leaves.forEach((l) => {
+      const emp = (l.employee || '').trim();
+      if (emp) set.add(emp);
+    });
+    return Array.from(set).sort();
+  }, [employees, leaves]);
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    employeeFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setEmployeeFilter('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
   // Filtered & Sorted
   const filteredLeaves = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -106,6 +138,17 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
       res = res.filter(
         (l) => (l.status || 'Pending').toLowerCase() === activeFilterTab.toLowerCase()
       );
+    }
+
+    if (monthFilter !== 'all') {
+      res = res.filter((l) =>
+        matchesMonthFilter(monthFilter, l.start_date, l.end_date, l.createdAt)
+      );
+    }
+
+    if (employeeFilter !== 'all') {
+      const target = employeeFilter.toLowerCase();
+      res = res.filter((l) => (l.employee || '').toLowerCase() === target);
     }
 
     // Filter by Search Query
@@ -129,7 +172,7 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
-  }, [leaves, activeFilterTab, searchQuery, sortField, sortAsc]);
+  }, [leaves, activeFilterTab, monthFilter, employeeFilter, searchQuery, sortField, sortAsc]);
 
   // Pagination
   const paginatedLeaves = useMemo(() => {
@@ -536,27 +579,76 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
       {/* Main Table Container */}
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-        {/* Search Toolbar */}
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+        {/* Search & Filters Toolbar */}
+        <div className="p-4 flex flex-col gap-3 border-b border-line">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={employeeFilter}
+                onChange={(e) => {
+                  setEmployeeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Employees</option>
+                {employeeOptions.map((emp) => (
+                  <option key={emp} value={emp}>
+                    {emp}
+                  </option>
+                ))}
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search leaves..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <button
+                className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
+                title="Columns"
+              >
+                <Columns3 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <button
-            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
-            title="Columns"
-          >
-            <Columns3 className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Bulk Selection Notification Bar */}

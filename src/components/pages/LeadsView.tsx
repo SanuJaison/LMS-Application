@@ -24,6 +24,7 @@ import {
   authHeaders,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
 
 export interface LeadItem {
   _id?: string;
@@ -89,6 +90,12 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
   const [employees, setEmployees] = useState<{ name: string; employee_id?: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [courseFilter, setCourseFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('all');
 
   // Table Selection & Pagination
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -185,10 +192,115 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
   const rowId = (item: LeadItem) => (item._id || item.id || '').toString();
 
+  const monthOptions = useMemo(
+    () =>
+      buildMonthOptions(
+        leads.flatMap((l: any) => [l.createdAt, l.admission_date, l.updatedAt])
+      ),
+    [leads]
+  );
+
+  const sourceOptions = useMemo(() => {
+    const set = new Set<string>(DEFAULT_SOURCES);
+    leads.forEach((l) => {
+      const s = (l.source || l.lead_source || '').trim();
+      if (s) set.add(s);
+    });
+    return Array.from(set);
+  }, [leads]);
+
+  const statusOptions = useMemo(() => {
+    const set = new Set<string>([...DEFAULT_STATUSES, 'Admitted', 'Closed']);
+    leads.forEach((l) => {
+      const st = String(l.status || l.admission_status || '').trim();
+      if (st && st !== 'undefined') set.add(st);
+    });
+    return Array.from(set);
+  }, [leads]);
+
+  const hasActiveFilters =
+    monthFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    districtFilter !== 'all' ||
+    courseFilter !== 'all' ||
+    sourceFilter !== 'all' ||
+    employeeFilter !== 'all' ||
+    Boolean(searchQuery.trim());
+
+  const clearFilters = () => {
+    setMonthFilter('all');
+    setStatusFilter('all');
+    setDistrictFilter('all');
+    setCourseFilter('all');
+    setSourceFilter('all');
+    setEmployeeFilter('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
   // Filtered & Sorted
   const filteredLeads = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     let res = leads;
+
+    if (monthFilter !== 'all') {
+      res = res.filter((l: any) =>
+        matchesMonthFilter(monthFilter, l.createdAt, l.admission_date, l.updatedAt)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      const target = statusFilter.toLowerCase();
+      res = res.filter((l) => {
+        const st = String(l.status ?? '').toLowerCase();
+        const adm = String(l.admission_status ?? '').toLowerCase();
+        if (target === 'won' || target === 'admitted' || target === 'closed') {
+          return (
+            st === 'won' ||
+            st === 'admitted' ||
+            st === 'closed' ||
+            st === '4' ||
+            st === '5' ||
+            adm === 'won' ||
+            adm === 'admitted' ||
+            adm === 'closed'
+          );
+        }
+        return st === target || adm === target;
+      });
+    }
+
+    if (districtFilter !== 'all') {
+      const target = districtFilter.toLowerCase();
+      res = res.filter((l) => (l.district || '').toLowerCase() === target);
+    }
+
+    if (courseFilter !== 'all') {
+      const target = courseFilter.toLowerCase();
+      res = res.filter(
+        (l) =>
+          (l.course || '').toLowerCase() === target ||
+          (l.interested_course || '').toLowerCase() === target
+      );
+    }
+
+    if (sourceFilter !== 'all') {
+      const target = sourceFilter.toLowerCase();
+      res = res.filter(
+        (l) =>
+          (l.source || '').toLowerCase() === target ||
+          (l.lead_source || '').toLowerCase() === target
+      );
+    }
+
+    if (employeeFilter !== 'all') {
+      const target = employeeFilter.toLowerCase();
+      res = res.filter(
+        (l) =>
+          (l.employee || '').toLowerCase() === target ||
+          (l.employee_id || '').toLowerCase() === target
+      );
+    }
 
     if (q) {
       res = res.filter(
@@ -215,7 +327,18 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
     });
-  }, [leads, searchQuery, sortField, sortAsc]);
+  }, [
+    leads,
+    monthFilter,
+    statusFilter,
+    districtFilter,
+    courseFilter,
+    sourceFilter,
+    employeeFilter,
+    searchQuery,
+    sortField,
+    sortAsc,
+  ]);
 
   // Pagination
   const paginatedLeads = useMemo(() => {
@@ -898,35 +1021,148 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
       {/* Main Table Container */}
       <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-xl">
-        {/* Search Toolbar */}
-        <div className="p-4 flex items-center justify-end gap-3 border-b border-line">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+        {/* Search & Filters Toolbar */}
+        <div className="p-4 flex flex-col gap-3 border-b border-line">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={monthFilter}
+                onChange={(e) => {
+                  setMonthFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                {statusOptions.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={courseFilter}
+                onChange={(e) => {
+                  setCourseFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Courses</option>
+                {courses.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={sourceFilter}
+                onChange={(e) => {
+                  setSourceFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Sources</option>
+                {sourceOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={employeeFilter}
+                onChange={(e) => {
+                  setEmployeeFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 bg-field border border-line rounded-lg text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+              >
+                <option value="all">All Employees</option>
+                {employees.map((emp) => (
+                  <option key={`${emp.name}-${emp.employee_id || ''}`} value={emp.name}>
+                    {emp.employee_id ? `${emp.name} (${emp.employee_id})` : emp.name}
+                  </option>
+                ))}
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-hover hover:bg-active text-xs font-medium text-muted hover:text-ink border border-line transition cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-muted absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search leads..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-1.5 bg-field border border-line rounded-lg text-[13px] text-ink placeholder-subtle focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer disabled:opacity-50"
+                title="Refresh leads"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
+                title="Columns"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer disabled:opacity-50"
-            title="Refresh leads"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            className="p-2 border border-line rounded-lg text-muted hover:text-ink bg-field cursor-pointer"
-            title="Columns"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Bulk Selection Notification Bar */}
