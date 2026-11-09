@@ -35,6 +35,20 @@ const DISTRICT_OPTIONS = [
 
 const ZONE_OPTIONS = ['Central Zone', 'North Zone', 'South Zone'];
 
+const REGIONAL_TEAM_DISTRICTS: Record<
+  string,
+  { teamName: string; zone: string; districts: [string, string] }
+> = {
+  TVM: { teamName: 'TVM Team', zone: 'South Zone', districts: ['Thiruvananthapuram', 'Kollam'] },
+  PTM: { teamName: 'PTM Team', zone: 'South Zone', districts: ['Pathanamthitta', 'Alappuzha'] },
+  KTM: { teamName: 'KTM Team', zone: 'Central Zone', districts: ['Kottayam', 'Idukki'] },
+  EKM: { teamName: 'EKM Team', zone: 'Central Zone', districts: ['Ernakulam', 'Thrissur'] },
+  PKD: { teamName: 'PKD Team', zone: 'Central Zone', districts: ['Palakkad', 'Malappuram'] },
+  CLT: { teamName: 'CLT Team', zone: 'North Zone', districts: ['Kozhikode', 'Wayanad'] },
+  KZD: { teamName: 'KZD Team', zone: 'North Zone', districts: ['Kannur', 'Kasaragod'] },
+  KZE: { teamName: 'KZD Team', zone: 'North Zone', districts: ['Kannur', 'Kasaragod'] },
+};
+
 const CORE_DESIGNATIONS: DesignationOption[] = [
   { name: 'Sales Manager', prefix: 'SM' },
   { name: 'Area Sales Manager', prefix: 'ASM' },
@@ -253,7 +267,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     return `${prefix}${String(next).padStart(3, '0')}`;
   };
 
-  const isOfficeEmployee = (emp?: Partial<Employee>): boolean => {
+  const isOfficeEmployee = (emp?: {
+    team?: string;
+    designation?: string;
+    employee_id?: string;
+  } | null): boolean => {
     if (!emp) return false;
     const team = (emp.team || '').toLowerCase();
     const des = (emp.designation || '').toLowerCase();
@@ -427,7 +445,8 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
       // SM/MD are top level: no district, zone or manager.
       const isTopLevel = isTopLevelDesignation(formData.designation);
-      const isSaveBDE = isBDEDesignation(formData.designation);
+      const isSaveASM = isASMDesignation(formData.designation);
+      const isSaveBDE = isBDEDesignation(formData.designation) && !isOfficeEmployee(editingEmployee || formData);
 
       if (isSaveBDE) {
         if (!formData.reports_to.trim()) {
@@ -438,7 +457,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
           showToast?.('danger', 'The selected ASM is not assigned to any team yet. Please assign them in Teams first');
           return;
         }
-        if (!formData.district.trim()) {
+        if (!selectedAsmTeam.isOffice && !formData.district.trim()) {
           showToast?.('danger', 'Please select one of the team districts for the BDE');
           return;
         }
@@ -458,13 +477,21 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
         monthly_target: formData.monthly_target ? Number(formData.monthly_target) : 0,
         zone: isTopLevel
           ? ''
+          : isSaveASM && currentAsmTeamInfo
+          ? currentAsmTeamInfo.zone || formData.zone.trim()
           : isSaveBDE && selectedAsmTeam
           ? (selectedAsmTeam.zone || '')
           : formData.zone.trim(),
-        district: isTopLevel ? '' : formData.district.trim(),
+        district: isTopLevel
+          ? ''
+          : isSaveASM
+          ? (editingEmployee?.district || currentAsmTeamInfo?.districts.join(', ') || formData.district.trim())
+          : formData.district.trim(),
         reports_to: isTopLevel ? '' : formData.reports_to.trim(),
         team: isTopLevel
           ? ''
+          : isSaveASM && currentAsmTeamInfo?.name
+          ? currentAsmTeamInfo.name
           : isSaveBDE && selectedAsmTeam
           ? selectedAsmTeam.name
           : (formData.team || '').trim(),
@@ -586,29 +613,105 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     });
   }, [employees, formData.designation, formData.employee_id, editingEmployee]);
 
+  // Resolve an ASM employee's team, zone, and 2 SM-assigned districts
+  const resolveAsmTeamInfo = (
+    asmEmp?: {
+      employee_id?: string;
+      name?: string;
+      team?: string;
+      district?: string;
+      zone?: string;
+      designation?: string;
+    } | null
+  ) => {
+    if (!asmEmp) return null;
+    const empId = String(asmEmp.employee_id || '').trim().toLowerCase();
+    const empName = String(asmEmp.name || '').trim().toLowerCase();
+    const storedTeam = String(asmEmp.team || '').trim();
+    const storedDist = String(asmEmp.district || '').trim();
+
+    if (isOfficeEmployee(asmEmp)) {
+      return {
+        name: 'Office Team',
+        zone: asmEmp.zone || 'Central Zone',
+        districts: [] as string[],
+        isOffice: true,
+      };
+    }
+
+    // 1. Match team from `teams` collection
+    const teamDoc =
+      teams.find(
+        (t) => storedTeam && String(t.name || '').trim().toLowerCase() === storedTeam.toLowerCase()
+      ) ||
+      teams.find((t) => {
+        const tl = String(t.team_lead || '').trim().toLowerCase();
+        if (!tl) return false;
+        if (empId && tl.includes(`(${empId})`)) return true;
+        if (empName && (tl === empName || tl.startsWith(`${empName} (`))) return true;
+        return false;
+      }) ||
+      null;
+
+    // 2. Match regional config by team prefix code (TVM, PTM, KTM, EKM, PKD, CLT, KZD/KZE) or by stored district
+    const teamNameCandidate = String(teamDoc?.name || storedTeam || '').trim();
+    const codeMatch = teamNameCandidate.toUpperCase().match(/^([A-Z]{3})/);
+    let regionalCfg = codeMatch ? REGIONAL_TEAM_DISTRICTS[codeMatch[1]] : undefined;
+
+    if (!regionalCfg && storedDist) {
+      const distParts = storedDist
+        .split(/[,&/]/)
+        .map((d) => d.trim().toLowerCase())
+        .filter(Boolean);
+      regionalCfg = Object.values(REGIONAL_TEAM_DISTRICTS).find((cfg) =>
+        cfg.districts.some((d) => distParts.includes(d.toLowerCase()))
+      );
+    }
+
+    let districts: string[] = [];
+    if (Array.isArray(teamDoc?.districts) && teamDoc.districts.length > 0) {
+      districts = teamDoc.districts.map((d: any) => String(d || '').trim()).filter(Boolean);
+    }
+    if (districts.length < 2 && regionalCfg) {
+      districts = [...regionalCfg.districts];
+    }
+    if (districts.length === 0 && storedDist) {
+      districts = storedDist
+        .split(/[,&/]/)
+        .map((d) => d.trim())
+        .filter(Boolean);
+    }
+
+    return {
+      name: teamDoc?.name || regionalCfg?.teamName || storedTeam || 'Regional Team',
+      zone: teamDoc?.zone || regionalCfg?.zone || asmEmp.zone || 'Central Zone',
+      districts,
+      isOffice: Boolean(teamDoc?.is_office),
+    };
+  };
+
+  // Current ASM's own team & 2 SM-assigned districts (when editing an ASM)
+  const currentAsmTeamInfo = useMemo(() => {
+    if (!isCurrentASM) return null;
+    return resolveAsmTeamInfo(editingEmployee || formData);
+  }, [isCurrentASM, editingEmployee, formData.team, formData.district, formData.employee_id, formData.name, teams]);
+
   // Resolve the team led by the ASM selected in reports_to (for BDEs)
   const selectedAsmTeam = useMemo(() => {
     if (!formData.reports_to || !isCurrentBDE) return null;
-    const mgr = employees.find((e) => e.employee_id === formData.reports_to);
-    if (!mgr) return null;
-    const mgrName = (mgr.name || '').trim().toLowerCase();
-    const mgrTeam = (mgr.team || '').trim().toLowerCase();
-
-    return (
-      teams.find((t) => t.team_lead && t.team_lead.trim().toLowerCase() === mgrName) ||
-      teams.find((t) => mgrTeam && t.name.trim().toLowerCase() === mgrTeam) ||
-      null
+    const targetReport = formData.reports_to.trim().toLowerCase();
+    const mgr = employees.find(
+      (e) =>
+        String(e.employee_id || '').trim().toLowerCase() === targetReport ||
+        String(e.name || '').trim().toLowerCase() === targetReport
     );
+    if (!mgr) return null;
+    return resolveAsmTeamInfo(mgr);
   }, [formData.reports_to, isCurrentBDE, employees, teams]);
 
   const asmTeamDistricts = useMemo<string[]>(() => {
     if (!selectedAsmTeam) return [];
-    const list = Array.isArray(selectedAsmTeam.districts) && selectedAsmTeam.districts.length > 0
-      ? selectedAsmTeam.districts
-      : selectedAsmTeam.district
-      ? [selectedAsmTeam.district]
-      : [];
-    return list.map((d: any) => String(d || '').trim()).filter(Boolean);
+    return selectedAsmTeam.districts || [];
   }, [selectedAsmTeam]);
 
   // Keep formData.reports_to strictly valid for the chosen role
@@ -1045,7 +1148,9 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                         )}
                         {columnVisibility.district !== false && (
                           <td className="py-3.5 px-4 text-ink/80">
-                            {emp.district}
+                            {isASMDesignation(emp.designation) && !isOfficeEmployee(emp)
+                              ? resolveAsmTeamInfo(emp)?.districts.join(', ') || emp.district || '—'
+                              : emp.district || '—'}
                           </td>
                         )}
                         {columnVisibility.team !== false && (
@@ -1170,7 +1275,11 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                   </div>
                   <div className="bg-field p-3 rounded-lg border border-line">
                     <span className="text-muted block mb-0.5">District</span>
-                    <span className="text-ink font-medium">{viewingEmployee.district || '—'}</span>
+                    <span className="text-ink font-medium">
+                      {isASMDesignation(viewingEmployee.designation) && !isOfficeEmployee(viewingEmployee)
+                        ? resolveAsmTeamInfo(viewingEmployee)?.districts.join(', ') || viewingEmployee.district || '—'
+                        : viewingEmployee.district || '—'}
+                    </span>
                   </div>
                   <div className="bg-field p-3 rounded-lg border border-line">
                     <span className="text-muted block mb-0.5">Status</span>
@@ -1560,7 +1669,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
                     {!formData.reports_to ? (
                       <p className="text-[11px] text-muted">
-                        ℹ️ Select an Area Sales Manager (Reports To) above to display their assigned team and its districts.
+                        ℹ️ Select an Area Sales Manager (Reports To) above to display their assigned team and its 2 districts.
                       </p>
                     ) : !selectedAsmTeam ? (
                       <p className="text-[11px] text-warning font-medium">
@@ -1568,9 +1677,44 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
                       </p>
                     ) : (
                       <p className="text-[11px] text-muted">
-                        Assigned to <strong>{selectedAsmTeam.name}</strong> covering {asmTeamDistricts.join(' & ')}. Choose which district this BDE will focus on.
+                        Assigned to <strong>{selectedAsmTeam.name}</strong> covering <strong>{asmTeamDistricts.join(' & ')}</strong>. Only these 2 districts assigned to the ASM can be selected for this BDE.
                       </p>
                     )}
+                  </div>
+                ) : isCurrentASM ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-ink/80 font-semibold mb-1">
+                          Team & Zone <span className="text-subtle font-normal">(Assigned by SM)</span>
+                        </label>
+                        <div className="px-3 py-2 bg-field/60 border border-line rounded-lg text-ink text-xs font-semibold flex items-center justify-between min-h-[38px]">
+                          <span>{currentAsmTeamInfo?.name || formData.team || '—'}</span>
+                          <span className="text-[10px] text-muted font-normal">
+                            {currentAsmTeamInfo?.zone || formData.zone || '—'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-ink/80 font-semibold mb-1">
+                          Assigned Districts <span className="text-subtle font-normal">(Assigned by SM — Read Only)</span>
+                        </label>
+                        <div className="px-3 py-2 bg-field/60 border border-line rounded-lg text-ink text-xs font-semibold flex items-center justify-between min-h-[38px]">
+                          <span>
+                            {currentAsmTeamInfo?.isOffice
+                              ? 'None (Office Team)'
+                              : currentAsmTeamInfo && currentAsmTeamInfo.districts.length > 0
+                                ? currentAsmTeamInfo.districts.join(', ')
+                                : formData.district || '—'}
+                          </span>
+                          <span className="text-[10px] text-muted font-normal">Locked</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted">
+                      Each Area Sales Manager is assigned 2 fixed districts by the Sales Manager (SM) and cannot be edited here.
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
