@@ -167,7 +167,12 @@ export function countClosedLeadsBetweenDates(
   const empTeam = String(emp?.team || '').trim().toLowerCase();
   const role = roleLabelFor(emp?.designation, emp?.employee_id);
 
-  if (role === 'SM') return 0;
+  if (role === 'SM') {
+    return (Array.isArray(closedLeads) ? closedLeads : []).filter((l: any) => {
+      const closedDateIso = todayKey(getClosedLeadDate(l));
+      return closedDateIso >= fromDateIso && closedDateIso < toDateExclusiveIso;
+    }).length;
+  }
 
   let validIds = new Set<string>(empId ? [empId] : []);
   let validNames = new Set<string>(empName ? [empName] : []);
@@ -211,6 +216,136 @@ export function countClosedLeadsBetweenDates(
 }
 
 /**
+ * Rolls over monthly targets for all employees (SM, ASM, BDE) when a new IST month begins:
+ * - Uncompleted monthly target from previous month(s) carries over as `monthly_carryover`.
+ * - If last month's target was completed and nothing is assigned this month yet, `monthly_target` becomes `0`.
+ * - If last month had leftover and nothing is assigned this month yet, `monthly_target` shows the leftover.
+ */
+export async function rolloverMonthlyTargetsIfNeeded(
+  targetEmployeeId?: string
+): Promise<void> {
+  try {
+    const { monthKey, periodStart, periodEnd } = currentMonthBoundsIst();
+
+    const query: Record<string, any> = targetEmployeeId
+      ? { employee_id: new RegExp(`^${escapeRegex(targetEmployeeId)}$`, 'i') }
+      : { monthly_target_month: { $ne: monthKey } };
+
+    const candidates: any[] = await Employee.find(query).lean();
+    if (candidates.length === 0) return;
+
+    const needsWork = candidates.filter(
+      (c) => String(c.monthly_target_month || '') !== monthKey
+    );
+    if (needsWork.length === 0) return;
+
+    const [allLeads, allEmployees, allMonthlyTasks] = await Promise.all([
+      Lead.find({}).lean(),
+      Employee.find({})
+        .select('employee_id name designation reports_to team')
+        .lean(),
+      EmployeeTask.find({ task_template: /monthly/i }).sort({ createdAt: -1 }).lean(),
+    ]);
+
+    const closedLeads = (allLeads as any[]).filter(isClosedLeadRecord);
+
+    for (const emp of needsWork) {
+      const empId = String(emp.employee_id || '').trim();
+      if (!empId) continue;
+
+      const roleLabel = roleLabelFor(emp.designation, empId);
+      const empIdLower = empId.toLowerCase();
+      const empNameLower = String(emp.name || '').trim().toLowerCase();
+
+      const myMonthlyTask = (allMonthlyTasks as any[]).find(
+        (t: any) =>
+          String(t.employee_id || '').trim().toLowerCase() === empIdLower ||
+          (empNameLower && String(t.employee || '').trim().toLowerCase() === empNameLower)
+      );
+
+      const storedMonth = String(emp.monthly_target_month || '').trim();
+      const fallbackTarget =
+        typeof emp.monthly_target === 'number' && emp.monthly_target > 0
+          ? emp.monthly_target
+          : typeof myMonthlyTask?.total_target === 'number' && myMonthlyTask.total_target > 0
+            ? myMonthlyTask.total_target
+            : 0;
+
+      if (!storedMonth) {
+        // Initialize tracking for the current month with the employee's current monthly target
+        await Employee.updateOne(
+          { _id: emp._id },
+          {
+            $set: {
+              monthly_target_month: monthKey,
+              monthly_carryover: 0,
+              monthly_assigned: fallbackTarget,
+              monthly_target: fallbackTarget,
+            },
+          }
+        );
+        continue;
+      }
+
+      if (storedMonth < monthKey) {
+        const prevTotalTarget = Math.max(0, Number(emp.monthly_target ?? fallbackTarget ?? 0));
+        const prevMonthStartIso = `${storedMonth}-01`;
+        const currentMonthStartIso = `${monthKey}-01`;
+
+        const completedInPrevMonths = countClosedLeadsBetweenDates(
+          emp,
+          closedLeads,
+          allEmployees as any[],
+          prevMonthStartIso,
+          currentMonthStartIso
+        );
+        const newCarryover = Math.max(0, prevTotalTarget - completedInPrevMonths);
+
+        await Employee.updateOne(
+          { _id: emp._id },
+          {
+            $set: {
+              monthly_target_month: monthKey,
+              monthly_carryover: newCarryover,
+              monthly_assigned: 0,
+              monthly_target: newCarryover,
+            },
+          }
+        );
+
+        const empIdRegex = new RegExp(`^${escapeRegex(empId)}$`, 'i');
+        const existingCurrentMonthly: any = await EmployeeTask.findOne({
+          employee_id: empIdRegex,
+          task_template: /monthly/i,
+          period_start: new RegExp(`^${monthKey}`),
+        }).sort({ createdAt: -1 });
+
+        if (existingCurrentMonthly) {
+          existingCurrentMonthly.total_target = newCarryover;
+          existingCurrentMonthly.period_start = periodStart;
+          existingCurrentMonthly.period_end = periodEnd;
+          await existingCurrentMonthly.save();
+        } else if (newCarryover > 0) {
+          await EmployeeTask.create({
+            employee: emp.name,
+            employee_id: empId,
+            task_template: `Monthly ${roleLabel} Target`,
+            period_start: periodStart,
+            period_end: periodEnd,
+            total_target: newCarryover,
+            achieved: 0,
+            is_completed: false,
+            metric_type: 'Leads Generated',
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('rolloverMonthlyTargetsIfNeeded error:', err);
+  }
+}
+
+/**
  * Rolls over daily targets for all employees (or a single employee) when a new IST day begins:
  * - Uncompleted daily target from previous day(s) carries over as `daily_carryover`.
  * - If yesterday's target was completed and nothing is assigned today yet, `daily_target` becomes `0`.
@@ -220,6 +355,7 @@ export async function rolloverDailyTargetsIfNeeded(
   targetEmployeeId?: string
 ): Promise<void> {
   try {
+    await rolloverMonthlyTargetsIfNeeded(targetEmployeeId);
     const { monthKey, periodStart, periodEnd, todayIso } = currentMonthBoundsIst();
 
     const query: Record<string, any> = targetEmployeeId
@@ -365,15 +501,24 @@ export async function syncEmployeeTargets(
   monthly_target: number;
   daily_carryover: number;
   daily_assigned: number;
+  monthly_carryover: number;
+  monthly_assigned: number;
 }> {
   if (!emp || !emp.employee_id) {
-    return { daily_target: 0, monthly_target: 0, daily_carryover: 0, daily_assigned: 0 };
+    return {
+      daily_target: 0,
+      monthly_target: 0,
+      daily_carryover: 0,
+      daily_assigned: 0,
+      monthly_carryover: 0,
+      monthly_assigned: 0,
+    };
   }
 
   const { monthKey, periodStart, periodEnd, todayIso } = currentMonthBoundsIst();
   const empIdRegex = new RegExp(`^${escapeRegex(emp.employee_id)}$`, 'i');
 
-  // 1. Ensure any previous day's leftover is rolled over to today first
+  // 1. Ensure any previous day's or previous month's leftover is rolled over first
   await rolloverDailyTargetsIfNeeded(emp.employee_id);
 
   const empDoc: any = await Employee.findOne({ employee_id: empIdRegex }).lean();
@@ -383,6 +528,8 @@ export async function syncEmployeeTargets(
   let finalCarryover = Number(empDoc?.daily_carryover ?? 0);
   let finalAssigned = Number(empDoc?.daily_assigned ?? 0);
   let finalMonthly = Number(empDoc?.monthly_target ?? 0);
+  let finalMonthlyCarryover = Number(empDoc?.monthly_carryover ?? 0);
+  let finalMonthlyAssigned = Number(empDoc?.monthly_assigned ?? 0);
 
   if (roleLabel === 'SM') {
     finalDaily = 0;
@@ -444,12 +591,20 @@ export async function syncEmployeeTargets(
 
   if (monthlyTarget !== undefined && !isNaN(Number(monthlyTarget))) {
     const val = Math.max(0, Number(monthlyTarget));
-    finalMonthly = val;
+    finalMonthlyCarryover =
+      empDoc?.monthly_target_month === monthKey
+        ? Math.max(0, Number(empDoc?.monthly_carryover ?? 0))
+        : 0;
+    finalMonthlyAssigned = val;
+    finalMonthly = finalMonthlyCarryover + finalMonthlyAssigned;
 
     await Employee.updateOne(
       { employee_id: empIdRegex },
       {
         $set: {
+          monthly_target_month: monthKey,
+          monthly_carryover: finalMonthlyCarryover,
+          monthly_assigned: finalMonthlyAssigned,
           monthly_target: finalMonthly,
         },
       }
@@ -487,6 +642,8 @@ export async function syncEmployeeTargets(
     monthly_target: finalMonthly,
     daily_carryover: finalCarryover,
     daily_assigned: finalAssigned,
+    monthly_carryover: finalMonthlyCarryover,
+    monthly_assigned: finalMonthlyAssigned,
   };
 }
 
@@ -500,6 +657,8 @@ export function resolveEmployeeTargets(
   monthly_target: number;
   daily_carryover: number;
   daily_assigned: number;
+  monthly_carryover: number;
+  monthly_assigned: number;
 } {
   const empId = String(emp?.employee_id || '').trim().toLowerCase();
   const empName = String(emp?.name || '').trim().toLowerCase();
@@ -576,12 +735,43 @@ export function resolveEmployeeTargets(
     resolvedAssigned = resolvedDaily;
   }
 
+  let resolvedMonthly = 0;
+  let resolvedMonthlyCarryover = Math.max(0, Number(emp?.monthly_carryover ?? 0));
+  let resolvedMonthlyAssigned = Math.max(0, Number(emp?.monthly_assigned ?? 0));
+
+  if (emp?.monthly_target_month === monthKey) {
+    resolvedMonthly = Math.max(0, monthlyFromEmp);
+  } else if (
+    emp?.monthly_target_month &&
+    emp.monthly_target_month < monthKey &&
+    Array.isArray(allLeads)
+  ) {
+    const closedLeads = allLeads.filter(isClosedLeadRecord);
+    const completedInPrevMonth = countClosedLeadsBetweenDates(
+      emp,
+      closedLeads,
+      allEmployees || [],
+      `${emp.monthly_target_month}-01`,
+      `${monthKey}-01`
+    );
+    resolvedMonthlyCarryover = Math.max(0, monthlyFromEmp - completedInPrevMonth);
+    resolvedMonthlyAssigned = 0;
+    resolvedMonthly = resolvedMonthlyCarryover;
+  } else {
+    resolvedMonthly =
+      monthlyFromTask !== undefined && monthlyFromTask > 0
+        ? monthlyFromTask
+        : monthlyFromEmp;
+    resolvedMonthlyAssigned = resolvedMonthly;
+  }
+
   return {
     daily_target: resolvedDaily,
-    monthly_target:
-      monthlyFromTask !== undefined && monthlyFromTask > 0 ? monthlyFromTask : monthlyFromEmp,
+    monthly_target: resolvedMonthly,
     daily_carryover: resolvedCarryover,
     daily_assigned: resolvedAssigned,
+    monthly_carryover: resolvedMonthlyCarryover,
+    monthly_assigned: resolvedMonthlyAssigned,
   };
 }
 

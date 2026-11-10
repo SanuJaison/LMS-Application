@@ -23,6 +23,9 @@ export interface IEmployee extends Document {
   daily_carryover?: number;
   daily_assigned?: number;
   monthly_target?: number;
+  monthly_target_month?: string;
+  monthly_carryover?: number;
+  monthly_assigned?: number;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -131,6 +134,19 @@ const EmployeeSchema = new Schema<IEmployee>(
       default: 0,
     },
     monthly_target: {
+      type: Number,
+      default: 0,
+    },
+    monthly_target_month: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    monthly_carryover: {
+      type: Number,
+      default: 0,
+    },
+    monthly_assigned: {
       type: Number,
       default: 0,
     },
