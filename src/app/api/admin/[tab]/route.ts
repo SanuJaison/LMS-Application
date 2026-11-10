@@ -654,6 +654,7 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
 
     if (params.tab === 'employees') {
       delete payload.daily_target;
+      delete payload.monthly_target;
     }
 
     const updated = await Model.findByIdAndUpdate(id, payload, { new: true });
