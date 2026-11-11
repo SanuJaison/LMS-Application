@@ -234,6 +234,16 @@ export async function GET(req: Request) {
         ? wallet.total_earned
         : (role === 'BDE' ? ownClosedLeads * (typeof employee?.incentive === 'number' && employee.incentive > 0 ? employee.incentive : 1000) : 0);
 
+    const walletBalance =
+      typeof wallet?.balance === 'number'
+        ? wallet.balance
+        : incentivesEarned;
+
+    const walletTotalPaid =
+      typeof wallet?.total_paid === 'number'
+        ? wallet.total_paid
+        : 0;
+
     // Subordinates: only people below the caller (never team-wide).
     const subordinates =
       role === 'BDE'
@@ -466,6 +476,17 @@ export async function GET(req: Request) {
         follow_up_leads: followUpLeads,
         closed_leads: closedLeads,
         incentives_earned: incentivesEarned,
+        wallet_balance: walletBalance,
+        available_balance: walletBalance,
+      },
+      wallet_balance: walletBalance,
+      available_balance: walletBalance,
+      wallet: {
+        balance: walletBalance,
+        available_balance: walletBalance,
+        total_earned: incentivesEarned,
+        total_paid: walletTotalPaid,
+        currency: wallet?.currency || 'INR',
       },
       targets: {
         daily_target: role === 'SM' ? 0 : dailyTarget,
