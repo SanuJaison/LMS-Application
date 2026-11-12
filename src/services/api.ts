@@ -18,6 +18,8 @@ const DEDICATED_RESOURCE_TABS: Record<string, string> = {
   employeeTasks: '/api/employee-tasks',
   'employee-tasks': '/api/employee-tasks',
   leads: '/api/leads',
+  'leads-all': '/api/leads?include_deleted=true',
+  'admin/leads': '/api/leads?include_deleted=true',
   institutes: '/api/institutes',
   followups: '/api/followups',
 };
