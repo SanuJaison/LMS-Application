@@ -18,6 +18,7 @@ import {
   deleteResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface DistrictItem {
   _id?: string;
@@ -192,7 +193,12 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
 
   // Delete single
   const handleDeleteDistrict = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this district?')) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete District?',
+      message: 'Are you sure you want to delete this district? Confirm delete?',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setIsDeleting(id);
     try {
       await deleteResourceItem('districts', id);
@@ -209,7 +215,12 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected districts?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected District${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected district(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('districts', selectedIds);
       showToast?.('success', `${selectedIds.length} districts deleted successfully!`);

@@ -20,6 +20,7 @@ import {
   deleteResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 // 12 standard Filament Shield permissions in 4 columns
 const PERMISSION_COLUMNS = [
@@ -275,7 +276,12 @@ export default function RolesView({ showToast, onRolesUpdated }: RolesViewProps)
 
   // Delete Role from MongoDB Atlas
   const handleDeleteRole = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete role "${name}"?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Role?',
+      message: `Are you sure you want to delete role "${name}"? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       setIsDeleting(id);
       await deleteResourceItem('roles', id);

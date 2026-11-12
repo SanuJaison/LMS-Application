@@ -17,6 +17,7 @@ import {
   deleteResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface DesignationItem {
   _id?: string;
@@ -170,7 +171,12 @@ export default function DesignationsView({ showToast }: DesignationsViewProps) {
 
   // Delete single
   const handleDeleteDesignation = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this designation?')) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Designation?',
+      message: 'Are you sure you want to delete this designation? Confirm delete?',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setIsDeleting(id);
     try {
       await deleteResourceItem('designations', id);
@@ -187,7 +193,12 @@ export default function DesignationsView({ showToast }: DesignationsViewProps) {
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected designations?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Designation${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected designation(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('designations', selectedIds);
       showToast?.('success', `${selectedIds.length} designations deleted successfully!`);

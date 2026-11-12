@@ -21,6 +21,7 @@ import {
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 export interface WalletWithdrawRequestItem {
   _id?: string;
@@ -335,7 +336,12 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this withdraw request?')) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Withdraw Request?',
+      message: 'Are you sure you want to delete this withdraw request? Confirm delete?',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('walletWithdrawRequests', id);
       showToast?.('success', 'Withdraw request deleted successfully!');

@@ -296,7 +296,7 @@ export default function EmployeeTasksView({ showToast }: EmployeeTasksViewProps)
       const [employeeList, taskList, leadList] = await Promise.all([
         fetchResourceList('employees').catch(() => []),
         fetchResourceList('employeeTasks').catch(() => []),
-        fetchResourceList('leads').catch(() => []),
+        fetchResourceList('admin/leads').catch(() => []),
       ]);
       setEmployees(Array.isArray(employeeList) ? employeeList : []);
       setEmployeeTasks(Array.isArray(taskList) ? taskList : []);

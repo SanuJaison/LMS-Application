@@ -24,7 +24,7 @@ import RolesView from '@/components/pages/RolesView';
 import ActivitiesView from '@/components/pages/ActivitiesView';
 import AccountsView from '@/components/pages/AccountsView';
 import GenericResourceView from '@/components/pages/GenericResourceView';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function KeralaCRMApp() {
   // Authentication State
@@ -50,12 +50,13 @@ export default function KeralaCRMApp() {
   const [rolesCount, setRolesCount] = useState<number>(1);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
-  // Toast Notifications
-  const [toast, setToast] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
-
+  // Toast Notifications (powered by react-hot-toast)
   const showToast = (type: 'success' | 'danger', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
+    if (type === 'success') {
+      toast.success(message);
+    } else {
+      toast.error(message);
+    }
   };
 
   // Verify JWT token on initial load
@@ -199,35 +200,53 @@ export default function KeralaCRMApp() {
   // 2. Unauthenticated Login Screen
   if (!isAuthenticated) {
     return (
-      <LoginView
-        onLoginSuccess={(loggedInUser) => {
-          setUser(loggedInUser);
-          setIsAuthenticated(true);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('user_session', JSON.stringify(loggedInUser));
-          }
-          showToast('success', `Welcome back, ${loggedInUser.name || 'Admin'}! Authorized.`);
-        }}
-        isDarkMode={isDarkMode}
-        toggleTheme={toggleTheme}
-      />
+      <>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: 'var(--bg-elevated, #1e293b)',
+              color: 'var(--text-ink, #f8fafc)',
+              border: '1px solid var(--border-line, #334155)',
+              fontSize: '13px',
+              borderRadius: '12px',
+            },
+          }}
+        />
+        <LoginView
+          onLoginSuccess={(loggedInUser) => {
+            setUser(loggedInUser);
+            setIsAuthenticated(true);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('user_session', JSON.stringify(loggedInUser));
+            }
+            showToast('success', `Welcome back, ${loggedInUser.name || 'Admin'}! Authorized.`);
+          }}
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
+        />
+      </>
     );
   }
 
   // 3. Authenticated Dashboard & CRM Layout
   return (
     <div className="min-h-screen bg-app text-ink flex flex-col font-sans selection:bg-accent selection:text-white">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-5 right-4 left-4 sm:left-auto sm:right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl border text-sm animate-in fade-in slide-in-from-top-2 bg-elevated border-line text-ink max-w-[calc(100vw-2rem)] sm:max-w-sm">
-          {toast.type === 'success' ? (
-            <CheckCircle className="w-5 h-5 text-success" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-danger" />
-          )}
-          <span>{toast.message}</span>
-        </div>
-      )}
+      {/* React Hot Toast Container */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            background: 'var(--bg-elevated, #1e293b)',
+            color: 'var(--text-ink, #f8fafc)',
+            border: '1px solid var(--border-line, #334155)',
+            fontSize: '13px',
+            borderRadius: '12px',
+          },
+        }}
+      />
 
       {/* Top Navbar */}
       <Navbar

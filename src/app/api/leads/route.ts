@@ -69,7 +69,11 @@ export async function GET(req: Request) {
 
     // Build filter query. Conditions are combined with $and so that adding the
     // scope below never overwrites a search/status filter.
-    const conditions: Record<string, any>[] = [leadScopeFilter(scope)];
+    const includeDeleted = searchParams.get('include_deleted') === 'true';
+    const conditions: Record<string, any>[] = [
+      leadScopeFilter(scope),
+      ...(includeDeleted ? [] : [{ is_deleted: { $ne: true } }]),
+    ];
 
     const district = searchParams.get('district');
     if (district) conditions.push({ district });
@@ -486,7 +490,9 @@ export async function DELETE(req: Request) {
       ],
     };
 
-    const doomed = await Lead.find(idConditions).select('name lead_id employee employee_id').lean();
+    const doomed = await Lead.find(idConditions)
+      .select('name lead_id employee employee_id status admission_status')
+      .lean();
 
     if (!auth.isAdmin) {
       const outOfScope = (doomed as any[]).filter(
@@ -497,7 +503,44 @@ export async function DELETE(req: Request) {
       }
     }
 
-    await Lead.deleteMany(idConditions);
+    const isClosedLeadDoc = (lead: any) => {
+      const adm = String(lead?.admission_status || '').toLowerCase().trim();
+      const st = String(lead?.status ?? '').toLowerCase().trim();
+      return (
+        adm === 'admitted' ||
+        adm === 'closed' ||
+        adm === 'won' ||
+        st === 'admitted' ||
+        st === 'closed' ||
+        st === 'won' ||
+        lead?.status === 4 ||
+        lead?.status === 5 ||
+        st === '4' ||
+        st === '5'
+      );
+    };
+
+    const closedIds = (doomed as any[])
+      .filter((lead) => isClosedLeadDoc(lead))
+      .map((lead) => lead._id);
+    const openIds = (doomed as any[])
+      .filter((lead) => !isClosedLeadDoc(lead))
+      .map((lead) => lead._id);
+
+    if (closedIds.length > 0) {
+      // Soft-delete closed/admitted leads so they disappear from the Leads list
+      // while preserving target achievements (BDE/ASM/SM) and admission revenue.
+      await Lead.updateMany(
+        { _id: { $in: closedIds } },
+        { $set: { is_deleted: true } }
+      );
+    }
+
+    if (openIds.length > 0) {
+      await Lead.deleteMany({ _id: { $in: openIds } });
+    }
+
+    await syncAllEmployeeTaskAchievements();
 
     if (doomed.length > 0) {
       const single = doomed.length === 1 ? (doomed[0] as any) : null;

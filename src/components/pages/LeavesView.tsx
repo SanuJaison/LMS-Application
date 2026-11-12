@@ -20,6 +20,7 @@ import {
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 export interface LeaveItem {
   _id?: string;
@@ -213,7 +214,12 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected leaves?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Leave${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected leave record(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('leaves', selectedIds);
       showToast?.('success', `${selectedIds.length} leaves deleted successfully!`);
@@ -226,7 +232,12 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
 
   // Single Delete
   const handleDeleteLeave = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this leave record?')) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Leave Record?',
+      message: 'Are you sure you want to delete this leave record? Confirm delete?',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('leaves', id);
       showToast?.('success', 'Leave record deleted successfully!');

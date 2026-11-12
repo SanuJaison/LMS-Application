@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import TablePagination from '@/components/ui/TablePagination';
 import { authHeaders } from '../../services/api';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface Team {
   _id?: string;
@@ -400,7 +401,12 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
     const teamId = team.id || team._id;
     if (!teamId) return;
 
-    if (!confirm(`Are you sure you want to delete "${team.name}"?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Team?',
+      message: `Are you sure you want to delete team "${team.name}"? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/admin/teams?id=${teamId}`, {
@@ -424,7 +430,12 @@ export default function TeamsView({ showToast }: TeamsViewProps) {
   // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} team(s)?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Team${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected team(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch('/api/admin/teams', {

@@ -42,6 +42,7 @@ export interface ILead extends Document {
   followups?: any[];
   proof_url?: string;
   presentation?: string;
+  is_deleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -237,6 +238,11 @@ const LeadSchema = new Schema<ILead>(
     presentation: {
       type: String,
       default: '',
+    },
+    is_deleted: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

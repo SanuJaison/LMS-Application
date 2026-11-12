@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Zone } from '../types';
 import { authHeaders } from '../services/api';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface ZonesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -193,7 +194,12 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
     const zoneId = zone.id || zone._id;
     if (!zoneId) return;
 
-    if (!confirm(`Are you sure you want to delete "${zone.name}"?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Zone?',
+      message: `Are you sure you want to delete zone "${zone.name}"? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/admin/zones?id=${zoneId}`, {
@@ -217,7 +223,12 @@ export default function ZonesView({ showToast }: ZonesViewProps) {
   // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} zone(s)?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Zone${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected zone(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch('/api/admin/zones', {

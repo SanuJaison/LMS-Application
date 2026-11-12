@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { authHeaders } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface InstituteItem {
   id: string;
@@ -127,13 +128,12 @@ export default function InstitutesView({ showToast }: InstitutesViewProps) {
   }, [filtered, currentPage, perPage]);
 
   const handleDelete = async (item: InstituteItem) => {
-    if (
-      !window.confirm(
-        `Delete institute "${item.institute_name}"? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Institute?',
+      message: `Are you sure you want to delete institute "${item.institute_name}"? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     setDeletingId(item.id);
     try {

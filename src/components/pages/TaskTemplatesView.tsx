@@ -20,6 +20,7 @@ import {
   updateResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface TaskTemplatesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -141,7 +142,7 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
       const [employeeList, taskList, leadList] = await Promise.all([
         fetchResourceList('employees').catch(() => []),
         fetchResourceList('employeeTasks').catch(() => []),
-        fetchResourceList('leads').catch(() => []),
+        fetchResourceList('admin/leads').catch(() => []),
       ]);
       setEmployees(Array.isArray(employeeList) ? employeeList : []);
       setTargetRows(Array.isArray(taskList) ? taskList : []);
@@ -351,7 +352,12 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
   };
 
   const handleDelete = async (group: MonthGroup) => {
-    if (!window.confirm(`Delete the monthly target for ${monthLabel(group.month)}?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Monthly Target?',
+      message: `Delete the monthly target for ${monthLabel(group.month)}? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     const ids = [group.monthly?._id].filter(Boolean) as string[];
     if (ids.length === 0) return;

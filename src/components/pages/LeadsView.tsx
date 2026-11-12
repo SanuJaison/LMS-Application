@@ -25,6 +25,7 @@ import {
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
 import { buildMonthOptions, matchesMonthFilter } from '@/utils/dateFilters';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 export interface LeadItem {
   _id?: string;
@@ -376,13 +377,61 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
     }
   };
 
+  const classifyLeadStatus = (lead?: LeadItem | null): 'closed' | 'followup' | 'open' => {
+    const st = String(lead?.status ?? '').toLowerCase().trim();
+    const adm = String(lead?.admission_status ?? '').toLowerCase().trim();
+    if (
+      st === 'won' ||
+      st === 'admitted' ||
+      st === 'closed' ||
+      st === '4' ||
+      st === '5' ||
+      adm === 'won' ||
+      adm === 'admitted' ||
+      adm === 'closed'
+    ) {
+      return 'closed';
+    }
+    if (
+      st.includes('follow') ||
+      st === 'interested' ||
+      st === '2' ||
+      st === '3' ||
+      adm.includes('follow') ||
+      adm === 'interested'
+    ) {
+      return 'followup';
+    }
+    return 'open';
+  };
+
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected leads?`)) return;
+    const selectedLeads = leads.filter((l) => selectedIds.includes(rowId(l)));
+    const closedCount = selectedLeads.filter((l) => classifyLeadStatus(l) === 'closed').length;
+    const followupCount = selectedLeads.filter((l) => classifyLeadStatus(l) === 'followup').length;
+    const openCount = selectedLeads.filter((l) => classifyLeadStatus(l) === 'open').length;
+
+    const statusParts: string[] = [];
+    if (openCount > 0) statusParts.push(`${openCount} open`);
+    if (followupCount > 0) statusParts.push(`${followupCount} in follow-up`);
+    if (closedCount > 0) statusParts.push(`${closedCount} closed/admitted`);
+
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Lead${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Selected leads include: ${statusParts.join(', ') || `${selectedIds.length} lead(s)`}. ${
+        closedCount > 0
+          ? 'Closed leads will be removed from the Leads list while keeping target progress and revenue intact. '
+          : ''
+      }Confirm delete?`,
+      variant: openCount > 0 || followupCount > 0 ? 'warning' : 'danger',
+    });
+    if (!confirmed) return;
+
     try {
       await deleteResourceItem('leads', selectedIds);
-      showToast?.('success', `${selectedIds.length} leads deleted successfully!`);
+      showToast?.('success', `${selectedIds.length} lead(s) deleted successfully!`);
       setSelectedIds([]);
       await loadData();
     } catch {
@@ -392,10 +441,44 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
 
   // Single Delete
   const handleDeleteLead = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this lead?')) return;
+    const targetLead = leads.find((l) => rowId(l) === id);
+    const leadName = targetLead?.name || 'this lead';
+    const category = classifyLeadStatus(targetLead);
+    const statusText = String(targetLead?.admission_status || targetLead?.status || 'New');
+
+    let title = 'Confirm Lead Deletion';
+    let message = `Are you sure you want to delete "${leadName}"?`;
+    let variant: 'danger' | 'warning' = 'danger';
+
+    if (category === 'closed') {
+      title = 'Delete Closed / Admitted Lead?';
+      message = `This lead ("${leadName}") is in Closed / Admitted status. Deleting it will remove it from the Leads list while keeping target progress (BDE, ASM, SM) and admission revenue intact. Confirm delete?`;
+      variant = 'warning';
+    } else if (category === 'followup') {
+      title = 'This Lead is in Follow-Up Status';
+      message = `This lead ("${leadName}") is currently in Follow-Up status (${statusText}). Are you sure you want to permanently delete this lead? Confirm delete?`;
+      variant = 'warning';
+    } else {
+      title = 'This Lead is Still Open';
+      message = `This lead ("${leadName}") is still open (${statusText}). Are you sure you want to permanently delete this lead? Confirm delete?`;
+      variant = 'warning';
+    }
+
+    const confirmed = await confirmDeleteToast({
+      title,
+      message,
+      variant,
+    });
+    if (!confirmed) return;
+
     try {
       await deleteResourceItem('leads', id);
-      showToast?.('success', 'Lead deleted successfully!');
+      showToast?.(
+        'success',
+        category === 'closed'
+          ? 'Closed lead removed from Leads list (targets & revenue preserved)!'
+          : 'Lead deleted successfully!'
+      );
       await loadData();
     } catch {
       showToast?.('danger', 'Failed to delete lead.');

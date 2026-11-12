@@ -762,10 +762,45 @@ export async function DELETE(req: Request, { params }: { params: { tab: string }
 
     // Capture the names before deleting so the audit trail stays readable.
     const doomed = await Model.find({ _id: { $in: idsToDelete } })
-      .select('name title employee lead_id description')
+      .select('name title employee lead_id description status admission_status')
       .lean();
 
-    await Model.deleteMany({ _id: { $in: idsToDelete } });
+    if (params.tab === 'leads') {
+      const isClosedLeadDoc = (lead: any) => {
+        const adm = String(lead?.admission_status || '').toLowerCase().trim();
+        const st = String(lead?.status ?? '').toLowerCase().trim();
+        return (
+          adm === 'admitted' ||
+          adm === 'closed' ||
+          adm === 'won' ||
+          st === 'admitted' ||
+          st === 'closed' ||
+          st === 'won' ||
+          lead?.status === 4 ||
+          lead?.status === 5 ||
+          st === '4' ||
+          st === '5'
+        );
+      };
+      const closedIds = (doomed as any[])
+        .filter((lead) => isClosedLeadDoc(lead))
+        .map((lead) => lead._id);
+      const openIds = (doomed as any[])
+        .filter((lead) => !isClosedLeadDoc(lead))
+        .map((lead) => lead._id);
+
+      if (closedIds.length > 0) {
+        await Model.updateMany(
+          { _id: { $in: closedIds } },
+          { $set: { is_deleted: true } }
+        );
+      }
+      if (openIds.length > 0) {
+        await Model.deleteMany({ _id: { $in: openIds } });
+      }
+    } else {
+      await Model.deleteMany({ _id: { $in: idsToDelete } });
+    }
 
     if (
       params.tab === 'leaves' ||

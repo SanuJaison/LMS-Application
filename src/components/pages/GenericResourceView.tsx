@@ -15,6 +15,7 @@ import {
   updateResourceItem,
   deleteResourceItem,
 } from '../../services/api';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface GenericResourceViewProps {
   activeTab: string;
@@ -140,7 +141,12 @@ export default function GenericResourceView({
     const id = item.id || item._id;
     if (!id) return;
 
-    if (!confirm(`Are you sure you want to delete this ${activeTab.replace(/s$/, '')}?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${activeTab.replace(/s$/, '')}?`,
+      message: `Are you sure you want to delete this ${activeTab.replace(/s$/, '')}? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await deleteResourceItem(activeTab, id);

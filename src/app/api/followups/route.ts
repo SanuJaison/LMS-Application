@@ -68,7 +68,10 @@ export async function GET(req: Request) {
     }
 
     // Build filter for Follow-up Pipeline
-    const filters: Record<string, any>[] = [leadScopeFilter(scope)];
+    const filters: Record<string, any>[] = [
+      leadScopeFilter(scope),
+      { is_deleted: { $ne: true } },
+    ];
 
     const status = searchParams.get('status') || searchParams.get('admission_status');
     if (status) {

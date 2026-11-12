@@ -17,6 +17,7 @@ import {
   deleteResourceItem,
 } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface CourseItem {
   _id?: string;
@@ -159,7 +160,12 @@ export default function CoursesView({ showToast }: CoursesViewProps) {
 
   // Delete single
   const handleDeleteCourse = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this course?')) return;
+    const confirmed = await confirmDeleteToast({
+      title: 'Delete Course?',
+      message: 'Are you sure you want to delete this course? Confirm delete?',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setIsDeleting(id);
     try {
       await deleteResourceItem('courses', id);
@@ -176,7 +182,12 @@ export default function CoursesView({ showToast }: CoursesViewProps) {
   // Bulk Delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
-    if (!window.confirm(`Delete ${selectedIds.length} selected courses?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Course${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to delete ${selectedIds.length} selected course(s)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteResourceItem('courses', selectedIds);
       showToast?.('success', `${selectedIds.length} courses deleted successfully!`);

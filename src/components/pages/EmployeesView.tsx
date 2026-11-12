@@ -15,6 +15,7 @@ import {
 import { Employee } from '../../types';
 import { authHeaders } from '../../services/api';
 import TablePagination from '@/components/ui/TablePagination';
+import { confirmDeleteToast } from '@/utils/confirmToast';
 
 interface EmployeesViewProps {
   showToast?: (type: 'success' | 'danger', message: string) => void;
@@ -564,7 +565,27 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
     const empId = emp.id || (emp as any)._id;
     if (!empId) return;
 
-    if (!confirm(`Are you sure you want to delete ${emp.name}?`)) return;
+    const isEmpSM = isSMDesignation(emp.designation, emp.employee_id);
+    const isEmpASM = isASMDesignation(emp.designation, emp.employee_id);
+    const isEmpOffice = isOfficeEmployee(emp);
+    const roleLabel = isEmpSM
+      ? 'Sales Manager (SM)'
+      : isEmpASM
+      ? isEmpOffice
+        ? 'Office Team Lead'
+        : 'Area Sales Manager (ASM)'
+      : isEmpOffice
+      ? 'Office Team Member'
+      : 'BDE';
+
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${roleLabel}?`,
+      message: `Are you sure you want to permanently delete ${roleLabel} "${emp.name}"${
+        emp.employee_id ? ` (${emp.employee_id})` : ''
+      }? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`/api/admin/employees?id=${empId}`, {
@@ -573,7 +594,7 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       });
       const json = await res.json();
       if (json.success) {
-        showToast?.('success', 'Employee deleted successfully');
+        showToast?.('success', `${roleLabel} "${emp.name}" deleted successfully`);
         setSelectedIds((prev) => prev.filter((id) => id !== empId));
         fetchEmployees();
       } else {
@@ -588,7 +609,12 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
   // Bulk delete
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} employee(s)?`)) return;
+    const confirmed = await confirmDeleteToast({
+      title: `Delete ${selectedIds.length} Selected Employee${selectedIds.length === 1 ? '' : 's'}?`,
+      message: `Are you sure you want to permanently delete ${selectedIds.length} selected employee(s) (SM / ASM / BDE)? Confirm delete?`,
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch('/api/admin/employees', {
