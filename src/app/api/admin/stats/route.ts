@@ -10,8 +10,8 @@ const STATUS_LABELS = [
   'Contacted',
   'Interested',
   'Follow Up',
-  'Won / Admitted',
-  'Lost / Closed',
+  'Admitted / Closed',
+  'Lost',
 ];
 const STATUS_COLORS = ['#09929e', '#8b5cf6', '#f59e0b', '#f97316', '#10b981', '#ef4444'];
 
@@ -19,33 +19,49 @@ const STATUS_COLORS = ['#09929e', '#8b5cf6', '#f59e0b', '#f97316', '#10b981', '#
  * Map the admin string statuses and the mobile numeric statuses onto the
  * dashboard's six buckets. Returns -1 for values that should not be counted.
  */
-function statusIndex(status: any): number {
-  const raw = String(status ?? '').trim().toLowerCase();
-  if (raw === '') return 0;
+function statusIndex(status: any, admissionStatus?: any): number {
+  const rawStatus = String(status ?? '').trim().toLowerCase();
+  const rawAdm = String(admissionStatus ?? '').trim().toLowerCase();
+  const combined = `${rawAdm} ${rawStatus}`.trim();
 
-  // String statuses (admin lead form)
-  if (raw.includes('won') || raw.includes('admit') || raw.includes('enroll')) return 4;
+  if (combined === '') return 0;
+
+  // Lost / Rejected / Not Interested -> bucket 5 ("Lost")
   if (
-    raw.includes('lost') ||
-    raw.includes('closed') ||
-    raw.includes('reject') ||
-    raw.includes('not interested')
+    combined.includes('lost') ||
+    combined.includes('reject') ||
+    combined.includes('not interested') ||
+    combined.includes('dropped')
   ) {
     return 5;
   }
-  if (raw.includes('follow')) return 3;
-  if (raw.includes('present') || raw.includes('schedul') || raw.includes('payment pending')) {
+
+  // Admitted / Closed / Won -> bucket 4 ("Admitted / Closed")
+  if (
+    combined.includes('won') ||
+    combined.includes('admit') ||
+    combined.includes('closed') ||
+    combined.includes('enroll')
+  ) {
+    return 4;
+  }
+
+  if (combined.includes('follow')) return 3;
+  if (
+    combined.includes('present') ||
+    combined.includes('schedul') ||
+    combined.includes('payment pending')
+  ) {
     return 2;
   }
-  if (raw.includes('interest')) return 2;
-  if (raw.includes('contact')) return 1;
-  if (raw.includes('new')) return 0;
+  if (combined.includes('interest')) return 2;
+  if (combined.includes('contact')) return 1;
+  if (combined.includes('new')) return 0;
 
-  // Numeric statuses (mobile app)
+  // Numeric statuses (mobile app: 4 & 5 are Admitted / Closed)
   const numeric = Number(status);
   if (!Number.isNaN(numeric)) {
-    if (numeric === 4) return 4;
-    if (numeric === 5) return 5;
+    if (numeric === 4 || numeric === 5) return 4;
     if (numeric === 3) return 2;
     if (numeric === 2) return 3;
     if (numeric === 1) return 0;
@@ -106,7 +122,12 @@ export async function GET(req: Request) {
         Lead.countDocuments({ ...leadQuery, createdAt: { $gte: startOfToday } }),
         Lead.aggregate([
           { $match: leadQuery },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
+          {
+            $group: {
+              _id: { status: '$status', admission_status: '$admission_status' },
+              count: { $sum: 1 },
+            },
+          },
         ]),
         Lead.aggregate([
           { $match: leadQuery },
@@ -123,7 +144,9 @@ export async function GET(req: Request) {
                 month: { $month: '$createdAt' },
               },
               count: { $sum: 1 },
-              statuses: { $push: '$status' },
+              statuses: {
+                $push: { status: '$status', admission_status: '$admission_status' },
+              },
             },
           },
         ]),
@@ -136,7 +159,7 @@ export async function GET(req: Request) {
     // Leads by status buckets
     const statusCounts = STATUS_LABELS.map(() => 0);
     statusAgg.forEach((row: any) => {
-      const idx = statusIndex(row._id);
+      const idx = statusIndex(row._id?.status, row._id?.admission_status);
       if (idx >= 0 && idx < statusCounts.length) {
         statusCounts[idx] += row.count || 0;
       }
@@ -155,7 +178,9 @@ export async function GET(req: Request) {
     const monthMap = new Map<string, { created: number; won: number }>();
     monthAgg.forEach((row: any) => {
       const key = `${row._id?.year}-${row._id?.month}`;
-      const won = (row.statuses || []).filter((status: any) => statusIndex(status) === 4).length;
+      const won = (row.statuses || []).filter(
+        (item: any) => statusIndex(item?.status, item?.admission_status) === 4
+      ).length;
       const entry = monthMap.get(key) || { created: 0, won: 0 };
       entry.created += row.count || 0;
       entry.won += won;

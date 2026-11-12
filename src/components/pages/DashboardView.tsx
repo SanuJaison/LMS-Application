@@ -381,7 +381,7 @@ export default function DashboardView() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 bg-emerald-500 rounded-sm" />
-              <span>Leads Won / Admitted</span>
+              <span>Leads Admitted / Closed</span>
             </div>
           </div>
           {!hasLeadTrend && (
