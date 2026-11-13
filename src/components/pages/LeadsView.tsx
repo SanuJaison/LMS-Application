@@ -434,8 +434,8 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       showToast?.('success', `${selectedIds.length} lead(s) deleted successfully!`);
       setSelectedIds([]);
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to delete selected leads.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to delete selected leads.');
     }
   };
 
@@ -480,8 +480,8 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
           : 'Lead deleted successfully!'
       );
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to delete lead.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to delete lead.');
     }
   };
 
@@ -610,8 +610,8 @@ export default function LeadsView({ showToast }: LeadsViewProps) {
       showToast?.('success', 'Lead updated successfully!');
       setEditingLead(null);
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to update lead.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to update lead.');
     } finally {
       setIsSaving(false);
     }

@@ -328,8 +328,8 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
 
       setCreateModalOpen(false);
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to save withdraw request.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to save withdraw request.');
     } finally {
       setIsSaving(false);
     }
@@ -346,8 +346,8 @@ export default function WalletWithdrawRequestsView({ showToast }: WalletWithdraw
       await deleteResourceItem('walletWithdrawRequests', id);
       showToast?.('success', 'Withdraw request deleted successfully!');
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to delete withdraw request.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to delete withdraw request.');
     }
   };
 

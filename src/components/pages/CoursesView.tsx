@@ -152,7 +152,7 @@ export default function CoursesView({ showToast }: CoursesViewProps) {
       await loadData();
     } catch (err) {
       console.error('Error saving course:', err);
-      showToast?.('danger', 'Something went wrong. Please try again.');
+      showToast?.('danger', (err as any)?.message || `Failed to ${editingItem ? 'update' : 'create'} course.`);
     } finally {
       setIsSaving(false);
     }

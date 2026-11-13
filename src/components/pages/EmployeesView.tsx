@@ -467,15 +467,27 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
       return;
     }
 
+    const isSaveSM = isSMDesignation(formData.designation, formData.employee_id);
+    const isSaveASM = isASMDesignation(formData.designation, formData.employee_id);
+    const isSaveOffice = isOfficeEmployee(editingEmployee || formData);
+    const roleLabel = isSaveSM
+      ? 'SM'
+      : isSaveASM
+      ? isSaveOffice
+        ? 'Office Team Lead'
+        : 'ASM'
+      : isSaveOffice
+      ? 'Office Team Member'
+      : 'BDE';
+
     try {
       setSaving(true);
 
       // SM/MD are top level: no district, zone or manager.
       const isTopLevel = isTopLevelDesignation(formData.designation, formData.employee_id);
-      const isSaveASM = isASMDesignation(formData.designation, formData.employee_id);
       const isSaveBDE =
         isBDEDesignation(formData.designation, formData.employee_id) &&
-        !isOfficeEmployee(editingEmployee || formData);
+        !isSaveOffice;
 
       if (isSaveBDE) {
         if (!formData.reports_to.trim()) {
@@ -545,16 +557,16 @@ export default function EmployeesView({ showToast }: EmployeesViewProps) {
 
       const json = await res.json();
       if (json.success) {
-        showToast?.('success', `Employee ${isEdit ? 'updated' : 'created'} successfully!`);
+        showToast?.('success', `${roleLabel} ${isEdit ? 'updated' : 'created'} successfully!`);
         setEditModalOpen(false);
         setEditingEmployee(null);
         fetchEmployees();
       } else {
-        showToast?.('danger', json.message || 'Failed to save employee');
+        showToast?.('danger', json.message || `Failed to ${isEdit ? 'update' : 'create'} ${roleLabel}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save employee error:', err);
-      showToast?.('danger', 'Failed to save employee');
+      showToast?.('danger', err?.message || `Failed to ${isEdit ? 'update' : 'create'} ${roleLabel}`);
     } finally {
       setSaving(false);
     }

@@ -361,8 +361,8 @@ export default function LeavesView({ showToast }: LeavesViewProps) {
       showToast?.('success', 'Leave record updated successfully!');
       setEditingLeave(null);
       await loadData();
-    } catch {
-      showToast?.('danger', 'Failed to update leave record.');
+    } catch (err: any) {
+      showToast?.('danger', err?.message || 'Failed to update leave record.');
     } finally {
       setIsSaving(false);
     }

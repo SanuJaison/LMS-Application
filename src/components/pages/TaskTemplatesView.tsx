@@ -340,12 +340,12 @@ export default function TaskTemplatesView({ showToast }: TaskTemplatesViewProps)
         await createResourceItem('employeeTasks', monthlyPayload);
       }
 
-      showToast?.('success', 'Target updated.');
+      showToast?.('success', 'SM target updated successfully!');
       setEditingGroup(null);
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update SM targets:', error);
-      showToast?.('danger', 'Failed to update SM targets.');
+      showToast?.('danger', error?.message || 'Failed to update SM targets.');
     } finally {
       setIsUpdating(false);
     }

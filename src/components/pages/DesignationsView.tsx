@@ -163,7 +163,7 @@ export default function DesignationsView({ showToast }: DesignationsViewProps) {
       await loadData();
     } catch (err) {
       console.error('Error saving designation:', err);
-      showToast?.('danger', 'Something went wrong. Please try again.');
+      showToast?.('danger', (err as any)?.message || `Failed to ${editingItem ? 'update' : 'create'} designation.`);
     } finally {
       setIsSaving(false);
     }

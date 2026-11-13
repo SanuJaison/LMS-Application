@@ -185,7 +185,7 @@ export default function DistrictsView({ showToast }: DistrictsViewProps) {
       await loadData();
     } catch (err) {
       console.error('Error saving district:', err);
-      showToast?.('danger', 'Something went wrong. Please try again.');
+      showToast?.('danger', (err as any)?.message || `Failed to ${editingItem ? 'update' : 'create'} district.`);
     } finally {
       setIsSaving(false);
     }
