@@ -22,7 +22,7 @@ import bcrypt from 'bcryptjs';
 function isSmEmployee(employee: any): boolean {
   const id = String(employee?.employee_id || '').trim().toUpperCase();
   const designation = String(employee?.designation || '').trim().toLowerCase();
-  if (designation.includes('area sales manager')) return false;
+  if (id.startsWith('ASM') || designation.includes('area sales manager')) return false;
   return (
     id.startsWith('SM') ||
     designation.includes('sales manager') ||
@@ -37,16 +37,17 @@ export async function GET(req: Request) {
 
     await connectDB();
 
-    const sm: any = await Employee.findOne({
+    const smCandidates: any[] = await Employee.find({
       $or: [
-        { designation: /sales manager/i },
-        { designation: /state manager/i },
+        { designation: /^(?:state\s+)?sales\s+manager$/i },
+        { designation: /^state\s+manager$/i },
         { employee_id: /^SM/i },
       ],
       status: 'active',
     })
       .select('-password')
       .lean();
+    const sm: any = smCandidates.find((emp) => isSmEmployee(emp)) || null;
 
     return NextResponse.json({
       success: true,
@@ -115,14 +116,15 @@ export async function POST(req: Request) {
     }
 
     // Rule: the organisation has exactly one Sales Manager.
-    const existingSm: any = await Employee.findOne({
+    const smCandidates: any[] = await Employee.find({
       $or: [
-        { designation: /sales manager/i },
-        { designation: /state manager/i },
+        { designation: /^(?:state\s+)?sales\s+manager$/i },
+        { designation: /^state\s+manager$/i },
         { employee_id: /^SM/i },
       ],
       status: 'active',
     }).lean();
+    const existingSm: any = smCandidates.find((emp) => isSmEmployee(emp)) || null;
 
     if (existingSm) {
       return NextResponse.json(

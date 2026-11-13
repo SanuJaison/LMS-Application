@@ -60,9 +60,11 @@ export async function POST(req: Request) {
       if (!supervisor) {
         supervisor = await Employee.findOne({
           $or: [
-            { designation: /sales manager/i },
+            { designation: /^(?:state\s+)?sales\s+manager$/i },
+            { designation: /^state\s+manager$/i },
             { employee_id: /^SM/i },
           ],
+          employee_id: { $not: /^ASM/i },
           status: 'active',
         }).lean();
       }

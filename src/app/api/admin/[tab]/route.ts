@@ -228,7 +228,7 @@ function isAsmEmployee(employee: any): boolean {
 function isSmEmployee(employee: any): boolean {
   const id = String(employee?.employee_id || '').trim().toUpperCase();
   const designation = String(employee?.designation || '').trim().toLowerCase();
-  if (designation.includes('area sales manager')) return false;
+  if (id.startsWith('ASM') || designation.includes('area sales manager')) return false;
   return id.startsWith('SM') || designation.includes('sales manager') || designation.includes('state manager');
 }
 
@@ -243,6 +243,8 @@ async function singleSmProblem(
 ): Promise<string | null> {
   const id = String(employeeId || '').trim().toUpperCase();
   const role = String(designation || '').trim().toLowerCase();
+  if (id.startsWith('ASM') || role.includes('area sales manager')) return null;
+
   const looksLikeSm =
     id.startsWith('SM') ||
     (role.includes('sales manager') && !role.includes('area sales manager')) ||
@@ -252,8 +254,8 @@ async function singleSmProblem(
 
   const query: Record<string, any> = {
     $or: [
-      { designation: /sales manager/i },
-      { designation: /state manager/i },
+      { designation: /^(?:state\s+)?sales\s+manager$/i },
+      { designation: /^state\s+manager$/i },
       { employee_id: /^SM/i },
     ],
     status: 'active',
@@ -262,9 +264,14 @@ async function singleSmProblem(
     query._id = { $ne: ignoreId };
   }
 
-  const existing: any = await Employee.findOne(query).lean();
+  const candidates: any[] = await Employee.find(query).lean();
+  const existing = candidates.find(
+    (emp) =>
+      isSmEmployee(emp) &&
+      !isAsmEmployee(emp) &&
+      String(emp.employee_id || '').trim().toUpperCase() !== id
+  );
   if (!existing) return null;
-  if (String(existing.employee_id || '').toUpperCase() === id) return null;
 
   return `A Sales Manager already exists (${existing.name} / ${existing.employee_id}). The organisation can have only one SM.`;
 }
@@ -613,8 +620,9 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
       );
     }
 
+    let existingEmp: any = null;
     if (params.tab === 'employees') {
-      const existingEmp: any = await Employee.findById(id).lean();
+      existingEmp = await Employee.findById(id).lean();
       const problem = await singleSmProblem(
         String(payload.employee_id ?? existingEmp?.employee_id ?? ''),
         String(payload.designation ?? existingEmp?.designation ?? ''),
@@ -664,6 +672,31 @@ export async function PUT(req: Request, { params }: { params: { tab: string } })
     }
 
     if (params.tab === 'employees') {
+      const updatedEmpId = String((updated as any).employee_id || '').trim();
+      const updatedName = String((updated as any).name || '').trim();
+      const oldName = String(existingEmp?.name || '').trim();
+
+      if (updatedEmpId && updatedName) {
+        await Promise.all([
+          Wallet.updateMany(
+            { employee_id: updatedEmpId },
+            { $set: { employee: updatedName } }
+          ),
+          EmployeeTask.updateMany(
+            { employee_id: updatedEmpId },
+            { $set: { employee: updatedName } }
+          ),
+          ...(oldName && oldName.toLowerCase() !== updatedName.toLowerCase()
+            ? [
+                Team.updateMany(
+                  { team_lead: new RegExp(`^${oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+                  { $set: { team_lead: updatedName } }
+                ),
+              ]
+            : []),
+        ]);
+      }
+
       const { dailyTarget, monthlyTarget, hasDaily, hasMonthly } = parseTargetInput(body);
       if (hasDaily || hasMonthly) {
         const synced = await syncEmployeeTargets(

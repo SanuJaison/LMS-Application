@@ -23,6 +23,9 @@ function matchesDesignation(empDesignation: string, templateDesignation: string)
   const tpl = (templateDesignation || '').toLowerCase().trim();
 
   if (emp === tpl) return true;
+  if ((emp.includes('area') !== tpl.includes('area')) && (emp.includes('sales manager') || tpl.includes('sales manager'))) {
+    return false;
+  }
   if (emp.includes(tpl) || tpl.includes(emp)) return true;
 
   // BDE / Business Development Executive
